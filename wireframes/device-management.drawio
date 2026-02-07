@@ -1,0 +1,480 @@
+<mxfile host="65bd71144e" modified="2026-02-07" agent="Copilot" etag="devices-v1" version="21.6.8" type="device">
+    <diagram id="device-management" name="Device Management">
+        <mxGraphModel dx="2074" dy="1156" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1400" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- Background -->
+                <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="0" y="0" width="1920" height="1400" as="geometry"/>
+                </mxCell>
+
+                <!-- Sidebar (same as dashboard) -->
+                <mxCell id="sidebar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;" vertex="1" parent="1">
+                    <mxGeometry x="0" y="0" width="240" height="1400" as="geometry"/>
+                </mxCell>
+                <mxCell id="logo" value="🛡️ IoT IDS" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="24" y="20" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="nav1" value="📊  Dashboard" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="24" y="100" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="nav2bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;arcSize=20;opacity=20;" vertex="1" parent="1">
+                    <mxGeometry x="12" y="144" width="216" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="nav2" value="📡  Devices" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontColor=#6366F1;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="24" y="149" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="nav3" value="📈  Traffic Monitor" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="24" y="200" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="nav4" value="⚔️  Attack Pipeline" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="24" y="245" width="180" height="34" as="geometry"/>
+                </mxCell>
+
+                <!-- Top Bar -->
+                <mxCell id="topbar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="0" width="1680" height="64" as="geometry"/>
+                </mxCell>
+                <mxCell id="pageTitle" value="Device Management" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=20;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="12" width="260" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="breadcrumb" value="Home / Devices" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="40" width="200" height="20" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== TOOLBAR ===== -->
+                <mxCell id="toolbar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;strokeWidth=0.5;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="84" width="1620" height="56" as="geometry"/>
+                </mxCell>
+
+                <!-- Search -->
+                <mxCell id="searchBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="96" width="300" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="searchIcon" value="🔍 Search devices by name or IP..." style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="300" y="98" width="280" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- Filters -->
+                <mxCell id="filterStatus" value="Status: All ▾" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=12;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="96" width="120" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="filterProtocol" value="Protocol: All ▾" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=12;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="760" y="96" width="130" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="filterType" value="Type: All ▾" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=12;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="910" y="96" width="110" height="32" as="geometry"/>
+                </mxCell>
+
+                <!-- View Toggle -->
+                <mxCell id="viewGrid" value="▦" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1660" y="96" width="36" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="viewList" value="☰" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=14;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1702" y="96" width="36" height="32" as="geometry"/>
+                </mxCell>
+
+                <!-- Add Device Button -->
+                <mxCell id="addDeviceBtn" value="+ Add Device" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1760" y="96" width="120" height="32" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== DEVICE CARDS GRID ===== -->
+
+                <!-- Card 1: Camera_01 (Online, Normal) -->
+                <mxCell id="dc1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;arcSize=6;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="160" width="380" height="280" as="geometry"/>
+                </mxCell>
+                <!-- Status indicator line at top -->
+                <mxCell id="dc1statusBar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#22C55E;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="160" width="380" height="3" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1icon" value="📷" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=32;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="175" width="48" height="48" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1name" value="Camera_01" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="345" y="175" width="160" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1statusBadge" value="● Online" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#22C55E;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="345" y="200" width="80" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1menu" value="⋮" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#64748B;" vertex="1" parent="1">
+                    <mxGeometry x="614" y="178" width="24" height="24" as="geometry"/>
+                </mxCell>
+
+                <!-- Device details -->
+                <mxCell id="dc1divider" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="228" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1ipLabel" value="IP Address" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="240" width="80" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1ipVal" value="192.168.1.101" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="256" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1protoLabel" value="Protocol" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="470" y="240" width="70" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1protoVal" value="MQTT" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="470" y="256" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1portLabel" value="Port" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="240" width="40" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1portVal" value="1883" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="256" width="60" height="20" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="dc1seenLabel" value="Last Seen" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="286" width="80" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1seenVal" value="2 seconds ago" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="302" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1threatLabel" value="Threats Today" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="470" y="286" width="100" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1threatVal" value="3" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F59E0B;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="470" y="302" width="40" height="20" as="geometry"/>
+                </mxCell>
+
+                <!-- Mini anomaly sparkline placeholder -->
+                <mxCell id="dc1sparkBg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="332" width="340" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1sparkLine" value="" style="endArrow=none;html=1;strokeColor=#6366F1;strokeWidth=1.5;curved=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="300" y="354" as="sourcePoint"/>
+                        <mxPoint x="620" y="348" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="340" y="350"/>
+                            <mxPoint x="380" y="345"/>
+                            <mxPoint x="420" y="352"/>
+                            <mxPoint x="460" y="340"/>
+                            <mxPoint x="500" y="348"/>
+                            <mxPoint x="540" y="342"/>
+                            <mxPoint x="580" y="350"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Action buttons -->
+                <mxCell id="dc1divider2" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="368" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1btnMonitor" value="📈 Monitor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#6366F1;fontColor=#6366F1;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="380" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1btnTest" value="⚔️ Test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#F59E0B;fontColor=#F59E0B;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="400" y="380" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1btnEdit" value="✏️ Edit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=11;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="490" y="380" width="70" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc1btnDelete" value="🗑️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#EF4444;fontSize=11;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="570" y="380" width="40" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- Card 2: Sensor_01 (Online) -->
+                <mxCell id="dc2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;arcSize=6;" vertex="1" parent="1">
+                    <mxGeometry x="670" y="160" width="380" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2statusBar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#22C55E;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="670" y="160" width="380" height="3" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2icon" value="🌡️" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=32;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="175" width="48" height="48" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2name" value="Sensor_01" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="745" y="175" width="160" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2status" value="● Online" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#22C55E;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="745" y="200" width="80" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2divider" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="228" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2ipVal" value="IP: 192.168.1.201 · CoAP · Port 5683" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="240" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2seenVal" value="Last seen: 5s ago · Threats: 0 today" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="265" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2sparkBg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="332" width="340" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2divider2" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="368" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2btnMonitor" value="📈 Monitor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#6366F1;fontColor=#6366F1;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="690" y="380" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2btnTest" value="⚔️ Test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#F59E0B;fontColor=#F59E0B;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="800" y="380" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2btnEdit" value="✏️ Edit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=11;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="890" y="380" width="70" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc2btnDelete" value="🗑️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#EF4444;fontSize=11;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="380" width="40" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- Card 3: Camera_02 (Under Attack!) -->
+                <mxCell id="dc3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#EF4444;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+                    <mxGeometry x="1070" y="160" width="380" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3statusBar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1070" y="160" width="380" height="3" as="geometry"/>
+                </mxCell>
+                <!-- Pulsing alert badge -->
+                <mxCell id="dc3alertBadge" value="⚠ UNDER ATTACK" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=10;fontFamily=Inter;fontStyle=1;arcSize=30;opacity=90;" vertex="1" parent="1">
+                    <mxGeometry x="1310" y="170" width="120" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3icon" value="📷" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=32;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="175" width="48" height="48" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3name" value="Camera_02" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1145" y="175" width="160" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3status" value="● Under Attack" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#EF4444;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1145" y="200" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3divider" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="228" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3ipVal" value="IP: 192.168.1.102 · HTTP · Port 8080" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="240" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3seenVal" value="Last seen: 1s ago · Threats: 12 today" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#EF4444;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="265" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <!-- Attack sparkline (spiking) -->
+                <mxCell id="dc3sparkBg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="332" width="340" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3sparkLine" value="" style="endArrow=none;html=1;strokeColor=#EF4444;strokeWidth=1.5;curved=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="354" as="sourcePoint"/>
+                        <mxPoint x="1420" y="336" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1140" y="350"/>
+                            <mxPoint x="1180" y="345"/>
+                            <mxPoint x="1220" y="338"/>
+                            <mxPoint x="1260" y="342"/>
+                            <mxPoint x="1300" y="335"/>
+                            <mxPoint x="1340" y="340"/>
+                            <mxPoint x="1380" y="334"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="dc3divider2" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="368" width="340" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3btnMonitor" value="📈 Monitor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="380" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3btnTest" value="⚔️ Test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#F59E0B;fontColor=#F59E0B;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1200" y="380" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc3btnBlock" value="🛡 Block" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#EF4444;fontColor=#EF4444;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1290" y="380" width="80" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- Card 4: Gateway_01 (Quarantined) -->
+                <mxCell id="dc4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+                    <mxGeometry x="1470" y="160" width="420" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4statusBar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1470" y="160" width="420" height="3" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4alertBadge" value="🟡 QUARANTINED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;fontColor=#0F172A;fontSize=10;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1740" y="170" width="130" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4icon" value="🌐" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=32;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="175" width="48" height="48" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4name" value="Gateway_01" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1545" y="175" width="160" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4status" value="● Quarantined" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F59E0B;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1545" y="200" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4divider" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="228" width="380" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4ipVal" value="IP: 192.168.1.1 · TCP · Port 8443" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="240" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4seenVal" value="Quarantined 30s ago · 5 threats blocked" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F59E0B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="265" width="340" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4divider2" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="368" width="380" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4btnRelease" value="🔓 Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#22C55E;fontColor=#22C55E;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="380" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="dc4btnMonitor" value="📈 Monitor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#6366F1;fontColor=#6366F1;fontSize=11;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1600" y="380" width="100" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== PAGINATION ===== -->
+                <mxCell id="pagination" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="270" y="460" width="1620" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="pageInfo" value="Showing 4 of 12 devices" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="468" width="200" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="pagePrev" value="◀" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=12;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1740" y="466" width="32" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="page1" value="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontFamily=Inter;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1778" y="466" width="32" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="page2" value="2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=12;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1816" y="466" width="32" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="page3" value="3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=12;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1854" y="466" width="32" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== ADD DEVICE MODAL ===== -->
+                <!-- Modal Overlay -->
+                <mxCell id="modalOverlay" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;strokeColor=none;opacity=50;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="520" width="1680" height="860" as="geometry"/>
+                </mxCell>
+
+                <!-- Modal Container -->
+                <mxCell id="modal" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;arcSize=4;shadow=1;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="550" width="800" height="780" as="geometry"/>
+                </mxCell>
+
+                <!-- Modal Header -->
+                <mxCell id="modalHeader" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="550" width="800" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="modalTitle" value="Add New IoT Device" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="585" y="560" width="260" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="modalClose" value="✕" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=14;arcSize=50;" vertex="1" parent="1">
+                    <mxGeometry x="1320" y="566" width="28" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- Form Fields -->
+                <!-- Device Name -->
+                <mxCell id="formLabel1" value="Device Name *" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="630" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formInput1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="654" width="740" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="formPlaceholder1" value="e.g., Camera_03" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#475569;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="606" y="660" width="200" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- Device Type + IP (side by side) -->
+                <mxCell id="formLabel2" value="Device Type *" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="710" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formSelect1" value="Camera ▾" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#F8FAFC;fontSize=12;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="734" width="350" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="formLabel3" value="IP Address *" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="710" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formInput3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="734" width="360" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="formPlaceholder3" value="192.168.1.___" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#475569;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="986" y="740" width="200" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- Protocol + Port -->
+                <mxCell id="formLabel4" value="Protocol *" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="790" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formSelect2" value="MQTT ▾" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#F8FAFC;fontSize=12;fontFamily=Inter;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="814" width="350" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="formLabel5" value="Port *" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="790" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formInput5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="814" width="360" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="formPlaceholder5" value="1883" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#475569;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="986" y="820" width="80" height="28" as="geometry"/>
+                </mxCell>
+
+                <!-- Traffic Source -->
+                <mxCell id="formLabel6" value="Traffic Source" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="874" width="140" height="20" as="geometry"/>
+                </mxCell>
+                <!-- Radio Cards -->
+                <mxCell id="radio1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#6366F1;strokeWidth=2;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="900" width="230" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio1dot" value="◉" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];fontSize=14;fontColor=#6366F1;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="908" width="20" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio1label" value="Live Capture" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="622" y="906" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio1desc" value="Sniff network interface" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="622" y="926" width="180" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="radio2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="840" y="900" width="230" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio2dot" value="○" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];fontSize=14;fontColor=#64748B;" vertex="1" parent="1">
+                    <mxGeometry x="850" y="908" width="20" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio2label" value="PCAP Upload" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="872" y="906" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio2desc" value="Upload .pcap file" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="872" y="926" width="180" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="radio3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1090" y="900" width="240" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio3dot" value="○" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];fontSize=14;fontColor=#64748B;" vertex="1" parent="1">
+                    <mxGeometry x="1100" y="908" width="20" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio3label" value="Simulated" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1122" y="906" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="radio3desc" value="Synthetic traffic generator" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1122" y="926" width="180" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- Description -->
+                <mxCell id="formLabel7" value="Description (optional)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="990" width="200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="formTextarea" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;arcSize=6;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="1014" width="740" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="formPlaceholder7" value="Add a description for this device..." style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];fontSize=12;fontColor=#475569;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="606" y="1024" width="280" height="20" as="geometry"/>
+                </mxCell>
+
+                <!-- Modal Footer Buttons -->
+                <mxCell id="modalDivider" value="" style="line;strokeColor=#334155;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="1110" width="740" height="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="btnCancel" value="Cancel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#94A3B8;fontSize=14;fontFamily=Inter;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1110" y="1130" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="btnAddDevice" value="✅ Add Device" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="1220" y="1130" width="140" height="40" as="geometry"/>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
