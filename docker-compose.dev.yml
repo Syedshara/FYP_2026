@@ -1,0 +1,163 @@
+services:
+  # ═══════════════════════════════════════════════
+  #  1. PostgreSQL Database
+  # ═══════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: iot_ids_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iot_ids}
+      POSTGRES_USER: ${POSTGRES_USER:-iot_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_secure_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iot_admin} -d ${POSTGRES_DB:-iot_ids}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════
+  #  2. Redis Cache / Pub-Sub / Celery Broker
+  # ═══════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: iot_ids_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════
+  #  3. FastAPI Backend
+  # ═══════════════════════════════════════════════
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot_ids_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+    volumes:
+      - ./backend:/app                   # Hot-reload source code
+      - ./model:/app/models              # Model .pt + .pkl files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════
+  #  4. Flower FL Server
+  # ═══════════════════════════════════════════════
+  fl_server:
+    build:
+      context: ./fl_server
+      dockerfile: Dockerfile
+    container_name: iot_ids_fl_server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      ROUNDS: ${FL_ROUNDS:-5}
+      MIN_CLIENTS: ${FL_MIN_CLIENTS:-2}
+      USE_HE: ${FL_USE_HE:-true}
+    volumes:
+      - ./fl_server:/app
+      - ./fl_common:/fl_common
+      - ./model:/app/models
+    depends_on:
+      - backend
+    profiles:
+      - fl
+
+  # ═══════════════════════════════════════════════
+  #  5. FL Client A (Bank_A)
+  # ═══════════════════════════════════════════════
+  fl_client_a:
+    build:
+      context: ./fl_client
+      dockerfile: Dockerfile
+    container_name: iot_ids_fl_client_a
+    restart: "no"
+    environment:
+      CLIENT_ID: Bank_A
+      FL_SERVER_URL: fl_server:8080
+      DATA_PATH: /app/data
+    volumes:
+      - ./fl_client:/app
+      - ./fl_common:/fl_common
+      - ./data/clients/bank_a:/app/data:ro
+      - ./model:/app/models:ro
+    depends_on:
+      - fl_server
+    profiles:
+      - fl
+
+  # ═══════════════════════════════════════════════
+  #  6. FL Client B (Bank_B)
+  # ═══════════════════════════════════════════════
+  fl_client_b:
+    build:
+      context: ./fl_client
+      dockerfile: Dockerfile
+    container_name: iot_ids_fl_client_b
+    restart: "no"
+    environment:
+      CLIENT_ID: Bank_B
+      FL_SERVER_URL: fl_server:8080
+      DATA_PATH: /app/data
+    volumes:
+      - ./fl_client:/app
+      - ./fl_common:/fl_common
+      - ./data/clients/bank_b:/app/data:ro
+      - ./model:/app/models:ro
+    depends_on:
+      - fl_server
+    profiles:
+      - fl
+
+  # ═══════════════════════════════════════════════
+  #  7. FL Client C (Bank_C)
+  # ═══════════════════════════════════════════════
+  fl_client_c:
+    build:
+      context: ./fl_client
+      dockerfile: Dockerfile
+    container_name: iot_ids_fl_client_c
+    restart: "no"
+    environment:
+      CLIENT_ID: Bank_C
+      FL_SERVER_URL: fl_server:8080
+      DATA_PATH: /app/data
+    volumes:
+      - ./fl_client:/app
+      - ./fl_common:/fl_common
+      - ./data/clients/bank_c:/app/data:ro
+      - ./model:/app/models:ro
+    depends_on:
+      - fl_server
+    profiles:
+      - fl
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  default:
+    name: iot_ids_network

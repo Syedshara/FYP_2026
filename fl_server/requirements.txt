@@ -1,0 +1,7 @@
+flwr==1.13.1
+torch==2.5.1
+tenseal==0.3.15
+numpy==1.26.4
+scikit-learn==1.6.1
+httpx==0.28.1
+python-dotenv==1.0.1

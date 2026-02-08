@@ -1,0 +1,37 @@
+[
+  {
+    "round": 1,
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 0.1555187702178955
+  },
+  {
+    "round": 2,
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 0.12234115600585938
+  },
+  {
+    "round": 3,
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 0.1433703899383545
+  },
+  {
+    "round": 4,
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 0.14684534072875977
+  },
+  {
+    "round": 5,
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 0.13964343070983887
+  }
+]

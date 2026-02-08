@@ -1,0 +1,706 @@
+<mxfile host="65bd71144e" modified="2026-02-07" agent="Copilot" etag="container-arch-v1" version="21.6.8" type="device">
+    <diagram id="container-arch" name="Container Architecture">
+        <mxGraphModel dx="2074" dy="1156" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1400" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- Background -->
+                <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="0" y="0" width="1920" height="1400" as="geometry"/>
+                </mxCell>
+
+                <!-- Title -->
+                <mxCell id="title" value="IoT IDS Platform - Docker Compose Container Architecture" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=24;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="20" width="1000" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="subtitle" value="10 containers | docker-compose.yml | Production Deployment Topology" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="56" width="1000" height="22" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== DOCKER COMPOSE BOUNDARY ===== -->
+                <mxCell id="dockerBoundary" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#3B82F6;strokeWidth=3;dashed=1;dashPattern=12 6;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="100" width="1840" height="1260" as="geometry"/>
+                </mxCell>
+                <mxCell id="dockerLabel" value="docker-compose.yml" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontColor=#3B82F6;fontFamily=JetBrains Mono;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="108" width="250" height="22" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== NETWORK: iot-ids-net ===== -->
+                <mxCell id="networkLabel" value="network: iot-ids-net (bridge)" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#475569;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1560" y="108" width="300" height="22" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- ROW 1: EXTERNAL FACING (Frontend + Nginx + Backend)         -->
+                <!-- =========================================================== -->
+
+                <!-- FRONTEND Container -->
+                <mxCell id="fe" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#6366F1;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="160" width="400" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="feTitle" value="frontend" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="170" width="160" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="feBadge" value="container 1" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="170" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="feImage" value="build: ./frontend" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="200" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="fePort" value=":3000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="228" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack1" value="React 18" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="272" width="80" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack2" value="Vite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="190" y="272" width="50" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack3" value="TypeScript" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="250" y="272" width="90" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack4" value="Tailwind" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="272" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack5" value="Socket.IO Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="306" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack6" value="Recharts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="230" y="306" width="80" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="feStack7" value="Zustand" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="320" y="306" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="fePages" value="6 pages: Dashboard | Devices | Traffic | Attack Pipeline | FL Monitor | Prevention" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="344" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="feNote" value="Served via Nginx" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#F59E0B;fontFamily=Inter;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="366" width="120" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- NGINX Container -->
+                <mxCell id="nginx" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#22C55E;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="540" y="160" width="320" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxTitle" value="nginx" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="170" width="100" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxBadge" value="container 2" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#22C55E;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="740" y="170" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxImage" value="image: nginx:1.25-alpine" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="200" width="240" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxPort" value=":80 / :443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#22C55E;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="228" width="110" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRole1" value="Reverse Proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="272" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRole2" value="Static Files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="670" y="272" width="90" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRole3" value="SSL/TLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="770" y="272" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRoute1" value="/ → frontend:3000" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="310" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRoute2" value="/api → backend:8000" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="330" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxRoute3" value="/ws → backend:8000 (upgrade)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#22C55E;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="350" width="260" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginxLabel" value="Entry Point (Host Port 80)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#22C55E;fontFamily=Inter;fontStyle=3;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="378" width="200" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- BACKEND Container -->
+                <mxCell id="be" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="920" y="160" width="460" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="beTitle" value="backend" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="170" width="120" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="beBadge" value="container 3" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1260" y="170" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="beImage" value="build: ./backend" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="200" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="bePort" value=":8000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;fontColor=#0F172A;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="228" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack1" value="FastAPI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="272" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack2" value="Uvicorn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1020" y="272" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack3" value="SQLAlchemy 2.0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1100" y="272" width="110" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack4" value="PyTorch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1220" y="272" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack5" value="Socket.IO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="306" width="80" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack6" value="SHAP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1030" y="306" width="60" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack7" value="Celery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1100" y="306" width="60" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beStack8" value="Alembic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1170" y="306" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="beRouters" value="12 API routers | 60+ endpoints | JWT auth | WebSocket stream" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="344" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="beVolume" value="vol: ./models:/app/models" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#F59E0B;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="940" y="366" width="240" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- CELERY WORKER Container -->
+                <mxCell id="cw" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=2;arcSize=5;strokeDasharray=8 4;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="160" width="420" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTitle" value="celery_worker" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="170" width="180" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwBadge" value="container 4" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1740" y="170" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwImage" value="build: ./backend (same image)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="200" width="260" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwCmd" value="cmd: celery -A app.worker worker" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="220" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask1" value="Report Generation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="252" width="130" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask2" value="Batch Predictions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1600" y="252" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask3" value="PCAP Processing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1730" y="252" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask4" value="Data Cleanup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="288" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask5" value="CSV/PDF Export" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1570" y="288" width="110" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwTask6" value="Email Alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1690" y="288" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="cwNote" value="Async background tasks via Redis broker" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="330" width="280" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- ROW 2: DATA LAYER (PostgreSQL + Redis)                      -->
+                <!-- =========================================================== -->
+
+                <!-- Data Layer Container -->
+                <mxCell id="dataLayerBound" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#334155;strokeWidth=1;dashed=1;dashPattern=6 4;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="450" width="880" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="dataLayerLabel" value="DATA LAYER" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#475569;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="458" width="120" height="18" as="geometry"/>
+                </mxCell>
+
+                <!-- POSTGRESQL Container -->
+                <mxCell id="pg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#3B82F6;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="490" width="400" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgTitle" value="postgres" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="500" width="120" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgBadge" value="container 5" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#3B82F6;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="380" y="500" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgImage" value="image: postgres:16-alpine" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="530" width="240" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgPort" value=":5432" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3B82F6;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="558" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgDb" value="DB: iot_ids" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#3B82F6;fontFamily=JetBrains Mono;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="562" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT1" value="devices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="600" width="70" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT2" value="traffic_logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="198" y="600" width="90" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT3" value="predictions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="296" y="600" width="85" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT4" value="alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="389" y="600" width="55" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT5" value="attack_sessions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="630" width="110" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT6" value="attack_steps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="238" y="630" width="95" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT7" value="prevention_rules" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="341" y="630" width="115" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT8" value="prevention_logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="660" width="105" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT9" value="fl_rounds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="233" y="660" width="80" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT10" value="fl_client_metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="321" y="660" width="115" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT11" value="users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="690" width="55" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgT12" value="system_settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=9;fontFamily=JetBrains Mono;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="183" y="690" width="110" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="pgVol" value="vol: pgdata:/var/lib/postgresql/data" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#3B82F6;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="310" y="694" width="280" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- REDIS Container -->
+                <mxCell id="rd" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#EF4444;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="540" y="490" width="400" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdTitle" value="redis" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="500" width="80" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdBadge" value="container 6" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#EF4444;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="820" y="500" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdImage" value="image: redis:7-alpine" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="530" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdPort" value=":6379" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="558" width="80" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdRole1" value="Celery Broker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="602" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdRole2" value="Pub/Sub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="670" y="602" width="70" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdRole3" value="Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="750" y="602" width="60" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdRole4" value="Session Store" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="820" y="602" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdChannels" value="Channels: predictions:{device_id} | alerts:new | devices:status" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#EF4444;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="640" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="rdWs" value="WebSocket fan-out to connected clients" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="660" width="300" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- ROW 3: FL LAYER (Flower Server + 3 Clients)                 -->
+                <!-- =========================================================== -->
+
+                <!-- FL Layer Boundary -->
+                <mxCell id="flBound" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#A855F7;strokeWidth=2;dashed=1;dashPattern=8 4;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="780" width="1780" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="flBoundLabel" value="FEDERATED LEARNING LAYER  |  Flower Framework + CKKS Homomorphic Encryption" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#A855F7;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="788" width="560" height="18" as="geometry"/>
+                </mxCell>
+
+                <!-- FL SERVER Container -->
+                <mxCell id="fls" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=2;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="820" width="440" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsTitle" value="fl_server" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=18;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="830" width="140" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsBadge" value="container 7" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="420" y="830" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsImage" value="build: ./fl_server" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="860" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsPort" value=":8080 (gRPC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A855F7;strokeColor=none;fontColor=#FFFFFF;fontSize=13;fontFamily=JetBrains Mono;fontStyle=1;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="886" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsComp1" value="Flower Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="930" width="110" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsComp2" value="FedAvg Strategy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="930" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsComp3" value="CKKS Decrypt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#A855F7;fontColor=#A855F7;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="370" y="930" width="110" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsComp4" value="Round Manager" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="964" width="110" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsComp5" value="Model Checkpointing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="964" width="150" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsFlow" value="N rounds: receive encrypted updates -> decrypt -> FedAvg -> distribute global model" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="1000" width="400" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flsVol" value="vol: ./models:/app/models" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="1024" width="240" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- FL CLIENT A -->
+                <mxCell id="flca" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=1;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="820" width="380" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaTitle" value="fl_client_a (Bank_A)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="830" width="240" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaBadge" value="container 8" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="860" y="830" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaImage" value="build: ./fl_client" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="856" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaEnv" value="CLIENT_ID=Bank_A" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="876" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaComp1" value="Flower Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="904" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaComp2" value="CNN-LSTM Trainer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="730" y="904" width="130" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaComp3" value="CKKS Encrypt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#A855F7;fontColor=#A855F7;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="940" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaComp4" value="TenSEAL Context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="730" y="940" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaData" value="vol: ./data/clients/bank_a:/app/data" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="980" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcaFlow" value="Train local -> CKKS encrypt LSTM+FC -> send via gRPC" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="1004" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- FL CLIENT B -->
+                <mxCell id="flcb" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=1;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="1020" y="820" width="380" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbTitle" value="fl_client_b (Bank_B)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="830" width="240" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbBadge" value="container 9" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1280" y="830" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbImage" value="build: ./fl_client" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="856" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbEnv" value="CLIENT_ID=Bank_B" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="876" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbComp1" value="Flower Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="904" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbComp2" value="CNN-LSTM Trainer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1150" y="904" width="130" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbComp3" value="CKKS Encrypt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#A855F7;fontColor=#A855F7;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="940" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbComp4" value="TenSEAL Context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1150" y="940" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbData" value="vol: ./data/clients/bank_b:/app/data" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="980" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flcbFlow" value="Train local -> CKKS encrypt LSTM+FC -> send via gRPC" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1040" y="1004" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- FL CLIENT C -->
+                <mxCell id="flcc" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=1;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="820" width="400" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccTitle" value="fl_client_c (Bank_C)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=16;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="830" width="240" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccBadge" value="container 10" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1720" y="830" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccImage" value="build: ./fl_client" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="856" width="180" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccEnv" value="CLIENT_ID=Bank_C" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="876" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccComp1" value="Flower Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="904" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccComp2" value="CNN-LSTM Trainer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1570" y="904" width="130" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccComp3" value="CKKS Encrypt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#A855F7;fontColor=#A855F7;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="940" width="100" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccComp4" value="TenSEAL Context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#94A3B8;fontSize=10;fontFamily=Inter;arcSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="1570" y="940" width="120" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccData" value="vol: ./data/clients/bank_c:/app/data" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="980" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="flccFlow" value="Train local -> CKKS encrypt LSTM+FC -> send via gRPC" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1004" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- CONNECTION ARROWS                                           -->
+                <!-- =========================================================== -->
+
+                <!-- Frontend -> Nginx -->
+                <mxCell id="arrFeNg" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#22C55E;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="480" y="280" as="sourcePoint"/>
+                        <mxPoint x="540" y="280" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Nginx -> Backend -->
+                <mxCell id="arrNgBe" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="860" y="280" as="sourcePoint"/>
+                        <mxPoint x="920" y="280" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrNgBeLabel" value="HTTP / WS" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#F59E0B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="860" y="258" width="70" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- Backend -> Celery Worker -->
+                <mxCell id="arrBeCw" value="" style="endArrow=classic;html=1;strokeColor=#EF4444;strokeWidth=2;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1380" y="280" as="sourcePoint"/>
+                        <mxPoint x="1440" y="280" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrBeCwLabel" value="via Redis" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#EF4444;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1384" y="258" width="60" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- Backend -> PostgreSQL -->
+                <mxCell id="arrBePg" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1000" y="400" as="sourcePoint"/>
+                        <mxPoint x="300" y="490" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1000" y="445"/>
+                            <mxPoint x="300" y="445"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrBePgLabel" value="asyncpg (SQL)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#3B82F6;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="590" y="430" width="100" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- Backend -> Redis -->
+                <mxCell id="arrBeRd" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#EF4444;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="400" as="sourcePoint"/>
+                        <mxPoint x="740" y="490" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1100" y="465"/>
+                            <mxPoint x="740" y="465"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrBeRdLabel" value="Redis Pub/Sub + Broker" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#EF4444;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="840" y="450" width="140" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- Celery -> Redis -->
+                <mxCell id="arrCwRd" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#EF4444;strokeWidth=2;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1600" y="400" as="sourcePoint"/>
+                        <mxPoint x="900" y="490" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1600" y="478"/>
+                            <mxPoint x="900" y="478"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Celery -> PostgreSQL -->
+                <mxCell id="arrCwPg" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#3B82F6;strokeWidth=1;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1500" y="400" as="sourcePoint"/>
+                        <mxPoint x="400" y="490" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1500" y="440"/>
+                            <mxPoint x="400" y="440"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Backend -> FL Server (gRPC) -->
+                <mxCell id="arrBeFL" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#A855F7;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1150" y="400" as="sourcePoint"/>
+                        <mxPoint x="320" y="820" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1150" y="760"/>
+                            <mxPoint x="320" y="760"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrBeFLLabel" value="HTTP trigger (start training)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="744" width="200" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- FL Server -> Client A (gRPC) -->
+                <mxCell id="arrFLa" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="540" y="940" as="sourcePoint"/>
+                        <mxPoint x="600" y="940" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrFLaLabel" value="gRPC" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="546" y="922" width="40" height="12" as="geometry"/>
+                </mxCell>
+
+                <!-- FL Server -> Client B (gRPC) -->
+                <mxCell id="arrFLb" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="540" y="960" as="sourcePoint"/>
+                        <mxPoint x="1020" y="960" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="560" y="1060"/>
+                            <mxPoint x="1000" y="1060"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrFLbLabel" value="gRPC" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="760" y="1048" width="40" height="12" as="geometry"/>
+                </mxCell>
+
+                <!-- FL Server -> Client C (gRPC) -->
+                <mxCell id="arrFLc" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="540" y="970" as="sourcePoint"/>
+                        <mxPoint x="1440" y="970" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="560" y="1070"/>
+                            <mxPoint x="1420" y="1070"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrFLcLabel" value="gRPC" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#A855F7;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1000" y="1060" width="40" height="12" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- LEGEND                                                      -->
+                <!-- =========================================================== -->
+                <mxCell id="legendBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1120" width="1780" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="legendTitle" value="Container Inventory" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="1128" width="200" height="22" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="invRow1" value="1. frontend :3000  |  2. nginx :80/:443  |  3. backend :8000  |  4. celery_worker  |  5. postgres :5432" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="1156" width="800" height="18" as="geometry"/>
+                </mxCell>
+                <mxCell id="invRow2" value="6. redis :6379  |  7. fl_server :8080 (gRPC)  |  8. fl_client_a  |  9. fl_client_b  |  10. fl_client_c" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="1180" width="800" height="18" as="geometry"/>
+                </mxCell>
+
+                <!-- Protocol Legend -->
+                <mxCell id="protLeg1" value="" style="endArrow=none;html=1;strokeColor=#F59E0B;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="1166" as="sourcePoint"/>
+                        <mxPoint x="1140" y="1166" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="protLeg1L" value="HTTP/REST" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1148" y="1158" width="80" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="protLeg2" value="" style="endArrow=none;html=1;strokeColor=#22C55E;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1260" y="1166" as="sourcePoint"/>
+                        <mxPoint x="1300" y="1166" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="protLeg2L" value="WebSocket" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1308" y="1158" width="80" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="protLeg3" value="" style="endArrow=none;html=1;strokeColor=#3B82F6;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1420" y="1166" as="sourcePoint"/>
+                        <mxPoint x="1460" y="1166" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="protLeg3L" value="SQL (asyncpg)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1468" y="1158" width="100" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="protLeg4" value="" style="endArrow=none;html=1;strokeColor=#EF4444;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="1190" as="sourcePoint"/>
+                        <mxPoint x="1140" y="1190" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="protLeg4L" value="Redis Pub/Sub" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1148" y="1182" width="100" height="16" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="protLeg5" value="" style="endArrow=none;html=1;strokeColor=#A855F7;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1280" y="1190" as="sourcePoint"/>
+                        <mxPoint x="1320" y="1190" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="protLeg5L" value="gRPC (FL)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1328" y="1182" width="80" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- Volumes Legend -->
+                <mxCell id="volLegTitle" value="Named Volumes:" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1500" y="1158" width="120" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="volLeg1" value="pgdata  |  ./models  |  ./data  |  ./data/clients/*" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1500" y="1180" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- External User -->
+                <mxCell id="user" value="Users / Browser" style="shape=mxgraph.basic.cloud;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=#475569;fontColor=#F8FAFC;fontSize=12;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1020" y="450" width="180" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrUserNg" value="" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#22C55E;strokeWidth=3;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1060" y="450" as="sourcePoint"/>
+                        <mxPoint x="760" y="400" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="900" y="428"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrUserNgLabel" value="Host :80" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#22C55E;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="880" y="410" width="60" height="14" as="geometry"/>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

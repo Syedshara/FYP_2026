@@ -1,0 +1,715 @@
+<mxfile host="65bd71144e" modified="2026-02-07" agent="Copilot" etag="db-schema-v1" version="21.6.8" type="device">
+    <diagram id="db-schema" name="Database ER Schema">
+        <mxGraphModel dx="2074" dy="1156" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1600" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- Background -->
+                <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="0" y="0" width="2200" height="1600" as="geometry"/>
+                </mxCell>
+
+                <!-- Title -->
+                <mxCell id="title" value="IoT IDS Platform - Database Entity Relationship Diagram" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=24;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="20" width="1000" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="subtitle" value="PostgreSQL 16 | SQLAlchemy 2.0 (async) | Alembic Migrations | 12 Tables" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#64748B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="56" width="1000" height="22" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: devices (Central Entity)                             -->
+                <!-- =========================================================== -->
+                <mxCell id="tDevices" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#6366F1;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="120" width="360" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevicesHeader" value="devices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6366F1;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="120" width="360" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC1" value="id            UUID         PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="162" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC2" value="name          VARCHAR(100) NOT NULL UNIQUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="182" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC3" value="device_type   ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="202" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC3a" value="(camera|sensor|gateway|actuator|smart_plug|custom)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="96" y="218" width="320" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC4" value="ip_address    INET         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="236" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC5" value="protocol      ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="256" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC5a" value="(mqtt|coap|http|tcp|udp)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="96" y="272" width="200" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC6" value="port          INTEGER      NOT NULL [1-65535]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="290" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC7" value="status        ENUM         DEFAULT offline" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="310" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC7a" value="(online|offline|quarantined|under_attack)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="96" y="326" width="280" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC8" value="traffic_source ENUM        DEFAULT simulated" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="344" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC9" value="description   TEXT         NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="364" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC10" value="last_seen_at  TIMESTAMPTZ  NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="384" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC11" value="threat_count  INTEGER      DEFAULT 0" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="404" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC12" value="created_at    TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="428" width="320" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tDevC13" value="updated_at    TIMESTAMPTZ  auto-update" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="448" width="320" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: traffic_logs                                          -->
+                <!-- =========================================================== -->
+                <mxCell id="tTraffic" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#22C55E;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="120" width="380" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrafficHeader" value="traffic_logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#22C55E;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="120" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC1" value="id            BIGSERIAL    PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="162" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC2" value="device_id     UUID         FK -> devices.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="182" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC3" value="timestamp     TIMESTAMPTZ  NOT NULL, indexed" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="202" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC4" value="features      JSONB        NOT NULL (78-dim)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="222" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC5" value="raw_packet_hash VARCHAR(64) NULLABLE (SHA-256)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="242" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC6" value="source_type   ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="262" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC6a" value="(live|pcap|simulated|attack_sim)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="536" y="278" width="240" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC7" value="flow_index    INTEGER      NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="296" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrC8" value="metadata      JSONB        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="316" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tTrNote" value="High volume - partitioned by timestamp" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=Inter;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="376" width="240" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: predictions                                           -->
+                <!-- =========================================================== -->
+                <mxCell id="tPred" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="120" width="400" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPredHeader" value="predictions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;fontColor=#0F172A;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="120" width="400" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC1" value="id                BIGSERIAL    PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="162" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC2" value="device_id         UUID         FK -> devices.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="182" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC3" value="traffic_log_id    BIGINT       FK -> traffic_logs.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#22C55E;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="202" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC4" value="score             FLOAT        NOT NULL [0.0-1.0]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#EF4444;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="222" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC5" value="label             ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="242" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC5a" value="(benign|attack)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="996" y="258" width="120" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC6" value="confidence        FLOAT        NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="276" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC7" value="model_version     VARCHAR(100) NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="296" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC8" value="window_start_idx  BIGINT       NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="316" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC9" value="window_end_idx    BIGINT       NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="336" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC10" value="feature_importance JSONB       NULLABLE (SHAP)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="356" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC11" value="inference_latency FLOAT        NOT NULL (ms)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="376" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrC12" value="timestamp         TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="396" width="360" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: alerts                                                -->
+                <!-- =========================================================== -->
+                <mxCell id="tAlerts" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#EF4444;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="120" width="380" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlertsHeader" value="alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="120" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC1" value="id               BIGSERIAL    PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="162" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC2" value="device_id        UUID         FK -> devices.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="182" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC3" value="prediction_id    BIGINT       FK -> predictions.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="202" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC4" value="alert_type       ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="222" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC4a" value="(threshold_breach|sustained_attack|new_attack_type|device_quarantined)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=7;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1476" y="238" width="340" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC5" value="severity         ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="256" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC5a" value="(low|medium|high|critical)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1476" y="272" width="200" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC6" value="message          TEXT         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="290" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC7" value="is_acknowledged  BOOLEAN      DEFAULT FALSE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="310" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC8" value="acknowledged_by  UUID         FK -> users.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="330" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC9" value="action_taken     VARCHAR(100) NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="350" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAlC10" value="timestamp        TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="370" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: attack_sessions                                       -->
+                <!-- =========================================================== -->
+                <mxCell id="tAtkSess" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#EF4444;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="540" width="380" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAtkSessHeader" value="attack_sessions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="540" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC1" value="id               UUID         PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="582" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC2" value="device_id        UUID         FK -> devices.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="602" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC3" value="pipeline_config  JSONB        NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="622" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC4" value="status           ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="642" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC4a" value="(pending|running|paused|completed|failed)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="96" y="658" width="280" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC5" value="progress_pct     FLOAT        DEFAULT 0 [0-100]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="676" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC6" value="current_step     INTEGER      NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="696" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC7" value="results          JSONB        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="716" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC8" value="started_at       TIMESTAMPTZ  NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="736" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC9" value="completed_at     TIMESTAMPTZ  NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="756" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC10" value="created_by       UUID         FK -> users.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="776" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAsC11" value="created_at       TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="796" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: attack_steps                                          -->
+                <!-- =========================================================== -->
+                <mxCell id="tAtkSteps" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#EF4444;strokeWidth=1;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="540" width="380" height="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="tAtkStepsHeader" value="attack_steps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;opacity=80;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="540" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC1" value="id                  UUID       PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="582" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC2" value="session_id          UUID       FK -> attack_sessions.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#EF4444;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="602" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC2a" value="ON DELETE CASCADE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="536" y="618" width="160" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC3" value="step_order          INTEGER    NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="636" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC4" value="attack_type         ENUM       NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="656" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC4a" value="(ddos_flood|slow_rate|port_scan|brute_force_ssh|...)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=7;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="536" y="672" width="320" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC5" value="duration_seconds    INTEGER    DEFAULT 30" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="690" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC6" value="intensity           FLOAT      DEFAULT 0.7 [0-1]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="710" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC7" value="adversarial_enabled BOOLEAN    DEFAULT FALSE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="730" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC8" value="adversarial_epsilon FLOAT      NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="750" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC9" value="status              ENUM       DEFAULT pending" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="770" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC10" value="detected            BOOLEAN    NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="790" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC11" value="avg_confidence      FLOAT      NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="810" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC12" value="detection_latency   FLOAT      NULLABLE (ms)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="830" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC13" value="auto_action_taken   VARCHAR    NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="850" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tStC14" value="started_at / completed_at  TIMESTAMPTZ" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="874" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: prevention_rules                                      -->
+                <!-- =========================================================== -->
+                <mxCell id="tPrevRules" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="540" width="380" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrevRulesHeader" value="prevention_rules" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;fontColor=#0F172A;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="540" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC1" value="id               UUID         PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="582" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC2" value="device_id        UUID         FK -> devices.id (NULLable)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="602" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC2a" value="NULL = global rule for all devices" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="996" y="618" width="240" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC3" value="rule_name        VARCHAR(100) NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="636" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC4" value="threshold        FLOAT        DEFAULT 0.5" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#EF4444;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="656" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC5" value="action_type      ENUM         NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="676" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC5a" value="(block_ip|rate_limit|quarantine|alert_only|webhook)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=7;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="996" y="692" width="320" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC6" value="is_enabled       BOOLEAN      DEFAULT TRUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="710" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC7" value="cooldown_seconds INTEGER      DEFAULT 60" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="730" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC8" value="webhook_url      VARCHAR(500) NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="750" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC9" value="extra_config     JSONB        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="770" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrRC10" value="created_at / updated_at  TIMESTAMPTZ" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="794" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: prevention_logs                                       -->
+                <!-- =========================================================== -->
+                <mxCell id="tPrevLogs" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#F59E0B;strokeWidth=1;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="920" width="380" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPrevLogsHeader" value="prevention_logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F59E0B;strokeColor=none;fontColor=#0F172A;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;opacity=80;" vertex="1" parent="1">
+                    <mxGeometry x="960" y="920" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC1" value="id               BIGSERIAL    PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="962" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC2" value="rule_id          UUID         FK -> prevention_rules.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="982" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC3" value="device_id        UUID         FK -> devices.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1002" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC4" value="prediction_id    BIGINT       FK -> predictions.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1022" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC5" value="action_executed  VARCHAR(100) NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1042" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC6" value="success          BOOLEAN      NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1062" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC7" value="details          JSONB        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1082" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tPlC8" value="timestamp        TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1102" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: fl_rounds                                             -->
+                <!-- =========================================================== -->
+                <mxCell id="tFlRounds" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="540" width="380" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlRoundsHeader" value="fl_rounds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A855F7;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="540" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC1" value="id                  SERIAL       PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="582" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC2" value="round_number        INTEGER      NOT NULL UNIQUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="602" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC3" value="num_clients         INTEGER      NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="622" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC4" value="global_loss         FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="642" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC5" value="global_accuracy     FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#22C55E;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="662" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC6" value="global_f1           FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="682" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC7" value="global_precision    FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="702" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC8" value="global_recall       FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="722" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC9" value="aggregation_method  VARCHAR(50)  NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="742" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC9a" value="(fedavg|fedavg_he)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1476" y="758" width="160" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC10" value="he_scheme           VARCHAR(20)  NULLABLE (ckks)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="776" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC11" value="he_poly_modulus     INTEGER      NULLABLE (16384)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="796" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC12" value="duration_seconds    FLOAT        NULLABLE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="816" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC13" value="model_checkpoint    VARCHAR(500) NULLABLE (.pt)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="836" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlC14" value="timestamp           TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="860" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: fl_client_metrics                                     -->
+                <!-- =========================================================== -->
+                <mxCell id="tFlCM" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#A855F7;strokeWidth=1;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="960" width="380" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFlCMHeader" value="fl_client_metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A855F7;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;opacity=80;" vertex="1" parent="1">
+                    <mxGeometry x="1440" y="960" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC1" value="id               SERIAL       PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1002" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC2" value="round_id         INTEGER      FK -> fl_rounds.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1022" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC3" value="client_id        VARCHAR(50)  NOT NULL (Bank_A)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1042" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC4" value="local_loss       FLOAT        NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1062" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC5" value="local_accuracy   FLOAT        NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1082" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC6" value="num_samples      INTEGER      NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1102" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC7" value="training_time    FLOAT        NOT NULL (sec)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1122" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tFcC8" value="encrypted        BOOLEAN      NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#A855F7;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1142" width="340" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: users                                                 -->
+                <!-- =========================================================== -->
+                <mxCell id="tUsers" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#3B82F6;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="940" width="340" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsersHeader" value="users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3B82F6;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="940" width="340" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC1" value="id               UUID         PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="982" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC2" value="username         VARCHAR(50)  NOT NULL UNIQUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1002" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC3" value="email            VARCHAR(255) NOT NULL UNIQUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1022" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC4" value="hashed_password  VARCHAR(255) NOT NULL (bcrypt)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1042" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC5" value="role             ENUM         DEFAULT viewer" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1062" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC5a" value="(admin|operator|viewer)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=JetBrains Mono;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="96" y="1078" width="180" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC6" value="is_active        BOOLEAN      DEFAULT TRUE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1096" width="300" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tUsC7" value="created_at       TIMESTAMPTZ  DEFAULT now()" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1116" width="300" height="16" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- TABLE: system_settings                                       -->
+                <!-- =========================================================== -->
+                <mxCell id="tSettings" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;strokeWidth=2;arcSize=3;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="1020" width="380" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSettingsHeader" value="system_settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;strokeColor=none;fontColor=#F8FAFC;fontSize=14;fontFamily=Inter;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="1020" width="380" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSsC1" value="key              VARCHAR(100) PK" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="1062" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSsC2" value="value            JSONB        NOT NULL" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="1082" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSsC3" value="updated_at       TIMESTAMPTZ  auto-update" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="1102" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSsC4" value="updated_by       UUID         FK -> users.id" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#3B82F6;fontFamily=JetBrains Mono;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="1122" width="340" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="tSsNote" value="Keys: active_model, global_threshold, pipeline_default, etc." style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#475569;fontFamily=Inter;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="1148" width="340" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- RELATIONSHIP ARROWS                                          -->
+                <!-- =========================================================== -->
+
+                <!-- devices -> traffic_logs (1:N) -->
+                <mxCell id="rel1" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#22C55E;strokeWidth=2;exitX=1;exitY=0.2;entryX=0;entryY=0.2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="420" y="192" as="sourcePoint"/>
+                        <mxPoint x="500" y="192" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel1Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#22C55E;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="440" y="176" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- traffic_logs -> predictions (1:N) -->
+                <mxCell id="rel2" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="880" y="212" as="sourcePoint"/>
+                        <mxPoint x="960" y="212" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel2Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#F59E0B;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="900" y="196" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- devices -> predictions (1:N) -->
+                <mxCell id="rel3" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#6366F1;strokeWidth=2;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="420" y="240" as="sourcePoint"/>
+                        <mxPoint x="960" y="188" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="460" y="240"/>
+                            <mxPoint x="460" y="100"/>
+                            <mxPoint x="940" y="100"/>
+                            <mxPoint x="940" y="188"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- predictions -> alerts (1:N) -->
+                <mxCell id="rel4" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#EF4444;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1360" y="210" as="sourcePoint"/>
+                        <mxPoint x="1440" y="210" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel4Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#EF4444;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="194" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- devices -> alerts (1:N) -->
+                <mxCell id="rel5" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#6366F1;strokeWidth=1;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="420" y="300" as="sourcePoint"/>
+                        <mxPoint x="1440" y="186" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="450" y="300"/>
+                            <mxPoint x="450" y="90"/>
+                            <mxPoint x="1900" y="90"/>
+                            <mxPoint x="1900" y="186"/>
+                            <mxPoint x="1820" y="186"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- devices -> attack_sessions (1:N) -->
+                <mxCell id="rel6" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="240" y="480" as="sourcePoint"/>
+                        <mxPoint x="240" y="540" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel6Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#6366F1;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="250" y="500" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- attack_sessions -> attack_steps (1:N CASCADE) -->
+                <mxCell id="rel7" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#EF4444;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="440" y="610" as="sourcePoint"/>
+                        <mxPoint x="500" y="610" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel7Label" value="1 : N (CASCADE)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=8;fontColor=#EF4444;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="430" y="590" width="110" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- devices -> prevention_rules (1:N) -->
+                <mxCell id="rel8" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#F59E0B;strokeWidth=2;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="420" y="360" as="sourcePoint"/>
+                        <mxPoint x="960" y="608" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="930" y="360"/>
+                            <mxPoint x="930" y="608"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- prevention_rules -> prevention_logs (1:N) -->
+                <mxCell id="rel9" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1150" y="860" as="sourcePoint"/>
+                        <mxPoint x="1150" y="920" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel9Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#F59E0B;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1160" y="880" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- fl_rounds -> fl_client_metrics (1:N) -->
+                <mxCell id="rel10" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1630" y="900" as="sourcePoint"/>
+                        <mxPoint x="1630" y="960" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="rel10Label" value="1 : N" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#A855F7;fontFamily=Inter;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1640" y="920" width="40" height="14" as="geometry"/>
+                </mxCell>
+
+                <!-- users -> attack_sessions (created_by) -->
+                <mxCell id="rel11" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#3B82F6;strokeWidth=1;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="230" y="940" as="sourcePoint"/>
+                        <mxPoint x="230" y="880" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- users -> system_settings (updated_by) -->
+                <mxCell id="rel12" value="" style="endArrow=ERmany;startArrow=ERmandOne;html=1;strokeColor=#3B82F6;strokeWidth=1;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="400" y="1060" as="sourcePoint"/>
+                        <mxPoint x="460" y="1060" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- =========================================================== -->
+                <!-- LEGEND                                                      -->
+                <!-- =========================================================== -->
+                <mxCell id="legBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E293B;strokeColor=#334155;arcSize=5;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="1240" width="1760" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="legTitle" value="Legend" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontColor=#F8FAFC;fontStyle=1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1248" width="80" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="legPK" value="PK = Primary Key (highlighted)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F8FAFC;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1276" width="220" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="legFK" value="FK = Foreign Key (colored by target table)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6366F1;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="320" y="1276" width="260" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="legJSON" value="JSONB fields (highlighted in amber)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#F59E0B;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="1276" width="240" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="legEnum" value="ENUM values shown in italics" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#475569;fontFamily=Inter;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="860" y="1276" width="200" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="legRel" value="Solid line = direct FK  |  Dashed = indirect/optional" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#94A3B8;fontFamily=Inter;" vertex="1" parent="1">
+                    <mxGeometry x="1100" y="1276" width="360" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="legCount" value="12 tables  |  50+ columns  |  14 FK relationships" style="text;html=1;align=right;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#64748B;fontFamily=Inter;fontStyle=2;" vertex="1" parent="1">
+                    <mxGeometry x="1500" y="1248" width="300" height="22" as="geometry"/>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

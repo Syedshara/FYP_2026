@@ -1,0 +1,10 @@
+# ── ML / AI packages ────────────────────────────
+# Install these when inference is needed:
+#   pip install --no-cache-dir -r requirements-ml.txt
+torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+numpy==1.26.4
+scikit-learn==1.6.1
+joblib==1.4.2
+
+# ── Docker SDK (for FL client management) ──────
+docker==7.1.0
