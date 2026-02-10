@@ -6,7 +6,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,7 @@ class DeviceCreate(BaseModel):
     port: int = Field(default=0, ge=0, le=65535)
     traffic_source: str = Field(default="simulated")
     description: Optional[str] = None
+    client_id: Optional[int] = Field(default=None, description="FK to FL client")
 
 
 class DeviceUpdate(BaseModel):
@@ -38,6 +39,7 @@ class DeviceUpdate(BaseModel):
     status: Optional[str] = None
     traffic_source: Optional[str] = None
     description: Optional[str] = None
+    client_id: Optional[int] = None
 
 
 class DeviceOut(BaseModel):
@@ -50,6 +52,7 @@ class DeviceOut(BaseModel):
     status: str
     traffic_source: str
     description: Optional[str] = None
+    client_id: Optional[int] = None
     last_seen_at: Optional[datetime] = None
     threat_count_today: int = 0
     created_at: datetime
@@ -61,11 +64,12 @@ class DeviceOut(BaseModel):
 
 @router.get("/", response_model=list[DeviceOut])
 async def list_devices(
+    client_id: Optional[int] = Query(default=None, description="Filter devices by FL client ID"),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """List all devices."""
-    return await device_service.get_all_devices(db)
+    """List all devices, optionally filtered by client_id."""
+    return await device_service.get_all_devices(db, client_id=client_id)
 
 
 @router.post("/", response_model=DeviceOut, status_code=status.HTTP_201_CREATED)
@@ -84,6 +88,7 @@ async def create_device(
         port=body.port,
         traffic_source=body.traffic_source,
         description=body.description,
+        client_id=body.client_id,
     )
 
 

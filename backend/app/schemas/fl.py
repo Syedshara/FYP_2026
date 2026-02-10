@@ -3,7 +3,7 @@ Pydantic schemas for Federated Learning endpoints.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 # ── FL Round ────────────────────────────────────────────
 
 class FLRoundOut(BaseModel):
-    id: UUID
+    id: int
     round_number: int
     num_clients: int
     global_loss: Optional[float]
@@ -23,7 +23,7 @@ class FLRoundOut(BaseModel):
     aggregation_method: str
     he_scheme: Optional[str]
     duration_seconds: Optional[float]
-    created_at: datetime
+    timestamp: datetime
 
     model_config = {"from_attributes": True}
 
@@ -31,18 +31,43 @@ class FLRoundOut(BaseModel):
 # ── FL Client ──────────────────────────────────────────
 
 class FLClientCreate(BaseModel):
-    client_id: str = Field(..., min_length=1, max_length=100)
+    client_id: str = Field(..., min_length=1, max_length=50, description="Unique short ID, e.g. 'bank_a'")
+    name: str = Field(..., min_length=1, max_length=100, description="Display name, e.g. 'Bank A'")
+    description: Optional[str] = None
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    data_path: str = Field(default="/app/data", description="Path to client data directory")
+
+
+class FLClientUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=100)
+    description: Optional[str] = None
+    ip_address: Optional[str] = Field(default=None, max_length=45)
+    status: Optional[str] = None
     data_path: Optional[str] = None
+    total_samples: Optional[int] = None
 
 
 class FLClientOut(BaseModel):
-    id: UUID
+    id: int
     client_id: str
+    name: str
+    description: Optional[str] = None
+    ip_address: Optional[str] = None
     status: str
-    data_path: Optional[str]
-    container_id: Optional[str]
-    last_seen_at: Optional[datetime]
+    data_path: str
+    container_id: Optional[str] = None
+    container_name: Optional[str] = None
+    total_samples: int = 0
+    last_seen_at: Optional[datetime] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class FLClientDetailOut(FLClientOut):
+    """Full client detail including nested devices."""
+    devices: List["DeviceBrief"] = []
 
     model_config = {"from_attributes": True}
 
@@ -60,3 +85,10 @@ class FLStatusResponse(BaseModel):
     current_round: Optional[int] = None
     total_rounds: Optional[int] = None
     active_clients: int = 0
+
+
+# Import at bottom to avoid circular reference in forward ref
+from app.schemas.device import DeviceBrief  # noqa: E402, F401
+
+# Rebuild model to resolve forward references
+FLClientDetailOut.model_rebuild()

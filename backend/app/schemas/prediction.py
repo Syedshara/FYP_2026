@@ -12,6 +12,7 @@ from pydantic import BaseModel
 class PredictionOut(BaseModel):
     id: int
     device_id: UUID
+    client_id: Optional[int] = None
     score: float
     label: str
     confidence: float

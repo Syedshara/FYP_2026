@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Line,
 } from 'recharts';
 import {
-  ShieldAlert, Monitor, Crosshair, CheckCircle2, Loader2, TrendingUp,
+  ShieldAlert, Monitor, Crosshair, CheckCircle2, Loader2, TrendingUp, Wifi, WifiOff,
 } from 'lucide-react';
 import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
-import type { PredictionSummary, Device } from '@/types';
+import { clientsApi } from '@/api/clients';
+import type { PredictionSummary, Device, FLClient } from '@/types';
+import { useLiveStore } from '@/stores/liveStore';
 import { getStatusDotClass, formatRelativeTime } from '@/lib/utils';
 
 const PIE_COLORS = ['#ef4444', '#22c55e'];
@@ -22,20 +25,32 @@ const chartTooltipStyle: React.CSSProperties = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<PredictionSummary | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [clients, setClients] = useState<FLClient[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Live store data
+  const wsConnected = useLiveStore((s) => s.wsConnected);
+  const livePredictions = useLiveStore((s) => s.latestPredictions);
+  const liveDeviceStatuses = useLiveStore((s) => s.deviceStatuses);
+  const liveClientStatuses = useLiveStore((s) => s.clientStatuses);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [s, d] = await Promise.all([predictionsApi.summary(), devicesApi.list()]);
-        setSummary(s); setDevices(d);
+        const [s, d, c] = await Promise.all([
+          predictionsApi.summary(),
+          devicesApi.list(),
+          clientsApi.list(),
+        ]);
+        setSummary(s); setDevices(d); setClients(c);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     load();
-    const iv = setInterval(load, 10_000);
+    const iv = setInterval(load, 30_000);
     return () => clearInterval(iv);
   }, []);
 
@@ -47,11 +62,28 @@ export default function DashboardPage() {
     );
   }
 
-  const onlineCount = devices.filter((d) => d.status === 'online').length;
-  const attackCount = devices.filter((d) => d.status === 'under_attack').length;
-  const offlineCount = devices.filter((d) => d.status === 'offline').length;
+  // Merge live device statuses with API data
+  const mergedDevices = devices.map((d) => {
+    const live = liveDeviceStatuses[d.id];
+    return live ? { ...d, status: live.status } : d;
+  });
 
-  const attackRate = summary?.attack_rate ?? 0;
+  // Merge live predictions into summary
+  const liveAttackCount = livePredictions.filter((p) => p.label === 'attack').length;
+  const liveBenignCount = livePredictions.filter((p) => p.label === 'benign').length;
+  const effectiveSummary: PredictionSummary | null = summary ? {
+    ...summary,
+    total_predictions: summary.total_predictions + livePredictions.length,
+    attack_count: summary.attack_count + liveAttackCount,
+    benign_count: summary.benign_count + liveBenignCount,
+    attack_rate: (summary.attack_count + liveAttackCount) / Math.max(summary.total_predictions + livePredictions.length, 1),
+  } : summary;
+
+  const onlineCount = mergedDevices.filter((d) => d.status === 'online').length;
+  const attackDeviceCount = mergedDevices.filter((d) => d.status === 'under_attack').length;
+  const offlineCount = mergedDevices.filter((d) => d.status === 'offline').length;
+
+  const attackRate = effectiveSummary?.attack_rate ?? 0;
   const threatLevel = attackRate > 0.5 ? 'CRITICAL' : attackRate > 0.2 ? 'HIGH' : attackRate > 0.05 ? 'MEDIUM' : 'LOW';
 
   const threatColors: Record<string, { color: string; bg: string }> = {
@@ -62,14 +94,37 @@ export default function DashboardPage() {
   };
   const tc = threatColors[threatLevel];
 
-  const pieData = summary
-    ? [{ name: 'Attacks', value: summary.attack_count }, { name: 'Benign', value: summary.benign_count }]
+  const pieData = effectiveSummary
+    ? [{ name: 'Attacks', value: effectiveSummary.attack_count }, { name: 'Benign', value: effectiveSummary.benign_count }]
     : [];
 
-  const timelineData = Array.from({ length: 24 }, (_, i) => ({
-    time: `${String(i).padStart(2, '0')}:00`,
-    score: +(Math.random() * attackRate + Math.random() * 0.2).toFixed(3),
-  }));
+  // Build timeline from live predictions (newest first → reverse for chart)
+  const timelineData = livePredictions.length > 0
+    ? [...livePredictions].reverse().map((p) => ({
+        time: new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        score: p.score,
+      }))
+    : Array.from({ length: 24 }, (_, i) => ({
+        time: `${String(i).padStart(2, '0')}:00`,
+        score: +(Math.random() * attackRate + Math.random() * 0.2).toFixed(3),
+      }));
+
+  // Live alerts (attacks from live predictions)
+  const liveAlerts = livePredictions
+    .filter((p) => p.label === 'attack')
+    .slice(0, 10);
+
+  // Client health section
+  const clientHealth = clients.map((c) => {
+    const live = liveClientStatuses[c.id];
+    return {
+      id: c.id,
+      name: c.name,
+      client_id: c.client_id,
+      status: live?.status ?? c.status,
+      containerStatus: live?.container_status ?? 'unknown',
+    };
+  });
 
   const kpis = [
     {
@@ -78,18 +133,18 @@ export default function DashboardPage() {
       bar: attackRate,
     },
     {
-      icon: Monitor, label: 'ACTIVE DEVICES', value: `${devices.length}`,
+      icon: Monitor, label: 'ACTIVE DEVICES', value: `${mergedDevices.length}`,
       sub: `${onlineCount} online  ·  ${offlineCount} offline`, color: 'var(--info)', bg: 'var(--info-light)',
-      extra: attackCount > 0 ? `${attackCount} under attack` : undefined,
+      extra: attackDeviceCount > 0 ? `${attackDeviceCount} under attack` : undefined,
       extraColor: 'var(--danger)',
     },
     {
-      icon: Crosshair, label: 'ATTACKS DETECTED', value: `${summary?.attack_count ?? 0}`,
-      sub: `of ${summary?.total_predictions ?? 0} predictions`, color: 'var(--danger)', bg: 'var(--danger-light)',
+      icon: Crosshair, label: 'ATTACKS DETECTED', value: `${effectiveSummary?.attack_count ?? 0}`,
+      sub: `of ${effectiveSummary?.total_predictions ?? 0} predictions`, color: 'var(--danger)', bg: 'var(--danger-light)',
     },
     {
       icon: CheckCircle2, label: 'BENIGN RATE', value: `${((1 - attackRate) * 100).toFixed(1)}%`,
-      sub: `Avg confidence: ${((summary?.avg_confidence ?? 0) * 100).toFixed(1)}%`, color: 'var(--success)', bg: 'var(--success-light)',
+      sub: `Avg confidence: ${((effectiveSummary?.avg_confidence ?? 0) * 100).toFixed(1)}%`, color: 'var(--success)', bg: 'var(--success-light)',
     },
   ];
 
@@ -101,8 +156,30 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Security Overview</h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Real-time threat monitoring & analytics</p>
         </div>
-        <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: 999 }}>
-          <TrendingUp style={{ width: 12, height: 12 }} /> Live &middot; 10s refresh
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-2"
+            style={{
+              fontSize: 11, fontWeight: 600,
+              background: wsConnected ? 'var(--success-light)' : 'var(--danger-light)',
+              color: wsConnected ? 'var(--success)' : 'var(--danger)',
+              padding: '6px 14px', borderRadius: 999,
+            }}
+          >
+            {wsConnected ? (
+              <>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block', animation: 'status-pulse 2s infinite' }} />
+                <Wifi style={{ width: 12, height: 12 }} /> Live
+              </>
+            ) : (
+              <>
+                <WifiOff style={{ width: 12, height: 12 }} /> Offline
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: 999 }}>
+            <TrendingUp style={{ width: 12, height: 12 }} /> {wsConnected ? 'Real-time' : '30s refresh'}
+          </div>
         </div>
       </motion.div>
 
@@ -145,8 +222,15 @@ export default function DashboardPage() {
         <motion.div variants={fadeUp} className="card lg:col-span-2" style={{ padding: 20 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 20 }}>
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Live Threat Timeline</h3>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Anomaly score over time (real-time)</p>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Live Threat Timeline
+                {wsConnected && livePredictions.length > 0 && (
+                  <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● STREAMING</span>
+                )}
+              </h3>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Anomaly score over time{wsConnected ? ' (real-time)' : ' (polling)'}
+              </p>
             </div>
             <div className="flex gap-1">
               {['1H', '6H', '24H', '7D'].map((label, i) => (
@@ -179,9 +263,9 @@ export default function DashboardPage() {
 
         {/* Pie */}
         <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Attack Type Breakdown</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Attack Distribution</h3>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Distribution of detected attacks</p>
-          {summary && summary.total_predictions > 0 ? (
+          {effectiveSummary && effectiveSummary.total_predictions > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -209,7 +293,12 @@ export default function DashboardPage() {
       {/* Recent Alerts Table */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Alerts</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+            Recent Alerts
+            {wsConnected && liveAlerts.length > 0 && (
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--danger)', verticalAlign: 'middle' }}>● LIVE</span>
+            )}
+          </h3>
           <span style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer' }}>View All &rarr;</span>
         </div>
         <div className="table-container">
@@ -219,47 +308,85 @@ export default function DashboardPage() {
                 <th>#</th>
                 <th>Timestamp</th>
                 <th>Device</th>
-                <th>Attack Type</th>
-                <th>Confidence</th>
-                <th>Status</th>
+                <th>Score</th>
+                <th>Label</th>
               </tr>
             </thead>
             <tbody>
-              {(summary?.total_predictions ?? 0) > 0 ? (
-                [
-                  { id: 1, time: '10:14:32 AM', device: 'Camera_01', type: 'DDoS Flood', conf: 0.94, status: 'Active', color: 'var(--danger)' },
-                  { id: 2, time: '10:13:58 AM', device: 'Sensor_03', type: 'Port Scan', conf: 0.87, status: 'Blocked', color: 'var(--warning)' },
-                  { id: 3, time: '10:12:11 AM', device: 'Gateway_02', type: 'Benign', conf: 0.12, status: 'Clear', color: 'var(--success)' },
-                  { id: 4, time: '10:11:45 AM', device: 'Camera_02', type: 'Brute Force', conf: 0.91, status: 'Active', color: 'var(--danger)' },
-                  { id: 5, time: '10:10:22 AM', device: 'Sensor_01', type: 'Benign', conf: 0.08, status: 'Clear', color: 'var(--success)' },
-                ].map((row) => (
-                  <tr key={row.id}>
-                    <td style={{ color: 'var(--text-muted)' }}>{row.id}</td>
-                    <td>{row.time}</td>
-                    <td style={{ fontWeight: 500 }}>{row.device}</td>
-                    <td style={{ color: row.color, fontWeight: 600 }}>{row.type}</td>
+              {liveAlerts.length > 0 ? (
+                liveAlerts.map((alert, idx) => (
+                  <tr
+                    key={`${alert.device_id}-${alert.timestamp}-${idx}`}
+                    className="cursor-pointer transition-all"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/traffic?device_id=${alert.device_id}`)}
+                    title="Click to view device traffic"
+                  >
+                    <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                    <td>{new Date(alert.timestamp).toLocaleTimeString()}</td>
+                    <td style={{ fontWeight: 500, fontFamily: 'monospace', fontSize: 12 }}>
+                      {alert.device_name ?? `Device ${alert.device_id}`}
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         <div style={{ width: 80, height: 6, borderRadius: 3, background: 'var(--bg-secondary)' }}>
-                          <div style={{ width: `${row.conf * 100}%`, height: '100%', borderRadius: 3, background: row.color }} />
+                          <div style={{ width: `${alert.score * 100}%`, height: '100%', borderRadius: 3, background: 'var(--danger)' }} />
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: row.color }}>{row.conf.toFixed(2)}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--danger)' }}>{alert.score.toFixed(3)}</span>
                       </div>
                     </td>
                     <td>
-                      <span className="badge" style={{ background: row.status === 'Clear' ? 'var(--success-light)' : row.status === 'Blocked' ? 'var(--warning-light)' : 'var(--danger-light)', color: row.color }}>
-                        ● {row.status}
+                      <span className="badge" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
+                        ● Attack
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No recent alerts</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                  {wsConnected ? 'No attacks detected — monitoring live' : 'No recent alerts'}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
       </motion.div>
+
+      {/* FL Client Health */}
+      {clientHealth.length > 0 && (
+        <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>FL Client Health</h3>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Federated Learning client status</p>
+            </div>
+            {wsConnected && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)' }}>● LIVE</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {clientHealth.map((c) => {
+              const statusColor = c.status === 'training' ? 'var(--accent)' : c.status === 'active' ? 'var(--success)' : c.status === 'error' ? 'var(--danger)' : 'var(--text-muted)';
+              return (
+                <div key={c.id} className="card" style={{ padding: 14, textAlign: 'center', borderColor: statusColor, borderWidth: 1.5 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.name}
+                  </p>
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                    {c.client_id}
+                  </p>
+                  <p style={{ fontSize: 11, color: statusColor, marginTop: 4, fontWeight: 600, textTransform: 'capitalize' }}>
+                    {c.status}
+                  </p>
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {c.containerStatus}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Device Health Map */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>
@@ -276,9 +403,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {devices.length > 0 ? (
+        {mergedDevices.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {devices.map((device) => {
+            {mergedDevices.map((device) => {
               const borderColor = device.status === 'under_attack' ? 'var(--danger)' : device.status === 'quarantined' ? 'var(--warning)' : device.status === 'offline' ? 'var(--text-muted)' : 'var(--success)';
               return (
                 <div
@@ -289,6 +416,8 @@ export default function DashboardPage() {
                     borderColor, borderWidth: 1.5,
                     opacity: device.status === 'offline' ? 0.5 : 1,
                   }}
+                  onClick={() => navigate(`/traffic?device_id=${device.id}`)}
+                  title="Click to view device traffic"
                 >
                   <div className="flex justify-center" style={{ marginBottom: 8 }}>
                     <span className={getStatusDotClass(device.status)} />

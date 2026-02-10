@@ -2,13 +2,20 @@
 Device model — represents an IoT device being monitored.
 """
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Integer, Text, DateTime, Enum as SAEnum, Uuid
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, Text, DateTime, Enum as SAEnum, Uuid, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.fl import FLClient
+    from app.models.prediction import Prediction
 
 
 class Device(Base):
@@ -52,6 +59,15 @@ class Device(Base):
         default="simulated",
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # FK — which FL client owns this device (nullable for standalone devices)
+    client_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("fl_clients.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     last_seen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -64,4 +80,12 @@ class Device(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    fl_client: Mapped[FLClient | None] = relationship(
+        "FLClient", back_populates="devices"
+    )
+    predictions: Mapped[list[Prediction]] = relationship(
+        "Prediction", back_populates="device", cascade="all, delete-orphan"
     )

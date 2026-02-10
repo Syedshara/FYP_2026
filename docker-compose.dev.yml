@@ -50,9 +50,12 @@ services:
       - .env
     environment:
       PYTHONPATH: /app
+      HOST_PROJECT_ROOT: ${HOST_PROJECT_ROOT:-.}
     volumes:
       - ./backend:/app                   # Hot-reload source code
       - ./model:/app/models              # Model .pt + .pkl files
+      - ./data/clients:/app/client_data:rw  # Read-write: backend generates data for new clients
+      - /var/run/docker.sock:/var/run/docker.sock   # Docker SDK
     depends_on:
       postgres:
         condition: service_healthy

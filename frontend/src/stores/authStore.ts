@@ -9,11 +9,17 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** true while we're restoring session from persisted token on app boot */
+  isHydrating: boolean;
 
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   setTokens: (tokens: TokenResponse) => void;
   fetchUser: () => Promise<void>;
+  /** Called once on app mount to restore session from persisted token */
+  restoreSession: () => Promise<void>;
+  /** Silent token refresh using refresh_token */
+  refreshAccessToken: () => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isHydrating: true, // starts true — resolved by restoreSession
 
       login: async (username, password) => {
         set({ isLoading: true });
@@ -50,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           user: null,
           isAuthenticated: false,
+          isHydrating: false,
         });
       },
 
@@ -70,12 +78,64 @@ export const useAuthStore = create<AuthState>()(
           get().logout();
         }
       },
+
+      restoreSession: async () => {
+        const { token, refreshToken } = get();
+
+        // No persisted token — nothing to restore
+        if (!token) {
+          set({ isHydrating: false });
+          return;
+        }
+
+        try {
+          // Try /auth/me with existing token
+          const user = await authApi.me();
+          set({ user, isAuthenticated: true, isHydrating: false });
+        } catch {
+          // Token expired — try refresh
+          if (refreshToken) {
+            try {
+              const tokens = await authApi.refresh(refreshToken);
+              set({
+                token: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+              });
+              const user = await authApi.me();
+              set({ user, isAuthenticated: true, isHydrating: false });
+            } catch {
+              // Refresh also failed — force logout
+              get().logout();
+            }
+          } else {
+            get().logout();
+          }
+        }
+      },
+
+      refreshAccessToken: async () => {
+        const { refreshToken } = get();
+        if (!refreshToken) return null;
+        try {
+          const tokens = await authApi.refresh(refreshToken);
+          set({
+            token: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            isAuthenticated: true,
+          });
+          return tokens.access_token;
+        } catch {
+          get().logout();
+          return null;
+        }
+      },
     }),
     {
       name: 'iot-ids-auth',
       partialize: (state) => ({
         token: state.token,
         refreshToken: state.refreshToken,
+        user: state.user,
       }),
     },
   ),

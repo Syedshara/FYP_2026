@@ -1,15 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, Download, Pause, Play, Cpu } from 'lucide-react';
+import { Loader2, Download, Pause, Play, Cpu, Wifi, WifiOff } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
+import { useLiveStore } from '@/stores/liveStore';
 import type { Device, PredictionSummary, ModelInfo, Prediction } from '@/types';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
 const tooltipStyle = { contentStyle: { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, itemStyle: { color: 'var(--accent)' } };
+
+/* ---------- Time range helper ---------- */
+function rangeToMs(range: string): number {
+  switch (range) {
+    case '15m': return 15 * 60 * 1000;
+    case '1h': return 60 * 60 * 1000;
+    case '6h': return 6 * 60 * 60 * 1000;
+    case '24h': return 24 * 60 * 60 * 1000;
+    default: return 60 * 60 * 1000;
+  }
+}
 
 /* ---------- synthetic helpers ---------- */
 function generateTimeline(predictions: Prediction[]) {
@@ -41,14 +54,20 @@ const featureImportance = [
 ];
 
 export default function TrafficMonitorPage() {
+  const [searchParams] = useSearchParams();
+  const initialDeviceId = searchParams.get('device_id') ?? '';
   const [devices, setDevices] = useState<Device[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<string>('');
+  const [selectedDevice, setSelectedDevice] = useState<string>(initialDeviceId);
   const [summary, setSummary] = useState<PredictionSummary | null>(null);
   const [model, setModel] = useState<ModelInfo | null>(null);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [paused, setPaused] = useState(false);
   const [range, setRange] = useState('1h');
+
+  // Live store
+  const wsConnected = useLiveStore((s) => s.wsConnected);
+  const livePredictions = useLiveStore((s) => s.latestPredictions);
 
   useEffect(() => {
     Promise.all([
@@ -57,10 +76,11 @@ export default function TrafficMonitorPage() {
       predictionsApi.model().catch(() => null),
     ]).then(([devs, sum, mdl]) => {
       setDevices(devs);
-      if (devs.length > 0) setSelectedDevice(devs[0].id);
+      if (!initialDeviceId && devs.length > 0) setSelectedDevice(devs[0].id);
       setSummary(sum);
       setModel(mdl);
     }).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -68,7 +88,69 @@ export default function TrafficMonitorPage() {
     predictionsApi.deviceHistory(selectedDevice, 50).then(setPredictions).catch(() => setPredictions([]));
   }, [selectedDevice]);
 
-  const timeline = generateTimeline(predictions);
+  // Filter live predictions for selected device (when not paused)
+  const deviceLivePreds = useMemo(() => {
+    if (paused || !selectedDevice) return [];
+    return livePredictions.filter((p) => String(p.device_id) === String(selectedDevice));
+  }, [paused, selectedDevice, livePredictions]);
+
+  // Merge API predictions with live predictions (live first, dedup by timestamp)
+  const mergedPredictions = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: Array<{ id: number; score: number; label: string; confidence: number; inference_latency_ms: number; timestamp: string }> = [];
+    for (const lp of deviceLivePreds) {
+      const key = `${lp.device_id}-${lp.timestamp}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push({
+          id: lp.id ?? 0,
+          score: lp.score,
+          label: lp.label,
+          confidence: lp.confidence,
+          inference_latency_ms: lp.inference_latency_ms ?? 0,
+          timestamp: lp.timestamp,
+        });
+      }
+    }
+    for (const p of predictions) {
+      const key = `${selectedDevice}-${p.timestamp}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(p);
+      }
+    }
+    return merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }, [predictions, deviceLivePreds, selectedDevice]);
+
+  // Apply time range filter
+  const filteredPredictions = useMemo(() => {
+    const now = Date.now();
+    const windowMs = rangeToMs(range);
+    return mergedPredictions.filter((p) => now - new Date(p.timestamp).getTime() <= windowMs);
+  }, [mergedPredictions, range]);
+
+  // Export CSV handler
+  const handleExport = useCallback(() => {
+    if (filteredPredictions.length === 0) return;
+    const headers = ['Timestamp', 'Prediction', 'Score', 'Confidence', 'Latency (ms)'];
+    const rows = filteredPredictions.map((p) => [
+      new Date(p.timestamp).toISOString(),
+      p.label,
+      p.score.toFixed(4),
+      (p.confidence * 100).toFixed(1),
+      p.inference_latency_ms.toFixed(1),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `predictions_${selectedDevice}_${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredPredictions, selectedDevice, range]);
+
+  const timeline = generateTimeline(filteredPredictions as Prediction[]);
   const currentScore = timeline.length > 0 ? timeline[timeline.length - 1].score : 0;
   const isBenign = currentScore < 0.5;
 
@@ -128,14 +210,17 @@ export default function TrafficMonitorPage() {
         <div className="flex-1" />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: paused ? 'var(--text-muted)' : 'var(--success)', display: 'inline-block', animation: paused ? 'none' : 'status-pulse 2s infinite' }} />
-          <span style={{ fontSize: 11, fontWeight: 600, color: paused ? 'var(--text-muted)' : 'var(--success)' }}>{paused ? 'PAUSED' : 'LIVE'}</span>
+          {wsConnected ? <Wifi style={{ width: 14, height: 14, color: 'var(--success)' }} /> : <WifiOff style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />}
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: paused ? 'var(--text-muted)' : wsConnected ? 'var(--success)' : 'var(--warning)', display: 'inline-block', animation: paused ? 'none' : 'status-pulse 2s infinite' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: paused ? 'var(--text-muted)' : wsConnected ? 'var(--success)' : 'var(--warning)' }}>
+            {paused ? 'PAUSED' : wsConnected ? 'LIVE' : 'POLLING'}
+          </span>
         </div>
         <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={() => setPaused(!paused)}>
           {paused ? <Play style={{ width: 14, height: 14 }} /> : <Pause style={{ width: 14, height: 14 }} />}
           {paused ? 'Resume' : 'Pause'}
         </button>
-        <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }}>
+        <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExport} disabled={filteredPredictions.length === 0}>
           <Download style={{ width: 14, height: 14 }} /> Export
         </button>
       </motion.div>
@@ -144,7 +229,12 @@ export default function TrafficMonitorPage() {
       <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Anomaly Score — Real-time</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+              Anomaly Score — {wsConnected && !paused ? 'Real-time' : 'Historical'}
+              {wsConnected && !paused && deviceLivePreds.length > 0 && (
+                <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● STREAMING</span>
+              )}
+            </h2>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>CNN-LSTM model prediction confidence (0 = benign, 1 = attack)</p>
           </div>
           <div className="card" style={{ padding: '10px 16px', textAlign: 'right' }}>
@@ -241,7 +331,12 @@ export default function TrafficMonitorPage() {
       {/* Live Event Log */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Live Event Log</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Live Event Log
+            {wsConnected && !paused && deviceLivePreds.length > 0 && (
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● LIVE ({deviceLivePreds.length})</span>
+            )}
+          </h2>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -257,10 +352,10 @@ export default function TrafficMonitorPage() {
               </tr>
             </thead>
             <tbody>
-              {predictions.length > 0 ? predictions.slice(0, 15).map((p, i) => {
+              {filteredPredictions.length > 0 ? [...filteredPredictions].reverse().slice(0, 20).map((p, i) => {
                 const isAttack = p.label.toLowerCase() === 'attack';
                 return (
-                  <tr key={p.id} className="table-row" style={isAttack ? { background: 'rgba(239,68,68,0.06)' } : undefined}>
+                  <tr key={`${p.id}-${p.timestamp}-${i}`} className="table-row" style={isAttack ? { background: 'rgba(239,68,68,0.06)' } : undefined}>
                     <td style={{ textAlign: 'center', fontSize: 12 }}>{i + 1}</td>
                     <td style={{ fontSize: 12 }}>{new Date(p.timestamp).toLocaleTimeString()}</td>
                     <td>

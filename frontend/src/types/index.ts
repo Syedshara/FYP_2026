@@ -36,6 +36,7 @@ export interface DeviceCreate {
   port?: number;
   traffic_source?: string;
   description?: string;
+  client_id?: number;
 }
 
 export interface DeviceUpdate {
@@ -47,6 +48,7 @@ export interface DeviceUpdate {
   status?: string;
   traffic_source?: string;
   description?: string;
+  client_id?: number;
 }
 
 export interface Device {
@@ -59,6 +61,7 @@ export interface Device {
   status: string;
   traffic_source: string;
   description: string | null;
+  client_id: number | null;
   last_seen_at: string | null;
   threat_count_today: number;
   created_at: string;
@@ -99,9 +102,53 @@ export interface FLRoundDetail extends FLRound {
 export interface FLClient {
   id: number;
   client_id: string;
+  name: string;
+  description: string | null;
+  ip_address: string | null;
   status: string;
   data_path: string;
   container_id: string | null;
+  container_name: string | null;
+  total_samples: number;
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface DeviceBrief {
+  id: string;
+  name: string;
+  device_type: string;
+  status: string;
+  ip_address: string | null;
+}
+
+export interface FLClientDetail extends FLClient {
+  devices: DeviceBrief[];
+}
+
+export interface FLClientCreate {
+  client_id: string;
+  name: string;
+  description?: string;
+  ip_address?: string;
+  data_path?: string;
+}
+
+export interface FLClientUpdate {
+  name?: string;
+  description?: string;
+  ip_address?: string;
+  status?: string;
+  data_path?: string;
+  total_samples?: number;
+}
+
+export interface ContainerStatus {
+  container_id: string | null;
+  name: string | null;
+  status: string;
+  image: string | null;
 }
 
 export interface FLStatus {

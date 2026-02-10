@@ -2,14 +2,20 @@
 Prediction model — stores ML inference results.
 """
 
-from datetime import datetime, timezone
+from __future__ import annotations
 
-from sqlalchemy import Integer, Float, String, BigInteger, DateTime, Enum as SAEnum, Uuid, JSON
-from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Integer, Float, String, BigInteger, DateTime, Enum as SAEnum, Uuid, JSON, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 import uuid
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.device import Device
 
 
 class Prediction(Base):
@@ -17,7 +23,13 @@ class Prediction(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     device_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(), nullable=False, index=True
+        Uuid(), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    client_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("fl_clients.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     traffic_log_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     score: Mapped[float] = mapped_column(Float, nullable=False)
@@ -36,3 +48,6 @@ class Prediction(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+
+    # Relationships
+    device: Mapped[Device] = relationship("Device", back_populates="predictions")

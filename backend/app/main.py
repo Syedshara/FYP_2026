@@ -13,7 +13,9 @@ from app.core.middleware import setup_cors
 from app.core.exceptions import register_exception_handlers
 from app.core.security import hash_password
 from app.models.user import User
+from app.models.fl import FLClient
 from app.api.v1 import router as api_v1_router
+from app.core.websocket import ws_manager
 
 
 async def seed_admin():
@@ -34,12 +36,45 @@ async def seed_admin():
             print("👤 Admin user already exists — skipping seed")
 
 
+async def seed_fl_clients():
+    """Register default FL clients (bank_a, bank_b, bank_c) if not already present."""
+    from datetime import datetime, timezone
+
+    default_clients = [
+        {"client_id": "bank_a", "name": "Bank A", "data_path": "/app/data"},
+        {"client_id": "bank_b", "name": "Bank B", "data_path": "/app/data"},
+        {"client_id": "bank_c", "name": "Bank C", "data_path": "/app/data"},
+    ]
+
+    async with async_session() as db:
+        for c in default_clients:
+            result = await db.execute(
+                select(FLClient).where(FLClient.client_id == c["client_id"])
+            )
+            if result.scalar_one_or_none() is None:
+                client = FLClient(
+                    client_id=c["client_id"],
+                    name=c["name"],
+                    data_path=c["data_path"],
+                    status="inactive",
+                    last_seen_at=datetime.now(timezone.utc),
+                )
+                db.add(client)
+                await db.commit()
+                print(f"🏢 Registered FL client: {c['client_id']} ({c['name']})")
+            else:
+                pass  # already exists
+
+    print("🏢 FL clients ready")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown logic."""
     # ── Startup ──────────────────────────────────────────
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     await seed_admin()
+    await seed_fl_clients()
     # TODO: Load ML model into app.state
     # TODO: Connect to Redis
     yield
@@ -68,7 +103,11 @@ def create_app() -> FastAPI:
     # Health check
     @app.get("/health", tags=["health"])
     async def health():
-        return {"status": "ok", "version": settings.APP_VERSION}
+        return {
+            "status": "ok",
+            "version": settings.APP_VERSION,
+            "ws_connections": ws_manager.total_connections,
+        }
 
     return app
 

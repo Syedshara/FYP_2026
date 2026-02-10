@@ -21,8 +21,9 @@ async def create_device(
     port: int = 0,
     traffic_source: str = "simulated",
     description: Optional[str] = None,
+    client_id: Optional[int] = None,
 ) -> Device:
-    """Create a new device."""
+    """Create a new device, optionally under an FL client."""
     # Check for duplicate name
     existing = await db.execute(
         select(Device).where(Device.name == name)
@@ -38,6 +39,7 @@ async def create_device(
         port=port,
         traffic_source=traffic_source,
         description=description,
+        client_id=client_id,
     )
     db.add(device)
     await db.commit()
@@ -54,9 +56,16 @@ async def get_device(db: AsyncSession, device_id: UUID) -> Device:
     return device
 
 
-async def get_all_devices(db: AsyncSession) -> list[Device]:
-    """List all devices."""
-    result = await db.execute(select(Device).order_by(Device.created_at.desc()))
+async def get_all_devices(
+    db: AsyncSession,
+    client_id: Optional[int] = None,
+) -> list[Device]:
+    """List all devices, optionally filtered by client_id."""
+    query = select(Device)
+    if client_id is not None:
+        query = query.where(Device.client_id == client_id)
+    query = query.order_by(Device.created_at.desc())
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

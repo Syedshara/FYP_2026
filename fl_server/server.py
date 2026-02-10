@@ -7,6 +7,9 @@ Implements FedAvg with server-side HE aggregation:
   3. Server computes deltas, encrypts with CKKS, aggregates, decrypts
   4. Updates global model and repeats
 
+After each round, metrics are POSTed to the backend API which broadcasts
+them to frontends via WebSocket.
+
 Usage:
     python server.py
     ROUNDS=5 MIN_CLIENTS=2 python server.py
@@ -20,6 +23,7 @@ import logging
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
 
+import httpx
 import numpy as np
 import torch
 import flwr as fl
@@ -52,10 +56,32 @@ MIN_FIT_CLIENTS = int(os.environ.get("MIN_FIT_CLIENTS", MIN_CLIENTS))
 SERVER_ADDRESS = os.environ.get("FL_SERVER_ADDRESS", "0.0.0.0:8080")
 USE_HE = os.environ.get("USE_HE", "true").lower() in ("true", "1", "yes")
 MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000")
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://iot_ids_backend:8000")
 
 SEQ_LEN = DEFAULT_CONFIG["SEQUENCE_LENGTH"]
 NUM_FEATURES = DEFAULT_CONFIG["NUM_FEATURES"]
+
+# HTTP client for backend callbacks
+_http_client: Optional[httpx.Client] = None
+
+
+def _get_http() -> httpx.Client:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.Client(base_url=BACKEND_URL, timeout=10.0)
+    return _http_client
+
+
+def _post_to_backend(path: str, payload: dict) -> bool:
+    """POST JSON to the backend internal API. Returns True on success."""
+    try:
+        r = _get_http().post(path, json=payload)
+        if r.status_code < 300:
+            return True
+        log.warning("Backend POST %s → %s: %s", path, r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("Backend POST %s failed: %s", path, exc)
+    return False
 
 
 # ═══════════════════════════════════════════════════════════
@@ -120,7 +146,17 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             return None, {}
 
         t0 = time.time()
-        log.info("Round %d — aggregating %d clients (HE=%s)", server_round, len(results), self.use_he)
+        num_clients = len(results)
+        log.info("Round %d — aggregating %d clients (HE=%s)", server_round, num_clients, self.use_he)
+
+        # Notify backend that aggregation is starting
+        _post_to_backend("/api/v1/internal/fl/progress", {
+            "round": server_round,
+            "total_rounds": ROUNDS,
+            "phase": "aggregating",
+            "num_clients": num_clients,
+            "message": f"Aggregating {num_clients} client updates (HE={self.use_he})",
+        })
 
         if self.use_he:
             params, metrics = self._aggregate_he(server_round, results)
@@ -133,7 +169,64 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
         self._save_checkpoint(server_round)
         self.round_metrics.append({"round": server_round, **metrics})
+
+        # Report completed round to backend (persists + broadcasts via WS)
+        self._report_round(server_round, num_clients, results, elapsed, metrics)
+
         return params, metrics
+
+    def _report_round(
+        self,
+        server_round: int,
+        num_clients: int,
+        results,
+        duration: float,
+        agg_metrics: dict,
+    ) -> None:
+        """POST round + per-client metrics to the backend internal API."""
+        # Collect per-client metrics
+        client_metrics = []
+        total_samples = 0
+        weighted_loss = 0.0
+        weighted_acc = 0.0
+
+        for proxy, fit_res in results:
+            cid = getattr(proxy, "cid", "unknown")
+            m = fit_res.metrics or {}
+            n = int(fit_res.num_examples)
+            loss = float(m.get("loss", 0.0))
+            acc = float(m.get("accuracy", 0.0))
+
+            client_metrics.append({
+                "client_id": str(cid),
+                "local_loss": loss,
+                "local_accuracy": acc,
+                "num_samples": n,
+                "training_time_sec": float(m.get("training_time_sec", 0.0)),
+                "encrypted": self.use_he,
+            })
+            total_samples += n
+            weighted_loss += loss * n
+            weighted_acc += acc * n
+
+        # Compute weighted average global metrics
+        global_loss = weighted_loss / max(total_samples, 1)
+        global_accuracy = weighted_acc / max(total_samples, 1)
+
+        round_payload = {
+            "round_number": server_round,
+            "total_rounds": ROUNDS,
+            "num_clients": num_clients,
+            "aggregation_method": "fedavg_he" if self.use_he else "fedavg_plain",
+            "he_scheme": "ckks" if self.use_he else None,
+            "he_poly_modulus": HE_POLY_MODULUS if self.use_he else None,
+            "duration_seconds": duration,
+            "global_loss": global_loss,
+            "global_accuracy": global_accuracy,
+            "client_metrics": client_metrics,
+        }
+
+        _post_to_backend("/api/v1/internal/fl/round", round_payload)
 
     # ── Plain FedAvg ─────────────────────────────────────
 
@@ -262,6 +355,14 @@ def main() -> None:
         fraction_evaluate=0.0,
     )
 
+    # Notify backend that training is starting
+    _post_to_backend("/api/v1/internal/fl/status", {
+        "status": "started",
+        "total_rounds": ROUNDS,
+        "num_clients": MIN_CLIENTS,
+        "use_he": USE_HE,
+    })
+
     fl.server.start_server(
         server_address=SERVER_ADDRESS,
         config=fl.server.ServerConfig(num_rounds=ROUNDS),
@@ -277,6 +378,14 @@ def main() -> None:
     with open(history_path, "w") as f:
         json.dump(strategy.round_metrics, f, indent=2)
     log.info("History → %s", history_path)
+
+    # Notify backend that training is complete
+    _post_to_backend("/api/v1/internal/fl/status", {
+        "status": "completed",
+        "total_rounds": ROUNDS,
+        "rounds_completed": len(strategy.round_metrics),
+        "model_path": final_path,
+    })
 
 
 if __name__ == "__main__":

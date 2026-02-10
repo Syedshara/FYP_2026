@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     HE_POLY_MODULUS: int = 16384
     HE_GLOBAL_SCALE: int = 1099511627776  # 2**40
 
+    # ── Docker SDK ──────────────────────────────
+    HOST_PROJECT_ROOT: str = "/host_project"  # set via docker-compose env
+
     # ── App ──────────────────────────────────────
     APP_NAME: str = "IoT IDS Platform"
     APP_VERSION: str = "1.0.0"

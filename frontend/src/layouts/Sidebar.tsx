@@ -2,13 +2,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Monitor, Activity, Brain, Shield, Settings,
-  Workflow, Wifi, Menu, X,
+  Workflow, Wifi, Menu, X, Server,
 } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/devices', icon: Monitor, label: 'Devices' },
+  { to: '/clients', icon: Server, label: 'Clients' },
   { to: '/traffic', icon: Activity, label: 'Traffic Monitor' },
   { to: '/attack-pipeline', icon: Workflow, label: 'Attack Pipeline' },
   { to: '/fl-training', icon: Brain, label: 'FL Training' },

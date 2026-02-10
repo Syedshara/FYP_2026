@@ -1,15 +1,23 @@
 """
-Federated Learning service — manages FL training rounds and metrics.
+Federated Learning service — manages FL training rounds, metrics, and clients.
 """
 
 from datetime import datetime, timezone
 from typing import Optional
+import logging
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.fl import FLRound, FLClientMetric, FLClient
+from app.core.exceptions import NotFoundException, ConflictException
+from app.services import docker_service, data_service
 
+log = logging.getLogger(__name__)
+
+
+# ── FL Rounds ────────────────────────────────────────────
 
 async def create_fl_round(
     db: AsyncSession,
@@ -107,31 +115,70 @@ async def get_latest_round(db: AsyncSession) -> Optional[FLRound]:
     return result.scalar_one_or_none()
 
 
-# ── FL Client registry ──────────────────────────────────
+# ── FL Client CRUD ──────────────────────────────────────
 
 async def register_fl_client(
     db: AsyncSession,
     client_id: str,
-    data_path: str,
+    name: str,
+    data_path: str = "/app/data",
+    description: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    create_container: bool = True,
 ) -> FLClient:
-    """Register or update an FL client."""
+    """
+    Register a new FL client.
+    If create_container=True, also creates a Docker container for it.
+    Raises ConflictException if client_id exists.
+    """
     result = await db.execute(
         select(FLClient).where(FLClient.client_id == client_id)
     )
     existing = result.scalar_one_or_none()
-
     if existing:
-        existing.data_path = data_path
-        existing.status = "active"
-        existing.last_seen_at = datetime.now(timezone.utc)
-        await db.commit()
-        await db.refresh(existing)
-        return existing
+        raise ConflictException(f"FL client with ID '{client_id}' already exists")
+
+    container_id = None
+    container_name = None
+
+    # ── Generate training data (copy 30% subset from a source client) ──
+    data_info = data_service.generate_client_data(client_id)
+    total_samples = data_info.get("total_samples", 0)
+    if data_info.get("created"):
+        log.info(
+            "Generated training data for %s: %d chunks, %d samples (source: %s)",
+            client_id, data_info["chunks"], total_samples, data_info["source"],
+        )
+    elif not data_info.get("created") and data_info.get("source") == "existing":
+        # Data already existed — count samples
+        existing_info = data_service.get_client_data_info(client_id)
+        total_samples = existing_info.get("total_samples", 0)
+
+    if create_container:
+        try:
+            info = docker_service.create_client_container(
+                client_id=client_id,
+                data_path=data_path,
+            )
+            container_id = info.container_id
+            container_name = info.name
+            log.info("Created container %s for client %s", container_name, client_id)
+        except Exception as exc:
+            log.error("Failed to create container for %s: %s", client_id, exc)
+            # Still register the client but without a container
+            container_id = None
+            container_name = None
 
     client = FLClient(
         client_id=client_id,
+        name=name,
+        description=description,
+        ip_address=ip_address,
         data_path=data_path,
-        status="active",
+        status="inactive",
+        container_id=container_id,
+        container_name=container_name,
+        total_samples=total_samples,
         last_seen_at=datetime.now(timezone.utc),
     )
     db.add(client)
@@ -140,9 +187,66 @@ async def register_fl_client(
     return client
 
 
+async def get_fl_client(db: AsyncSession, pk: int) -> FLClient:
+    """Get a single FL client by primary key, with devices eagerly loaded."""
+    result = await db.execute(
+        select(FLClient)
+        .options(selectinload(FLClient.devices))
+        .where(FLClient.id == pk)
+    )
+    client = result.scalar_one_or_none()
+    if not client:
+        raise NotFoundException("FL client not found")
+    return client
+
+
+async def get_fl_client_by_client_id(db: AsyncSession, client_id: str) -> Optional[FLClient]:
+    """Get a single FL client by its short client_id string."""
+    result = await db.execute(
+        select(FLClient).where(FLClient.client_id == client_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_fl_client(
+    db: AsyncSession,
+    pk: int,
+    **kwargs,
+) -> FLClient:
+    """Update FL client fields."""
+    client = await get_fl_client(db, pk)
+    for key, value in kwargs.items():
+        if value is not None and hasattr(client, key):
+            setattr(client, key, value)
+    await db.commit()
+    await db.refresh(client)
+    return client
+
+
+async def delete_fl_client(db: AsyncSession, pk: int) -> None:
+    """Delete an FL client, remove its Docker container, and cascade-delete its devices."""
+    client = await get_fl_client(db, pk)
+
+    # Remove Docker container if one was created
+    if client.container_id:
+        try:
+            docker_service.remove_container(client.container_id, force=True)
+            log.info("Removed container %s for client %s", client.container_id, client.client_id)
+        except Exception as exc:
+            log.error("Failed to remove container for %s: %s", client.client_id, exc)
+
+    # Remove training data directory (safety: won't delete source clients)
+    data_service.delete_client_data(client.client_id)
+
+    await db.delete(client)
+    await db.commit()
+
+
 async def get_all_fl_clients(db: AsyncSession) -> list[FLClient]:
     """Return all registered FL clients."""
-    result = await db.execute(select(FLClient).order_by(FLClient.client_id))
+    result = await db.execute(
+        select(FLClient).order_by(FLClient.created_at.desc())
+    )
     return list(result.scalars().all())
 
 
@@ -154,6 +258,8 @@ async def get_active_fl_clients(db: AsyncSession) -> list[FLClient]:
     return list(result.scalars().all())
 
 
+# ── Cleanup ─────────────────────────────────────────────
+
 async def delete_fl_round_data(db: AsyncSession) -> int:
     """Delete all FL round and metric data (reset). Returns count deleted."""
     metrics_result = await db.execute(select(func.count(FLClientMetric.id)))
@@ -162,11 +268,6 @@ async def delete_fl_round_data(db: AsyncSession) -> int:
     rounds_result = await db.execute(select(func.count(FLRound.id)))
     rounds_count = rounds_result.scalar() or 0
 
-    await db.execute(select(FLClientMetric).execution_options(synchronize_session=False))
-    await db.execute(select(FLRound).execution_options(synchronize_session=False))
-
-    # Use delete statements
-    from sqlalchemy import delete
     await db.execute(delete(FLClientMetric))
     await db.execute(delete(FLRound))
     await db.commit()

@@ -17,6 +17,7 @@ class DeviceCreate(BaseModel):
     port: Optional[int] = Field(default=None, ge=1, le=65535)
     traffic_source: str = Field(default="simulated")
     description: Optional[str] = None
+    client_id: Optional[int] = Field(default=None, description="FK to FL client that owns this device")
 
 
 class DeviceUpdate(BaseModel):
@@ -28,6 +29,7 @@ class DeviceUpdate(BaseModel):
     status: Optional[str] = None
     traffic_source: Optional[str] = None
     description: Optional[str] = None
+    client_id: Optional[int] = None
 
 
 class DeviceOut(BaseModel):
@@ -40,9 +42,21 @@ class DeviceOut(BaseModel):
     status: str
     traffic_source: str
     description: Optional[str]
+    client_id: Optional[int] = None
     last_seen_at: Optional[datetime]
     threat_count_today: int
     created_at: datetime
     updated_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
+
+
+class DeviceBrief(BaseModel):
+    """Minimal device info for nesting inside client responses."""
+    id: UUID
+    name: str
+    device_type: str
+    status: str
+    ip_address: Optional[str] = None
 
     model_config = {"from_attributes": True}

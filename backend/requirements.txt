@@ -23,6 +23,9 @@ email-validator==2.1.1
 # ── WebSocket ───────────────────────────────────
 websockets==14.1
 
+# ── Docker SDK ──────────────────────────────────
+docker>=7.0
+
 # ── Utilities ───────────────────────────────────
 python-dotenv==1.0.1
 aiofiles==24.1.0
