@@ -1,67 +1,41 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Design Tokens (Light)
+   Design Tokens — Terminal Theme (Black & White Minimalist)
    ================================================================ */
 :root {
-  --bg-primary:    #f8fafc;
-  --bg-secondary:  #f1f5f9;
+  --bg-primary:    #ffffff;
+  --bg-secondary:  #f7f7f7;
   --bg-card:       #ffffff;
-  --bg-sidebar:    #ffffff;
-  --bg-input:      #f1f5f9;
-  --text-primary:  #0f172a;
-  --text-secondary:#475569;
-  --text-muted:    #94a3b8;
-  --border:        #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --accent:        #6366f1;
-  --accent-hover:  #4f46e5;
-  --accent-light:  rgba(99, 102, 241, 0.08);
-  --accent-glow:   rgba(99, 102, 241, 0.25);
-  --success:       #22c55e;
-  --success-light: rgba(34, 197, 94, 0.08);
-  --danger:        #ef4444;
-  --danger-light:  rgba(239, 68, 68, 0.08);
-  --warning:       #f59e0b;
-  --warning-light: rgba(245, 158, 11, 0.08);
-  --info:          #3b82f6;
-  --info-light:    rgba(59, 130, 246, 0.08);
-  --shadow-sm:     0 1px 2px rgba(0,0,0,.04);
-  --shadow:        0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:     0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.04);
-  --shadow-lg:     0 10px 25px -3px rgba(0,0,0,.08);
-  --radius:        10px;
-  --radius-sm:     6px;
-  --radius-lg:     14px;
+  --bg-sidebar:    #fafafa;
+  --bg-input:      #f7f7f7;
+  --text-primary:  #1a1a1a;
+  --text-secondary:#4a4a4a;
+  --text-muted:    #999999;
+  --border:        #e0e0e0;
+  --border-subtle: #f0f0f0;
+  --accent:        #1a1a1a;
+  --accent-hover:  #333333;
+  --accent-light:  rgba(26, 26, 26, 0.05);
+  --accent-glow:   rgba(26, 26, 26, 0.12);
+  --success:       #2d8a4e;
+  --success-light: rgba(45, 138, 78, 0.07);
+  --danger:        #c53030;
+  --danger-light:  rgba(197, 48, 48, 0.07);
+  --warning:       #b7791f;
+  --warning-light: rgba(183, 121, 31, 0.07);
+  --info:          #2b6cb0;
+  --info-light:    rgba(43, 108, 176, 0.07);
+  --shadow-sm:     none;
+  --shadow:        none;
+  --shadow-md:     none;
+  --shadow-lg:     0 1px 4px rgba(0,0,0,.06);
+  --radius:        3px;
+  --radius-sm:     2px;
+  --radius-lg:     4px;
   --sidebar-width: 256px;
   --sidebar-collapsed: 72px;
-  --topbar-height: 60px;
-}
-
-/* ================================================================
-   Dark Theme
-   ================================================================ */
-.dark {
-  --bg-primary:    #0b1120;
-  --bg-secondary:  #131c31;
-  --bg-card:       #162032;
-  --bg-sidebar:    #0d1525;
-  --bg-input:      #1a2540;
-  --text-primary:  #f1f5f9;
-  --text-secondary:#94a3b8;
-  --text-muted:    #475569;
-  --border:        #1e2d45;
-  --border-subtle: #162032;
-  --accent-light:  rgba(99, 102, 241, 0.12);
-  --accent-glow:   rgba(99, 102, 241, 0.3);
-  --success-light: rgba(34, 197, 94, 0.12);
-  --danger-light:  rgba(239, 68, 68, 0.12);
-  --warning-light: rgba(245, 158, 11, 0.12);
-  --info-light:    rgba(59, 130, 246, 0.12);
-  --shadow-sm:     0 1px 2px rgba(0,0,0,.2);
-  --shadow:        0 1px 3px rgba(0,0,0,.3);
-  --shadow-md:     0 4px 8px rgba(0,0,0,.3);
-  --shadow-lg:     0 10px 25px rgba(0,0,0,.4);
+  --topbar-height: 48px;
 }
 
 /* ================================================================
@@ -70,17 +44,16 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 16px;
+  font-size: 13px;
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  transition: background 0.2s, color 0.2s;
 }
 
 /* ================================================================
@@ -98,30 +71,29 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: border-color 0.15s;
 }
-.card-hover:hover, .card.card-interactive:hover { box-shadow: var(--shadow-md); }
+.card-hover:hover, .card.card-interactive:hover { border-color: var(--text-muted); }
 
 /* ================================================================
    Form Inputs (global)
    ================================================================ */
 .input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   background: var(--bg-input);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
+  font-family: inherit;
   line-height: 1.5;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
 .input::placeholder { color: var(--text-muted); }
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
 }
 
 /* Select dropdown styling */
@@ -154,7 +126,6 @@ select.input option {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
   padding: 20px;
 }
 
@@ -166,22 +137,25 @@ select.input option {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
-  border: none;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: background 0.15s, border-color 0.15s;
   line-height: 1;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 .btn:active { transform: scale(0.98); }
 .btn-primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 1px 3px var(--accent-glow);
+  border-color: var(--accent);
 }
-.btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 12px var(--accent-glow); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -221,10 +195,10 @@ select.input option {
    Status Dots
    ================================================================ */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.status-online     { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status-online     { background: var(--success); }
 .status-offline    { background: var(--text-muted); }
-.status-attack     { background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: pulse-dot 2s infinite; }
-.status-quarantined{ background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.status-attack     { background: var(--danger); animation: pulse-dot 2s infinite; }
+.status-quarantined{ background: var(--warning); }
 
 /* ================================================================
    Badge
@@ -233,10 +207,11 @@ select.input option {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: 2px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  font-family: inherit;
   line-height: 1.4;
 }
 

@@ -76,9 +76,10 @@ const MAX_PREDICTIONS = 50;
 // ── Store ──────────────────────────────────────────────
 
 interface LiveState {
-  // Ring-buffered predictions
+  // Ring-buffered predictions (last N for display + counting)
   latestPredictions: LivePrediction[];
   addPrediction: (p: LivePrediction) => void;
+  clearPredictions: () => void;
 
   // FL training progress per client
   flClientProgress: Record<string, FLClientProgress>;
@@ -115,6 +116,7 @@ interface LiveState {
 export const useLiveStore = create<LiveState>()((set) => ({
   // ── Predictions ──
   latestPredictions: [],
+  clearPredictions: () => set({ latestPredictions: [] }),
   addPrediction: (p) =>
     set((state) => ({
       latestPredictions: [p, ...state.latestPredictions].slice(0, MAX_PREDICTIONS),

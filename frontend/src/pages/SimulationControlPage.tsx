@@ -1,133 +1,140 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Loader2, Play, Square, Radio, Zap, Activity, Server,
-  RefreshCw, Clock, AlertTriangle, CheckCircle2, XCircle,
-  ChevronDown, Shuffle, Repeat, Gauge, Settings2,
+  Loader2, Play, Square,
+  AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
 import { simulationApi } from '@/api/simulation';
 import { useLiveStore } from '@/stores/liveStore';
-import type { Scenario, SimulationStatus, SimulationStartConfig } from '@/api/simulation';
+import type { Scenario, SimulationStatus, SimClient } from '@/api/simulation';
 
 /* ── Animations ───────────────────────────────── */
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
-const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+const fadeUp  = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
-/* ── State badge colors ──────────────────────── */
-function stateColor(state: string): { bg: string; fg: string; dot: string } {
+/* ── Helpers ────────────────────────────────── */
+
+function stateColor(state: string) {
   switch (state) {
-    case 'running': return { bg: 'var(--success-light)', fg: 'var(--success)', dot: 'var(--success)' };
+    case 'running':  return { bg: 'var(--success-light)', fg: 'var(--success)', dot: 'var(--success)' };
     case 'starting': return { bg: 'var(--warning-light)', fg: 'var(--warning)', dot: 'var(--warning)' };
     case 'stopping': return { bg: 'var(--warning-light)', fg: 'var(--warning)', dot: 'var(--warning)' };
-    case 'error': return { bg: 'var(--danger-light)', fg: 'var(--danger)', dot: 'var(--danger)' };
-    case 'paused': return { bg: 'var(--accent-light)', fg: 'var(--accent)', dot: 'var(--accent)' };
-    default: return { bg: 'var(--bg-secondary)', fg: 'var(--text-muted)', dot: 'var(--text-muted)' };
+    case 'error':    return { bg: 'var(--danger-light)',  fg: 'var(--danger)',  dot: 'var(--danger)'  };
+    default:         return { bg: 'var(--bg-secondary)',  fg: 'var(--text-muted)', dot: 'var(--text-muted)' };
   }
 }
 
-function stateIcon(state: string) {
-  switch (state) {
-    case 'running': return <Activity style={{ width: 14, height: 14 }} />;
-    case 'starting': return <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />;
-    case 'stopping': return <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />;
-    case 'error': return <XCircle style={{ width: 14, height: 14 }} />;
-    default: return <Square style={{ width: 14, height: 14 }} />;
-  }
-}
-
-function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${Math.floor(seconds)}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
+function formatUptime(sec: number): string {
+  if (sec < 60) return `${Math.floor(sec)}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${Math.floor(sec % 60)}s`;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
   return `${h}h ${m}m`;
 }
 
-/* ── Speed presets ────────────────────────────── */
-const SPEED_PRESETS = [
-  { label: '0.5×', value: 0.5 },
-  { label: '1×', value: 1.0 },
-  { label: '2×', value: 2.0 },
-  { label: '5×', value: 5.0 },
-  { label: '10×', value: 10.0 },
-];
+function friendlyScenario(name: string): string {
+  if (name === 'client_data') return 'Client Data';
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
-/* ── Available clients ────────────────────────── */
-const ALL_CLIENTS = ['bank_a', 'bank_b', 'bank_c'];
+function attackIcon(rate: number): string {
+  if (rate === 0) return '🟢';
+  if (rate < 0.3) return '🟡';
+  if (rate < 0.6) return '🟠';
+  return '🔴';
+}
 
 /* ══════════════════════════════════════════════════
-   Main Component
+   SimulationControlPage
    ══════════════════════════════════════════════════ */
 export default function SimulationControlPage() {
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [status, setStatus] = useState<SimulationStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  /* ── State ─────────────────────────────────── */
+  const [scenarios, setScenarios]       = useState<Scenario[]>([]);
+  const [simClients, setSimClients]     = useState<SimClient[]>([]);
+  const [status, setStatus]             = useState<SimulationStatus | null>(null);
+  const [loading, setLoading]           = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]               = useState<string | null>(null);
 
-  // Config state
-  const [selectedScenario, setSelectedScenario] = useState('client_data');
-  const [replaySpeed, setReplaySpeed] = useState(1.0);
-  const [monitorInterval, setMonitorInterval] = useState(3.0);
-  const [replayLoop, setReplayLoop] = useState(true);
-  const [replayShuffle, setReplayShuffle] = useState(false);
-  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set(ALL_CLIENTS));
+  // User picks
+  const [selectedScenario, setSelectedScenario] = useState('');
+  const selectedDuration = 'continuous';
+  const [selectedClients, setSelectedClients]   = useState<Set<string>>(new Set());
 
-  // Live predictions from WS
-  const livePredictions = useLiveStore((s) => s.latestPredictions);
+  // Live predictions from WS (last 50)
+  const livePredictions = useLiveStore(s => s.latestPredictions);
+  const clearPredictions = useLiveStore(s => s.clearPredictions);
 
-  // Polling for status updates when running
+  // Polling
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Initial load ──────────────────────────────
+  /* ── Initial load ──────────────────────────── */
   useEffect(() => {
     Promise.all([
       simulationApi.scenarios().catch(() => []),
       simulationApi.status().catch(() => null),
-    ]).then(([scens, stat]) => {
+      simulationApi.clients().catch(() => []),
+    ]).then(([scens, stat, cls]) => {
       setScenarios(scens);
       if (stat) setStatus(stat);
+      setSimClients(cls);
+
+      // Default selection: first non-default scenario or client_data
+      if (scens.length > 0) {
+        const first = scens.find(s => !s.is_default);
+        setSelectedScenario(first ? first.name : 'client_data');
+      }
+      // Select only clients that have devices
+      const withDevices = cls.filter(c => c.device_count > 0);
+      if (withDevices.length > 0) {
+        setSelectedClients(new Set(withDevices.map(c => c.client_id)));
+      }
     }).finally(() => setLoading(false));
   }, []);
 
-  // ── Status polling ────────────────────────────
+  /* ── Status polling while running ──────────── */
   useEffect(() => {
     if (status?.state === 'running' || status?.state === 'starting') {
       pollRef.current = setInterval(async () => {
-        try {
-          const s = await simulationApi.status();
-          setStatus(s);
-        } catch { /* ignore */ }
+        try { setStatus(await simulationApi.status()); } catch { /* ignore */ }
       }, 3000);
     }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [status?.state]);
 
-  // ── Live prediction stats ─────────────────────
+  /* ── Derived ───────────────────────────────── */
+  const isRunning     = status?.state === 'running' || status?.state === 'starting';
+
+  // Only show clients that have at least one device
+  const eligibleClients = useMemo(
+    () => simClients.filter(c => c.device_count > 0),
+    [simClients],
+  );
+
   const liveStats = useMemo(() => {
-    if (livePredictions.length === 0) return { total: 0, attacks: 0, benign: 0, avgScore: 0, avgLatency: 0 };
-    const attacks = livePredictions.filter((p) => p.label === 'attack').length;
-    const avgScore = livePredictions.reduce((s, p) => s + p.score, 0) / livePredictions.length;
-    const avgLatency = livePredictions.reduce((s, p) => s + (p.inference_latency_ms ?? 0), 0) / livePredictions.length;
-    return { total: livePredictions.length, attacks, benign: livePredictions.length - attacks, avgScore, avgLatency };
+    if (livePredictions.length === 0)
+      return { total: 0, attacks: 0, benign: 0, rate: 0 };
+    const attacks = livePredictions.filter(p => p.label === 'attack').length;
+    return {
+      total:   livePredictions.length,
+      attacks,
+      benign:  livePredictions.length - attacks,
+      rate:    attacks / livePredictions.length,
+    };
   }, [livePredictions]);
 
-  // ── Actions ───────────────────────────────────
+  /* ── Actions ───────────────────────────────── */
   const handleStart = useCallback(async () => {
     setActionLoading(true);
     setError(null);
+    clearPredictions();
     try {
-      const config: SimulationStartConfig = {
+      const s = await simulationApi.start({
         scenario: selectedScenario,
-        replay_speed: replaySpeed,
-        monitor_interval: monitorInterval,
-        replay_loop: replayLoop,
-        replay_shuffle: replayShuffle,
+        duration: selectedDuration,
         clients: Array.from(selectedClients),
-      };
-      const s = await simulationApi.start(config);
+      });
       setStatus(s);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } }; message?: string };
@@ -135,14 +142,13 @@ export default function SimulationControlPage() {
     } finally {
       setActionLoading(false);
     }
-  }, [selectedScenario, replaySpeed, monitorInterval, replayLoop, replayShuffle, selectedClients]);
+  }, [selectedScenario, selectedDuration, selectedClients, clearPredictions]);
 
   const handleStop = useCallback(async () => {
     setActionLoading(true);
     setError(null);
     try {
-      const s = await simulationApi.stop();
-      setStatus(s);
+      setStatus(await simulationApi.stop());
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } }; message?: string };
       setError(e?.response?.data?.detail || e?.message || 'Failed to stop simulation');
@@ -151,254 +157,225 @@ export default function SimulationControlPage() {
     }
   }, []);
 
-  const handleRefresh = useCallback(async () => {
-    try {
-      const [scens, stat] = await Promise.all([
-        simulationApi.scenarios().catch(() => scenarios),
-        simulationApi.status().catch(() => status),
-      ]);
-      setScenarios(scens);
-      if (stat) setStatus(stat);
-    } catch { /* ignore */ }
-  }, [scenarios, status]);
-
   const toggleClient = (id: string) => {
-    setSelectedClients((prev) => {
+    setSelectedClients(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
-  const isRunning = status?.state === 'running' || status?.state === 'starting';
-  const selectedScenarioInfo = scenarios.find((s) => s.name === selectedScenario);
-
-  // ── Loading state ─────────────────────────────
+  /* ── Loading spinner ───────────────────────── */
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
         <Loader2 style={{ width: 24, height: 24, color: 'var(--accent)' }} className="animate-spin" />
-        <span style={{ color: 'var(--text-muted)' }}>Loading simulation controls…</span>
+        <span style={{ color: 'var(--text-muted)' }}>Loading simulation…</span>
       </div>
     );
   }
 
+  /* ══════════════════════════════════════════════
+     RENDER
+     ══════════════════════════════════════════════ */
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <motion.div variants={stagger} initial="hidden" animate="show"
+      style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* ── Header ──────────────────────────────── */}
-      <motion.div variants={fadeUp} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <motion.div variants={fadeUp}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Radio style={{ width: 22, height: 22, color: 'var(--accent)' }} />
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0,
+                       display: 'flex', alignItems: 'center', gap: 10 }}>
             Traffic Simulation
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-            Replay real CIC-IDS2017 network traffic through the trained CNN-LSTM model
-          </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Status badge */}
-          {status && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
-                borderRadius: 20, fontSize: 12, fontWeight: 600,
-                background: stateColor(status.state).bg, color: stateColor(status.state).fg,
-              }}
-            >
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: stateColor(status.state).dot,
-                animation: status.state === 'running' ? 'pulse 2s infinite' : undefined }} />
-              {stateIcon(status.state)}
-              {status.state.toUpperCase()}
-              {status.state === 'running' && status.uptime_seconds > 0 && (
-                <span style={{ fontWeight: 400, marginLeft: 4 }}>({formatUptime(status.uptime_seconds)})</span>
-              )}
-            </div>
-          )}
-          <button
-            onClick={handleRefresh}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)',
-              background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer',
-            }}
-            title="Refresh"
-          >
-            <RefreshCw style={{ width: 14, height: 14 }} />
-          </button>
-        </div>
+
+        {/* Status badge */}
+        {status && status.state !== 'idle' && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
+            borderRadius: 20, fontSize: 12, fontWeight: 600,
+            background: stateColor(status.state).bg,
+            color: stateColor(status.state).fg,
+          }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: stateColor(status.state).dot,
+              animation: status.state === 'running' ? 'pulse 2s infinite' : undefined,
+            }} />
+            {status.state === 'running' ? null
+              : status.state === 'starting' || status.state === 'stopping'
+              ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
+              : null}
+            {status.state.toUpperCase()}
+            {status.state === 'running' && status.uptime_seconds > 0 && (
+              <span style={{ fontWeight: 400, marginLeft: 4 }}>
+                ({formatUptime(status.uptime_seconds)})
+              </span>
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* ── Error banner ────────────────────────── */}
       <AnimatePresence>
         {error && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
             style={{
               padding: '12px 16px', borderRadius: 10, fontSize: 13,
               background: 'var(--danger-light)', color: 'var(--danger)',
-              display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--danger)',
-            }}
-          >
+              display: 'flex', alignItems: 'center', gap: 8,
+              border: '1px solid var(--danger)',
+            }}>
             <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0 }} />
             {error}
-            <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
+            <button onClick={() => setError(null)}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none',
+                       color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Live KPIs (visible when running) ───── */}
+      {/* ── Live KPIs (when running) ─────────────── */}
       <AnimatePresence>
         {isRunning && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}
-          >
-            {[
-              { label: 'Total Predictions', value: liveStats.total, icon: Activity, color: 'var(--accent)' },
-              { label: 'Attacks Detected', value: liveStats.attacks, icon: AlertTriangle, color: 'var(--danger)' },
-              { label: 'Benign Flows', value: liveStats.benign, icon: CheckCircle2, color: 'var(--success)' },
-              { label: 'Avg Score', value: liveStats.avgScore.toFixed(3), icon: Zap, color: 'var(--warning)' },
-              { label: 'Avg Latency', value: `${liveStats.avgLatency.toFixed(1)}ms`, icon: Clock, color: 'var(--accent)' },
-            ].map((kpi) => (
-              <div
-                key={kpi.label}
-                style={{
-                  background: 'var(--bg-card)', border: '1px solid var(--border)',
-                  borderRadius: 12, padding: '16px 18px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `color-mix(in srgb, ${kpi.color} 15%, transparent)` }}>
-                    <kpi.icon style={{ width: 14, height: 14, color: kpi.color }} />
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{kpi.label}</span>
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 14, padding: 20,
+            }}>
+
+            {/* Active info row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 3, fontSize: 12, fontWeight: 600,
+                background: 'var(--accent-light)', color: 'var(--accent)',
+              }}>
+                {friendlyScenario(status?.config?.scenario || 'client_data')}
               </div>
-            ))}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {status?.scenario_description}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                {status?.config?.flow_rate ?? 0} flows/sec
+                {' · '}
+                {status?.config?.duration === 'continuous' ? 'Continuous' : status?.config?.duration}
+              </span>
+            </div>
+
+            {/* KPI cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+              {[
+                { label: 'Recent (50)',      value: liveStats.total,   color: 'var(--accent)' },
+                { label: 'Attacks Detected', value: liveStats.attacks, color: 'var(--danger)' },
+                { label: 'Benign Flows',     value: liveStats.benign,  color: 'var(--success)' },
+                { label: 'Attack Rate',
+                  value: liveStats.total > 0 ? `${(liveStats.rate * 100).toFixed(1)}%` : '—',
+                  color: liveStats.rate > 0.5 ? 'var(--danger)' : 'var(--success)' },
+              ].map(kpi => (
+                <div key={kpi.label} style={{
+                  background: 'var(--bg-secondary)', borderRadius: 3, padding: '14px 16px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{kpi.label}</span>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Per-client status chips */}
+            {status?.clients && status.clients.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                {status.clients.map(c => (
+                  <div key={c.client_id} style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500,
+                    background: c.state === 'running' ? 'var(--success-light)' : c.state === 'error' ? 'var(--danger-light)' : 'var(--bg-secondary)',
+                    color: c.state === 'running' ? 'var(--success)' : c.state === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+                  }}>
+                    <div style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: c.state === 'running' ? 'var(--success)' : c.state === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+                      animation: c.state === 'running' ? 'pulse 2s infinite' : undefined,
+                    }} />
+                    {c.client_id.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}
+                    {c.state === 'error' && c.error && (
+                      <span style={{ fontWeight: 400 }}> — {c.error.slice(0, 40)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Main Grid: Config + Client Status ──── */}
+      {/* ── Main Grid: Config + Clients ──────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-        {/* ── Scenario Selection ─────────────────── */}
-        <motion.div
-          variants={fadeUp}
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <Settings2 style={{ width: 16, height: 16, color: 'var(--accent)' }} />
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Scenario Configuration</h2>
-          </div>
+        {/* ── Scenario Selection Card ────────────── */}
+        <motion.div variants={fadeUp}
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
 
-          {/* Scenario Selector */}
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 18px',
+                       display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isRunning ? 'Active Scenario' : 'Choose Scenario'}
+          </h2>
+
+          {/* Scenario selector */}
           <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
-            Traffic Scenario
+            Attack Scenario
           </label>
           <div style={{ position: 'relative', marginBottom: 16 }}>
             <select
               value={selectedScenario}
-              onChange={(e) => setSelectedScenario(e.target.value)}
+              onChange={e => setSelectedScenario(e.target.value)}
               disabled={isRunning}
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
                 border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)', fontSize: 13, cursor: isRunning ? 'not-allowed' : 'pointer',
+                color: 'var(--text-primary)', fontSize: 13,
+                cursor: isRunning ? 'not-allowed' : 'pointer',
                 appearance: 'none', outline: 'none', opacity: isRunning ? 0.6 : 1,
-              }}
-            >
-              {scenarios.map((s) => (
+              }}>
+              {scenarios.map(s => (
                 <option key={s.name} value={s.name}>
-                  {s.name === 'client_data' ? '📁 Client Data (Default)' : `🎯 ${s.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`}
+                  {s.is_default
+                    ? '📁 Client Data (Default)'
+                    : `${attackIcon(s.attack_rate)} ${friendlyScenario(s.name)}`}
                 </option>
               ))}
             </select>
-            <ChevronDown style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <ChevronDown style={{
+              position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+              width: 14, height: 14, color: 'var(--text-muted)', pointerEvents: 'none',
+            }} />
           </div>
 
-          {/* Scenario info */}
-          {selectedScenarioInfo && (
-            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--bg-secondary)', marginBottom: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-              <p style={{ margin: '0 0 4px', fontWeight: 500, color: 'var(--text-primary)' }}>{selectedScenarioInfo.description}</p>
-              {selectedScenarioInfo.total_windows > 0 && (
-                <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-                  <span>Windows: <strong style={{ color: 'var(--text-primary)' }}>{selectedScenarioInfo.total_windows.toLocaleString()}</strong></span>
-                  <span>Attack rate: <strong style={{ color: 'var(--danger)' }}>{(selectedScenarioInfo.attack_rate * 100).toFixed(1)}%</strong></span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Replay Speed */}
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
-            <Gauge style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-            Replay Speed
-          </label>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-            {SPEED_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                onClick={() => setReplaySpeed(preset.value)}
-                disabled={isRunning}
-                style={{
-                  flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  border: replaySpeed === preset.value ? '2px solid var(--accent)' : '1px solid var(--border)',
-                  background: replaySpeed === preset.value ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                  color: replaySpeed === preset.value ? 'var(--accent)' : 'var(--text-muted)',
-                  cursor: isRunning ? 'not-allowed' : 'pointer',
-                  opacity: isRunning ? 0.6 : 1,
-                }}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Monitor Interval */}
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
-            <Clock style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-            Prediction Interval: {monitorInterval.toFixed(1)}s
-          </label>
-          <input
-            type="range"
-            min={0.5} max={15} step={0.5}
-            value={monitorInterval}
-            onChange={(e) => setMonitorInterval(parseFloat(e.target.value))}
-            disabled={isRunning}
-            style={{ width: '100%', marginBottom: 16, accentColor: 'var(--accent)', opacity: isRunning ? 0.6 : 1 }}
-          />
-
-          {/* Toggles */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', cursor: isRunning ? 'not-allowed' : 'pointer' }}>
-              <input type="checkbox" checked={replayLoop} onChange={(e) => setReplayLoop(e.target.checked)} disabled={isRunning} style={{ accentColor: 'var(--accent)' }} />
-              <Repeat style={{ width: 12, height: 12 }} /> Loop Replay
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', cursor: isRunning ? 'not-allowed' : 'pointer' }}>
-              <input type="checkbox" checked={replayShuffle} onChange={(e) => setReplayShuffle(e.target.checked)} disabled={isRunning} style={{ accentColor: 'var(--accent)' }} />
-              <Shuffle style={{ width: 12, height: 12 }} /> Shuffle Order
-            </label>
-          </div>
-
-          {/* Start / Stop buttons */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {/* Start / Stop */}
+          <div style={{ display: 'flex', gap: 8 }}>
             {!isRunning ? (
               <button
                 onClick={handleStart}
                 disabled={actionLoading || selectedClients.size === 0}
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '12px 20px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
-                  background: 'var(--accent)', color: '#fff', cursor: selectedClients.size === 0 ? 'not-allowed' : 'pointer',
+                  padding: '13px 20px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
+                  background: 'var(--accent)', color: '#fff',
+                  cursor: selectedClients.size === 0 ? 'not-allowed' : 'pointer',
                   opacity: actionLoading || selectedClients.size === 0 ? 0.6 : 1,
-                  transition: 'opacity .15s, transform .1s',
-                }}
-              >
-                {actionLoading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <Play style={{ width: 16, height: 16 }} />}
+                }}>
+                {actionLoading
+                  ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                  : <Play style={{ width: 16, height: 16 }} />}
                 Start Simulation
               </button>
             ) : (
@@ -407,185 +384,150 @@ export default function SimulationControlPage() {
                 disabled={actionLoading}
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '12px 20px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
+                  padding: '13px 20px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
                   background: 'var(--danger)', color: '#fff', cursor: 'pointer',
                   opacity: actionLoading ? 0.6 : 1,
-                }}
-              >
-                {actionLoading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <Square style={{ width: 16, height: 16 }} />}
+                }}>
+                {actionLoading
+                  ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                  : <Square style={{ width: 16, height: 16 }} />}
                 Stop Simulation
               </button>
             )}
           </div>
         </motion.div>
 
-        {/* ── Client Selection + Status ──────────── */}
-        <motion.div
-          variants={fadeUp}
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <Server style={{ width: 16, height: 16, color: 'var(--accent)' }} />
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              FL Clients {isRunning ? '(Live Status)' : '(Select)'}
-            </h2>
-          </div>
+        {/* ── Client Selection Card ──────────────── */}
+        <motion.div variants={fadeUp}
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
 
-          {/* Client cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {ALL_CLIENTS.map((clientId) => {
-              const selected = selectedClients.has(clientId);
-              const clientStatus = status?.clients?.find((c) => c.client_id === clientId);
-              const isClientRunning = clientStatus?.state === 'running';
-              const hasError = clientStatus?.state === 'error';
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 18px',
+                       display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isRunning ? 'Active Clients' : 'Select Clients'}
+            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              {selectedClients.size} of {eligibleClients.length} selected
+            </span>
+          </h2>
 
-              return (
-                <div
-                  key={clientId}
-                  onClick={() => !isRunning && toggleClient(clientId)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '14px 16px', borderRadius: 10,
-                    border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: selected ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                    cursor: isRunning ? 'default' : 'pointer',
-                    transition: 'border-color .15s, background .15s',
-                  }}
-                >
-                  {/* Checkbox (when not running) */}
-                  {!isRunning && (
-                    <div style={{
-                      width: 18, height: 18, borderRadius: 4,
-                      border: selected ? '2px solid var(--accent)' : '2px solid var(--border)',
-                      background: selected ? 'var(--accent)' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      {selected && <CheckCircle2 style={{ width: 12, height: 12, color: '#fff' }} />}
-                    </div>
-                  )}
-
-                  {/* Client info */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {clientId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {clientId === 'bank_a' && 'Monday + Tuesday traffic'}
-                      {clientId === 'bank_b' && 'Wednesday + Thursday traffic'}
-                      {clientId === 'bank_c' && 'Friday traffic'}
-                    </div>
-                  </div>
-
-                  {/* Live status (when running) */}
-                  {isRunning && clientStatus && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {isClientRunning && (
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: 4,
-                          padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                          background: 'var(--success-light)', color: 'var(--success)',
-                        }}>
-                          <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }} />
-                          Running
-                        </div>
-                      )}
-                      {hasError && (
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: 4,
-                          padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                          background: 'var(--danger-light)', color: 'var(--danger)',
-                        }}>
-                          <XCircle style={{ width: 10, height: 10 }} />
-                          Error
-                        </div>
-                      )}
-                      {!isClientRunning && !hasError && (
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{clientStatus.state}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Container details when running */}
-          {isRunning && status?.clients && status.clients.length > 0 && (
-            <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: 'var(--bg-secondary)' }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 8 }}>Container Details</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {status.clients.map((c) => (
-                  <div key={c.client_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{c.container_name || c.client_id}</span>
-                    <span style={{ color: c.state === 'running' ? 'var(--success)' : 'var(--text-muted)' }}>
-                      {c.container_id ? c.container_id.slice(0, 12) : '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+          {eligibleClients.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+              <span style={{ display: 'block', margin: '0 auto 8px', fontSize: 16, color: 'var(--warning)' }}>!</span>
+              <strong style={{ color: 'var(--text-primary)' }}>No clients with devices available.</strong>
+              <br />Please register devices in the <strong>Device Management</strong> page first.
             </div>
-          )}
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {eligibleClients.map(client => {
+                const selected = selectedClients.has(client.client_id);
+                const clientState = status?.clients?.find(c => c.client_id === client.client_id);
 
-          {/* Active config summary when running */}
-          {isRunning && status?.config && (
-            <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--bg-secondary)' }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 8 }}>Active Configuration</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Scenario:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{status.config.scenario || 'Client Data'}</span>
-                <span style={{ color: 'var(--text-muted)' }}>Speed:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{status.config.replay_speed}×</span>
-                <span style={{ color: 'var(--text-muted)' }}>Interval:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{status.config.monitor_interval}s</span>
-                <span style={{ color: 'var(--text-muted)' }}>Loop:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{status.config.replay_loop ? 'Yes' : 'No'}</span>
-              </div>
+                return (
+                  <div
+                    key={client.client_id}
+                    onClick={() => !isRunning && toggleClient(client.client_id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px', borderRadius: 10,
+                      border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: selected ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                      cursor: isRunning ? 'default' : 'pointer',
+                      transition: 'border-color .15s, background .15s',
+                    }}>
+
+                    {/* Checkbox (when idle) */}
+                    {!isRunning && (
+                      <div style={{
+                        width: 18, height: 18, borderRadius: 4,
+                        border: selected ? '2px solid var(--accent)' : '2px solid var(--border)',
+                        background: selected ? 'var(--accent)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {selected && <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>✓</span>}
+                      </div>
+                    )}
+
+                    {/* Client info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {client.name || friendlyScenario(client.client_id)}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {`${client.device_count} device${client.device_count > 1 ? 's' : ''}`}
+                        {client.total_samples > 0 && ` · ${client.total_samples.toLocaleString()} samples`}
+                      </div>
+                    </div>
+
+                    {/* Live state badge */}
+                    {isRunning && clientState && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                        background: clientState.state === 'running' ? 'var(--success-light)'
+                                  : clientState.state === 'error' ? 'var(--danger-light)'
+                                  : 'var(--bg-secondary)',
+                        color: clientState.state === 'running' ? 'var(--success)'
+                             : clientState.state === 'error' ? 'var(--danger)'
+                             : 'var(--text-muted)',
+                      }}>
+                        <div style={{
+                          width: 5, height: 5, borderRadius: '50%',
+                          background: clientState.state === 'running' ? 'var(--success)' : clientState.state === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+                          animation: clientState.state === 'running' ? 'pulse 2s infinite' : undefined,
+                        }} />
+                        {clientState.state === 'running' ? 'Predicting'
+                          : clientState.state === 'error' ? 'Error' : clientState.state}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </motion.div>
       </div>
 
-      {/* ── Recent Predictions (live feed) ──────── */}
-      <motion.div
-        variants={fadeUp}
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}
-      >
+      {/* ── Live Prediction Feed ─────────────────── */}
+      <motion.div variants={fadeUp}
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Activity style={{ width: 16, height: 16, color: 'var(--accent)' }} />
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Live Prediction Feed</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            Live Prediction Feed
+          </h2>
           {isRunning && (
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--success)' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }} />
-              Live
+              Live — Model is predicting
             </div>
           )}
         </div>
 
         {livePredictions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-            {isRunning ? 'Waiting for predictions…' : 'Start a simulation to see live predictions'}
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            {isRunning
+              ? 'Waiting for the first predictions to arrive…'
+              : 'Start a simulation to see real‑time predictions from the CNN‑LSTM model'}
           </div>
         ) : (
-          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Time', 'Device', 'Score', 'Prediction', 'Confidence', 'Latency'].map((h) => (
+                  {['Time', 'Device', 'Prediction', 'Confidence', 'Attack Type', 'Latency'].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, fontSize: 11 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {livePredictions.slice(0, 30).map((p, i) => (
-                  <tr key={`${p.timestamp}-${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                {livePredictions.slice(0, 40).map((p, i) => (
+                  <tr key={`${p.timestamp}-${i}`}
+                    style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>
                       {new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </td>
                     <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 500 }}>
                       {p.device_name || String(p.device_id).slice(0, 8)}
-                    </td>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: p.score >= 0.5 ? 'var(--danger)' : 'var(--success)' }}>
-                      {p.score.toFixed(4)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       <span style={{
@@ -594,11 +536,14 @@ export default function SimulationControlPage() {
                         background: p.label === 'attack' ? 'var(--danger-light)' : 'var(--success-light)',
                         color: p.label === 'attack' ? 'var(--danger)' : 'var(--success)',
                       }}>
-                        {p.label === 'attack' ? '🚨' : '✓'} {p.label.toUpperCase()}
+                        {p.label === 'attack' ? '🚨' : '✓'} {p.label === 'attack' ? 'ATTACK' : 'BENIGN'}
                       </span>
                     </td>
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                       {(p.confidence * 100).toFixed(1)}%
+                    </td>
+                    <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>
+                      {p.attack_type ? friendlyScenario(p.attack_type) : '—'}
                     </td>
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
                       {(p.inference_latency_ms ?? 0).toFixed(1)}ms
@@ -610,37 +555,6 @@ export default function SimulationControlPage() {
           </div>
         )}
       </motion.div>
-
-      {/* ── How it works ────────────────────────── */}
-      {!isRunning && (
-        <motion.div
-          variants={fadeUp}
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}
-        >
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Zap style={{ width: 16, height: 16, color: 'var(--warning)' }} />
-            How It Works
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {[
-              { step: '1', title: 'Select Scenario', desc: 'Choose an attack scenario or use default client training data' },
-              { step: '2', title: 'Configure Replay', desc: 'Set speed, interval, and loop settings for the simulation' },
-              { step: '3', title: 'Start Simulation', desc: 'FL client containers replay real CIC-IDS2017 traffic' },
-              { step: '4', title: 'Real Predictions', desc: 'CNN-LSTM model runs inference on real preprocessed data' },
-            ].map((item) => (
-              <div key={item.step} style={{ padding: '14px 16px', borderRadius: 10, background: 'var(--bg-secondary)' }}>
-                <div style={{
-                  width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)',
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 700, marginBottom: 8,
-                }}>{item.step}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{item.desc}</div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* Pulse animation */}
       <style>{`

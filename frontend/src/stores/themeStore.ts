@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
-type Theme = 'light' | 'dark';
+type Theme = 'light';
 
 interface ThemeState {
   theme: Theme;
@@ -10,30 +9,12 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>()(
-  persist(
-    (set, get) => ({
-      theme: 'dark',
-
-      toggle: () => {
-        const next = get().theme === 'dark' ? 'light' : 'dark';
-        document.documentElement.classList.toggle('dark', next === 'dark');
-        set({ theme: next });
-      },
-
-      setTheme: (t) => {
-        document.documentElement.classList.toggle('dark', t === 'dark');
-        set({ theme: t });
-      },
-    }),
-    { name: 'iot-ids-theme' },
-  ),
+  () => ({
+    theme: 'light' as Theme,
+    toggle: () => {},
+    setTheme: () => {},
+  }),
 );
 
-// Initialize theme on load
-const stored = localStorage.getItem('iot-ids-theme');
-if (stored) {
-  const parsed = JSON.parse(stored);
-  document.documentElement.classList.toggle('dark', parsed.state?.theme === 'dark');
-} else {
-  document.documentElement.classList.add('dark');
-}
+// Always use terminal (light) theme — remove dark class
+document.documentElement.classList.remove('dark');

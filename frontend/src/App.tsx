@@ -4,14 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MainLayout from '@/layouts/MainLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
-import DashboardPage from '@/pages/DashboardPage';
+// import DashboardPage from '@/pages/DashboardPage';
 import DevicesPage from '@/pages/DevicesPage';
 import TrafficMonitorPage from '@/pages/TrafficMonitorPage';
 import FLTrainingPage from '@/pages/FLTrainingPage';
-import AttackPipelinePage from '@/pages/AttackPipelinePage';
-import PreventionPage from '@/pages/PreventionPage';
+// import AttackPipelinePage from '@/pages/AttackPipelinePage';
+// import PreventionPage from '@/pages/PreventionPage';
 import ClientsPage from '@/pages/ClientsPage';
-import SettingsPage from '@/pages/SettingsPage';
+// import SettingsPage from '@/pages/SettingsPage';
 import RegisterPage from '@/pages/RegisterPage';
 import SimulationControlPage from '@/pages/SimulationControlPage';
 import { WebSocketProvider } from '@/components/WebSocketProvider';
@@ -54,15 +54,16 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<DashboardPage />} />
+            {/* <Route index element={<DashboardPage />} /> */}
+            <Route index element={<Navigate to="/fl-training" replace />} />
             <Route path="devices" element={<DevicesPage />} />
             <Route path="traffic" element={<TrafficMonitorPage />} />
-            <Route path="attack-pipeline" element={<AttackPipelinePage />} />
+            {/* <Route path="attack-pipeline" element={<AttackPipelinePage />} /> */}
             <Route path="clients" element={<ClientsPage />} />
             <Route path="fl-training" element={<FLTrainingPage />} />
             <Route path="simulation" element={<SimulationControlPage />} />
-            <Route path="prevention" element={<PreventionPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            {/* <Route path="prevention" element={<PreventionPage />} /> */}
+            {/* <Route path="settings" element={<SettingsPage />} /> */}
           </Route>
 
           {/* Fallback */}

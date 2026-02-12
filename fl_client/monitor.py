@@ -1,27 +1,28 @@
 """
-Monitoring loop — runs inside the FL client container.
+Monitoring loop — runs inside the FL client container in MONITOR mode.
 
-In MONITOR mode, this module:
-  1. Fetches the device list for this client from the backend API
-  2. Replays real CIC-IDS2017 traffic via ReplaySimulator
-  3. Runs local CNN-LSTM inference on each 10-flow window
-  4. POSTs prediction results back to the backend
+Workflow:
+  1. Resolve this client's DB record (auto‑register if missing)
+  2. Fetch device list (auto‑create a virtual device if the client has none)
+  3. Replay real CIC‑IDS2017 data via ReplaySimulator
+  4. Run local CNN‑LSTM inference on each 10‑flow window
+  5. POST prediction results back to the backend
 
 Supports two data sources:
-  - Client data (default): .npy files from the client's training partition
-  - Scenario data: pre-built scenario packs (e.g. ddos_attack, portscan)
+  • **Client data** (default): .npy files from the client's training partition
+  • **Scenario data**: pre‑built scenario packs (ddos_attack, portscan, …)
 
 Env vars
 --------
-CLIENT_ID       : str   — e.g. "bank_a"
-BACKEND_URL     : str   — e.g. "http://iot_ids_backend:8000"
-MONITOR_INTERVAL: float — seconds between prediction cycles (default 3.0)
-ATTACK_RATIO    : float — fraction of simulated traffic that is attacks (default 0.2)
-SCENARIO        : str   — scenario name (optional; uses client data if unset)
-REPLAY_SPEED    : float — replay speed multiplier (default 1.0)
-REPLAY_LOOP     : bool  — loop replay when exhausted (default true)
-REPLAY_SHUFFLE  : bool  — shuffle window order (default false)
-SCENARIO_DIR    : str   — base path for scenario data (default /app/scenarios)
+CLIENT_ID        : str   — e.g. "bank_a"
+BACKEND_URL      : str   — e.g. "http://iot_ids_backend:8000"
+MONITOR_INTERVAL : float — seconds between prediction cycles (default 1.0)
+SCENARIO         : str   — scenario name (optional; uses client data if unset)
+REPLAY_SPEED     : float — replay speed multiplier (default 1.0)
+REPLAY_LOOP      : bool  — loop replay when exhausted (default true)
+REPLAY_SHUFFLE   : bool  — shuffle window order (default true)
+SCENARIO_DIR     : str   — base path for scenario data (default /app/scenarios)
+MAX_DURATION     : int   — maximum run time in seconds (0 = unlimited)
 """
 
 from __future__ import annotations
@@ -32,7 +33,6 @@ import time
 import logging
 import asyncio
 from pathlib import Path
-from collections import OrderedDict
 from typing import Optional
 
 import numpy as np
@@ -43,25 +43,26 @@ import httpx
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG
 from replay_simulator import ReplaySimulator, WINDOW_SIZE, NUM_FEATURES
+from synthetic_generator import SyntheticGenerator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("monitor")
 
 # ── Config from env ──────────────────────────────────────
-CLIENT_ID = os.environ.get("CLIENT_ID", "client_0")
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://iot_ids_backend:8000")
-MONITOR_INTERVAL = float(os.environ.get("MONITOR_INTERVAL", "3.0"))
-ATTACK_RATIO = float(os.environ.get("ATTACK_RATIO", "0.2"))
-MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
-SCENARIO = os.environ.get("SCENARIO", "")           # empty = use client data
-REPLAY_SPEED = float(os.environ.get("REPLAY_SPEED", "1.0"))
-REPLAY_LOOP = os.environ.get("REPLAY_LOOP", "true").lower() in ("true", "1", "yes")
-REPLAY_SHUFFLE = os.environ.get("REPLAY_SHUFFLE", "false").lower() in ("true", "1", "yes")
-SCENARIO_BASE = os.environ.get("SCENARIO_DIR", "/app/scenarios")
-DATA_DIR = os.environ.get("DATA_PATH", "/app/data")
+CLIENT_ID        = os.environ.get("CLIENT_ID", "client_0")
+BACKEND_URL      = os.environ.get("BACKEND_URL", "http://iot_ids_backend:8000")
+MONITOR_INTERVAL = float(os.environ.get("MONITOR_INTERVAL", "1.0"))
+MODEL_DIR        = os.environ.get("MODEL_DIR", "/app/models")
+SCENARIO         = os.environ.get("SCENARIO", "")
+REPLAY_SPEED     = float(os.environ.get("REPLAY_SPEED", "1.0"))
+REPLAY_LOOP      = os.environ.get("REPLAY_LOOP", "true").lower() in ("true", "1", "yes")
+REPLAY_SHUFFLE   = os.environ.get("REPLAY_SHUFFLE", "true").lower() in ("true", "1", "yes")
+SCENARIO_BASE    = os.environ.get("SCENARIO_DIR", "/app/scenarios")
+DATA_DIR         = os.environ.get("DATA_PATH", "/app/data")
+MAX_DURATION     = int(os.environ.get("MAX_DURATION", "0"))
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-SEQ_LEN = DEFAULT_CONFIG["SEQUENCE_LENGTH"]
+SEQ_LEN   = DEFAULT_CONFIG["SEQUENCE_LENGTH"]
 THRESHOLD = DEFAULT_CONFIG["THRESHOLD"]
 
 
@@ -76,7 +77,6 @@ def _find_model() -> Optional[str]:
     for p in candidates:
         if os.path.isfile(p):
             return p
-    # Try any .pt file in the directory
     if os.path.isdir(MODEL_DIR):
         for fname in sorted(os.listdir(MODEL_DIR)):
             if fname.endswith(".pt"):
@@ -85,7 +85,7 @@ def _find_model() -> Optional[str]:
 
 
 def load_model() -> CNN_LSTM_IDS:
-    """Load the CNN-LSTM model from checkpoint."""
+    """Load the CNN‑LSTM model from the best available checkpoint."""
     model_path = _find_model()
     if model_path is None:
         log.warning("No model checkpoint found — using randomly initialised model")
@@ -103,23 +103,16 @@ def load_model() -> CNN_LSTM_IDS:
 
 # ── Inference ────────────────────────────────────────────
 
-def run_local_inference(
-    model: CNN_LSTM_IDS, window: np.ndarray,
-) -> dict:
-    """
-    Run inference on a single window (10, 78).
-
-    Returns dict with score, label, confidence, inference_latency_ms.
-    """
+def run_local_inference(model: CNN_LSTM_IDS, window: np.ndarray) -> dict:
+    """Run inference on a single (10, 78) window and return result dict."""
     t0 = time.perf_counter()
-    tensor = torch.from_numpy(window).unsqueeze(0).to(DEVICE)  # (1, 10, 78)
+    tensor = torch.from_numpy(window).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
         logit = model(tensor).squeeze()
         prob = torch.sigmoid(logit).item()
 
     latency = (time.perf_counter() - t0) * 1000
-
     label = "attack" if prob >= THRESHOLD else "benign"
     confidence = prob if label == "attack" else 1.0 - prob
 
@@ -133,13 +126,56 @@ def run_local_inference(
 
 # ── Backend API helpers ──────────────────────────────────
 
-async def fetch_devices(
-    http: httpx.AsyncClient, client_db_id: int,
-) -> list[dict]:
+async def fetch_client_info(http: httpx.AsyncClient) -> Optional[dict]:
+    """Fetch this client's DB record by client_id string."""
+    try:
+        r = await http.get(
+            f"{BACKEND_URL}/api/v1/internal/client/by-client-id/{CLIENT_ID}",
+        )
+        r.raise_for_status()
+        return r.json()
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            return None
+        log.error("Client lookup failed: %s", exc)
+        return None
+    except Exception as exc:
+        log.error("Client lookup failed: %s", exc)
+        return None
+
+
+async def auto_register_client(http: httpx.AsyncClient) -> Optional[dict]:
+    """Auto‑register this client in the backend DB if it doesn't exist."""
+    friendly = CLIENT_ID.replace("_", " ").title()
+    try:
+        # Use the public FL client endpoint (requires no auth token for
+        # internal service‑to‑service calls inside the Docker network)
+        r = await http.post(
+            f"{BACKEND_URL}/api/v1/internal/client/register",
+            json={
+                "client_id": CLIENT_ID,
+                "name": friendly,
+                "description": f"Auto‑registered by simulation ({CLIENT_ID})",
+            },
+        )
+        if r.status_code in (200, 201):
+            log.info("Auto‑registered client '%s'", CLIENT_ID)
+            return r.json()
+        # If 409 conflict, it already exists — just fetch again
+        if r.status_code == 409:
+            return await fetch_client_info(http)
+        log.error("Auto‑register returned %d: %s", r.status_code, r.text[:200])
+        return None
+    except Exception as exc:
+        log.error("Auto‑register failed: %s", exc)
+        return None
+
+
+async def fetch_devices(http: httpx.AsyncClient, client_db_id: int) -> list[dict]:
     """Fetch devices assigned to this FL client from the backend."""
     try:
         r = await http.get(
-            f"{BACKEND_URL}/api/v1/internal/client/{client_db_id}/devices"
+            f"{BACKEND_URL}/api/v1/internal/client/{client_db_id}/devices",
         )
         r.raise_for_status()
         return r.json()
@@ -148,16 +184,31 @@ async def fetch_devices(
         return []
 
 
-async def fetch_client_info(http: httpx.AsyncClient) -> Optional[dict]:
-    """Fetch this client's DB record by client_id string."""
+async def create_virtual_device(
+    http: httpx.AsyncClient, client_db_id: int,
+) -> Optional[dict]:
+    """Create a virtual device for a client that has none."""
+    friendly = CLIENT_ID.replace("_", " ").title()
     try:
-        r = await http.get(
-            f"{BACKEND_URL}/api/v1/internal/client/by-client-id/{CLIENT_ID}"
+        r = await http.post(
+            f"{BACKEND_URL}/api/v1/internal/device/create",
+            json={
+                "name": f"{friendly} Sensor 1",
+                "device_type": "sensor",
+                "protocol": "tcp",
+                "port": 0,
+                "traffic_source": "simulated",
+                "client_id": client_db_id,
+                "description": f"Virtual device auto‑created for simulation ({CLIENT_ID})",
+            },
         )
-        r.raise_for_status()
-        return r.json()
+        if r.status_code in (200, 201):
+            log.info("Created virtual device for client %s", CLIENT_ID)
+            return r.json()
+        log.warning("Virtual device creation returned %d: %s", r.status_code, r.text[:200])
+        return None
     except Exception as exc:
-        log.error("Failed to fetch client info for '%s': %s", CLIENT_ID, exc)
+        log.error("Virtual device creation failed: %s", exc)
         return None
 
 
@@ -176,6 +227,7 @@ async def post_prediction(
         "confidence": result["confidence"],
         "inference_latency_ms": result["inference_latency_ms"],
         "model_version": "local",
+        "attack_type": SCENARIO if SCENARIO else None,
     }
     try:
         r = await http.post(
@@ -185,7 +237,7 @@ async def post_prediction(
         r.raise_for_status()
         return True
     except Exception as exc:
-        log.error("Failed to POST prediction: %s", exc)
+        log.error("Prediction POST failed: %s", exc)
         return False
 
 
@@ -193,96 +245,123 @@ async def post_prediction(
 
 async def monitor_loop(stop_event: asyncio.Event | None = None):
     """
-    Main monitoring loop.
+    Main loop: resolve client → fetch devices → replay + infer → POST.
 
-    1. Resolve this client's DB id
-    2. Fetch assigned devices
-    3. For each device, generate traffic, run inference, POST prediction
-    4. Sleep for MONITOR_INTERVAL seconds
-    5. Repeat
+    Runs until stop_event is set, data is exhausted (non‑loop), or
+    MAX_DURATION seconds have elapsed.
     """
     model = load_model()
 
-    # Determine data source: scenario or client data
-    scenario_dir = None
-    if SCENARIO:
-        scenario_dir = os.path.join(SCENARIO_BASE, SCENARIO)
-        if not os.path.isdir(scenario_dir):
-            log.warning("Scenario dir %s not found — falling back to client data", scenario_dir)
-            scenario_dir = None
-        else:
-            log.info("Using scenario: %s (%s)", SCENARIO, scenario_dir)
-
-    simulator = ReplaySimulator(
-        data_dir=DATA_DIR,
-        scenario_dir=scenario_dir,
-        loop=REPLAY_LOOP,
-        shuffle=REPLAY_SHUFFLE,
-    )
+    # ── Determine data source ────────────────────
+    # Use SyntheticGenerator for scenario-based simulation (infinite supply),
+    # fall back to ReplaySimulator only for client_data mode.
+    if SCENARIO and SCENARIO != "client_data":
+        profiles_path = os.path.join(SCENARIO_BASE, "_profiles.json")
+        simulator = SyntheticGenerator(
+            scenario=SCENARIO,
+            profiles_path=profiles_path if os.path.isfile(profiles_path) else None,
+        )
+        log.info("Using SYNTHETIC generator for scenario: %s", SCENARIO)
+    else:
+        simulator = ReplaySimulator(
+            data_dir=DATA_DIR,
+            scenario_dir=None,
+            loop=REPLAY_LOOP,
+            shuffle=REPLAY_SHUFFLE,
+        )
+        log.info("Using REPLAY simulator with client data from %s", DATA_DIR)
 
     effective_interval = MONITOR_INTERVAL / max(REPLAY_SPEED, 0.1)
+    start_time = time.time()
 
     log.info(
-        "Starting monitor for client '%s' (interval=%.1fs, speed=%.1fx, scenario=%s, windows=%d)",
+        "Monitor starting: client=%s  interval=%.2fs  speed=%.1fx  "
+        "scenario=%s  windows=%d  max_duration=%s",
         CLIENT_ID, effective_interval, REPLAY_SPEED,
         SCENARIO or "client_data", simulator.total_windows,
+        f"{MAX_DURATION}s" if MAX_DURATION > 0 else "unlimited",
     )
 
     async with httpx.AsyncClient(timeout=10.0) as http:
-        # ── Resolve our client DB id ────────────────────
-        client_info = None
-        while client_info is None:
+        # ── Resolve client DB id ─────────────────
+        client_info = await fetch_client_info(http)
+        if client_info is None:
+            log.info("Client '%s' not registered — auto‑registering…", CLIENT_ID)
+            client_info = await auto_register_client(http)
+
+        # Retry loop if backend is still booting
+        retries = 0
+        while client_info is None and retries < 12:
+            retries += 1
+            log.warning("Waiting for client '%s' to be available (attempt %d/12)…", CLIENT_ID, retries)
+            await asyncio.sleep(5)
             client_info = await fetch_client_info(http)
             if client_info is None:
-                log.warning("Waiting for client '%s' to be registered in backend...", CLIENT_ID)
-                await asyncio.sleep(5)
-                if stop_event and stop_event.is_set():
-                    return
+                client_info = await auto_register_client(http)
+            if stop_event and stop_event.is_set():
+                return
+
+        if client_info is None:
+            log.error("Could not resolve client '%s' after retries — aborting", CLIENT_ID)
+            return
 
         client_db_id = client_info["id"]
         log.info("Resolved client '%s' → DB id=%d", CLIENT_ID, client_db_id)
 
-        # ── Main loop ──────────────────────────────────
+        # ── Fetch devices (must exist — no auto-creation) ─
+        devices = await fetch_devices(http, client_db_id)
+        if not devices:
+            log.error(
+                "No devices registered for client '%s' (db_id=%d). "
+                "Register devices before running simulation.",
+                CLIENT_ID, client_db_id,
+            )
+            return
+
+        log.info("Monitoring %d device(s): %s",
+                 len(devices),
+                 ", ".join(d.get("name", str(d["id"])[:8]) for d in devices))
+
+        # ── Main prediction loop ─────────────────
         cycle = 0
         while not (stop_event and stop_event.is_set()):
             cycle += 1
 
-            # Refresh device list periodically (every 10 cycles)
-            if cycle == 1 or cycle % 10 == 0:
-                devices = await fetch_devices(http, client_db_id)
-                if not devices:
-                    log.warning("No devices assigned — waiting...")
-                    await asyncio.sleep(MONITOR_INTERVAL)
-                    continue
-                log.info("Monitoring %d devices", len(devices))
+            # Duration limit
+            if MAX_DURATION > 0 and (time.time() - start_time) >= MAX_DURATION:
+                log.info("MAX_DURATION (%ds) reached — stopping", MAX_DURATION)
+                break
 
-            # For each device, replay real traffic and predict
+            # Refresh device list every 30 cycles
+            if cycle % 30 == 0:
+                refreshed = await fetch_devices(http, client_db_id)
+                if refreshed:
+                    devices = refreshed
+
+            # Exhaustion check (non‑loop mode)
+            if simulator.exhausted:
+                log.info("Replay data exhausted — stopping monitor")
+                break
+
+            # For each device: get next window → infer → POST
             for device in devices:
                 device_id = device["id"]
-                device_name = device.get("name", device_id)
+                device_name = device.get("name", str(device_id)[:8])
 
-                # Check if replay data is exhausted (non-looping mode)
-                if simulator.exhausted:
-                    log.info("Replay data exhausted — stopping monitor")
-                    return
-
-                # Get next real window from replay buffer
                 window, true_label, attack_frac = simulator.get_next_window()
-
-                # Run real CNN-LSTM inference on real preprocessed data
                 result = run_local_inference(model, window)
 
-                # Include ground truth and replay stats in the prediction
+                # Enrich result for logging
                 result["true_label"] = "attack" if true_label == 1 else "benign"
                 result["replay_progress"] = simulator.progress
                 result["attack_type"] = SCENARIO if SCENARIO else None
 
-                # POST to backend
                 ok = await post_prediction(http, device_id, client_db_id, result)
 
                 log.info(
-                    "[%s] device=%s  pred=%s  truth=%s  score=%.4f  conf=%.4f  latency=%.1fms  progress=%.1f%%  posted=%s",
-                    CLIENT_ID, device_name[:20],
+                    "[%s] dev=%s  pred=%-6s  truth=%-6s  score=%.4f  "
+                    "conf=%.4f  lat=%.1fms  prog=%.0f%%  %s",
+                    CLIENT_ID, device_name[:16],
                     result["label"], result["true_label"],
                     result["score"], result["confidence"],
                     result["inference_latency_ms"],
@@ -290,19 +369,19 @@ async def monitor_loop(stop_event: asyncio.Event | None = None):
                     "✓" if ok else "✗",
                 )
 
-            # Wait before next cycle (adjusted by replay speed)
+            # Sleep between cycles
             try:
                 await asyncio.sleep(effective_interval)
             except asyncio.CancelledError:
                 break
 
-    log.info("Monitor stopped for client '%s'", CLIENT_ID)
+    elapsed = time.time() - start_time
+    log.info(
+        "Monitor stopped: client=%s  cycles=%d  replayed=%d  elapsed=%.0fs",
+        CLIENT_ID, cycle, simulator.total_replayed, elapsed,
+    )
 
 
 def run_monitor():
-    """Entry point to run the monitor loop."""
+    """Entry point — runs the async monitor loop."""
     asyncio.run(monitor_loop())
-
-
-if __name__ == "__main__":
-    run_monitor()

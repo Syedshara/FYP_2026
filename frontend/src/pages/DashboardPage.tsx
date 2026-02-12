@@ -5,9 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Line,
 } from 'recharts';
-import {
-  ShieldAlert, Monitor, Crosshair, CheckCircle2, Loader2, TrendingUp, Wifi, WifiOff,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
 import { clientsApi } from '@/api/clients';
@@ -154,22 +152,22 @@ export default function DashboardPage() {
 
   const kpis = [
     {
-      icon: ShieldAlert, label: 'THREAT LEVEL', value: threatLevel,
+      label: 'THREAT LEVEL', value: threatLevel,
       sub: `Score: ${(attackRate).toFixed(2)} / 1.0`, color: tc.color, bg: tc.bg,
       bar: attackRate,
     },
     {
-      icon: Monitor, label: 'ACTIVE DEVICES', value: `${mergedDevices.length}`,
+      label: 'ACTIVE DEVICES', value: `${mergedDevices.length}`,
       sub: `${onlineCount} online  ·  ${offlineCount} offline`, color: 'var(--info)', bg: 'var(--info-light)',
       extra: attackDeviceCount > 0 ? `${attackDeviceCount} under attack` : undefined,
       extraColor: 'var(--danger)',
     },
     {
-      icon: Crosshair, label: 'ATTACKS DETECTED', value: `${effectiveSummary?.attack_count ?? 0}`,
+      label: 'ATTACKS DETECTED', value: `${effectiveSummary?.attack_count ?? 0}`,
       sub: `of ${effectiveSummary?.total_predictions ?? 0} predictions`, color: 'var(--danger)', bg: 'var(--danger-light)',
     },
     {
-      icon: CheckCircle2, label: 'BENIGN RATE', value: `${((1 - attackRate) * 100).toFixed(1)}%`,
+      label: 'BENIGN RATE', value: `${((1 - attackRate) * 100).toFixed(1)}%`,
       sub: `Avg confidence: ${((effectiveSummary?.avg_confidence ?? 0) * 100).toFixed(1)}%`, color: 'var(--success)', bg: 'var(--success-light)',
     },
   ];
@@ -182,64 +180,46 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Security Overview</h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Real-time threat monitoring & analytics</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2"
-            style={{
-              fontSize: 11, fontWeight: 600,
-              background: wsConnected ? 'var(--success-light)' : 'var(--danger-light)',
-              color: wsConnected ? 'var(--success)' : 'var(--danger)',
-              padding: '6px 14px', borderRadius: 999,
-            }}
-          >
-            {wsConnected ? (
-              <>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block', animation: 'status-pulse 2s infinite' }} />
-                <Wifi style={{ width: 12, height: 12 }} /> Live
-              </>
-            ) : (
-              <>
-                <WifiOff style={{ width: 12, height: 12 }} /> Offline
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 14px', borderRadius: 999 }}>
-            <TrendingUp style={{ width: 12, height: 12 }} /> {wsConnected ? 'Real-time' : '30s refresh'}
-          </div>
+        <div className="flex items-center gap-2">
+          <span style={{
+            fontSize: 11, fontWeight: 500,
+            padding: '4px 10px', borderRadius: 2,
+            background: wsConnected ? 'var(--success-light)' : 'var(--bg-secondary)',
+            color: wsConnected ? 'var(--success)' : 'var(--text-muted)',
+            border: '1px solid var(--border)',
+          }}>
+            {wsConnected ? '[LIVE]' : '[OFFLINE]'}
+          </span>
         </div>
       </motion.div>
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {kpis.map((kpi) => (
-          <motion.div key={kpi.label} variants={fadeUp} className="card" style={{ padding: 20 }}>
-            <div className="flex items-start justify-between">
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-muted)' }}>
-                  {kpi.label}
+        {kpis.map((kpi) => {
+          const termBar = kpi.bar !== undefined ? (() => {
+            const filled = Math.round(Math.min(kpi.bar, 1) * 20);
+            return '[' + '█'.repeat(filled) + '░'.repeat(20 - filled) + '] ' + (kpi.bar * 100).toFixed(0) + '%';
+          })() : null;
+          return (
+            <motion.div key={kpi.label} variants={fadeUp} className="card" style={{ padding: 16 }}>
+              <p style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-muted)' }}>
+                {kpi.label}
+              </p>
+              <p style={{ fontSize: 24, fontWeight: 700, color: kpi.color, marginTop: 6, lineHeight: 1 }}>
+                {kpi.value}
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{kpi.sub}</p>
+              {kpi.extra && (
+                <p style={{ fontSize: 11, color: kpi.extraColor, marginTop: 2 }}>{kpi.extra}</p>
+              )}
+              {termBar && (
+                <p style={{ marginTop: 10, fontSize: 11, color: kpi.color, letterSpacing: 1 }}>
+                  {termBar}
                 </p>
-                <p style={{ fontSize: 28, fontWeight: 800, color: kpi.color, marginTop: 8, lineHeight: 1 }}>
-                  {kpi.value}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>{kpi.sub}</p>
-                {kpi.extra && (
-                  <p style={{ fontSize: 11, color: kpi.extraColor, marginTop: 2 }}>{kpi.extra}</p>
-                )}
-              </div>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: kpi.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <kpi.icon style={{ width: 20, height: 20, color: kpi.color }} />
-              </div>
-            </div>
-            {/* Threat bar on first card */}
-            {kpi.bar !== undefined && (
-              <div style={{ marginTop: 14 }}>
-                <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--bg-secondary)' }}>
-                  <div style={{ width: `${Math.min(kpi.bar * 100, 100)}%`, height: '100%', borderRadius: 3, background: kpi.color, transition: 'width 0.5s' }} />
-                </div>
-              </div>
-            )}
-          </motion.div>
-        ))}
+              )}
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Charts */}
@@ -360,9 +340,9 @@ export default function DashboardPage() {
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <div style={{ width: 80, height: 6, borderRadius: 3, background: 'var(--bg-secondary)' }}>
-                          <div style={{ width: `${alert.score * 100}%`, height: '100%', borderRadius: 3, background: 'var(--danger)' }} />
-                        </div>
+                        <span style={{ fontSize: 11, fontFamily: 'inherit', color: 'var(--danger)' }}>
+                          {'[' + '█'.repeat(Math.round(alert.score * 10)) + '░'.repeat(10 - Math.round(alert.score * 10)) + ']'}
+                        </span>
                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--danger)' }}>{alert.score.toFixed(3)}</span>
                       </div>
                     </td>

@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Loader2, Clock, Shield, Cpu, Zap, FileText, AlertTriangle, Crosshair } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
 /* ---------- Pipeline steps ---------- */
 const pipelineSteps = [
-  { id: 1, name: 'Device\nConfigured', color: '#22C55E', icon: CheckCircle2 },
-  { id: 2, name: 'Traffic\nCapture',   color: 'var(--accent)', icon: Zap },
-  { id: 3, name: 'Attack\nSimulation', color: '#EF4444', icon: AlertTriangle },
-  { id: 4, name: 'CNN-LSTM\nDetection', color: 'var(--accent)', icon: Cpu },
-  { id: 5, name: 'XAI\nAnalysis',       color: '#F59E0B', icon: Crosshair },
-  { id: 6, name: 'Auto\nPrevention',    color: '#22C55E', icon: Shield },
-  { id: 7, name: 'Report\nGenerated',   color: 'var(--text-muted)', icon: FileText },
+  { id: 1, name: 'Device\nConfigured', color: '#22C55E' },
+  { id: 2, name: 'Traffic\nCapture',   color: 'var(--accent)' },
+  { id: 3, name: 'Attack\nSimulation', color: '#EF4444' },
+  { id: 4, name: 'CNN-LSTM\nDetection', color: 'var(--accent)' },
+  { id: 5, name: 'XAI\nAnalysis',       color: '#F59E0B' },
+  { id: 6, name: 'Auto\nPrevention',    color: '#22C55E' },
+  { id: 7, name: 'Report\nGenerated',   color: 'var(--text-muted)' },
 ];
 
 /* ---------- Attack sequence (mock) ---------- */
@@ -72,7 +72,6 @@ export default function AttackPipelinePage() {
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2" style={{ minHeight: 70 }}>
           {pipelineSteps.map((step, i) => {
-            const Icon = step.icon;
             const isActive = i + 1 === currentStep;
             const isDone = i + 1 < currentStep;
             const opacity = isDone ? 1 : isActive ? 1 : 0.4;
@@ -83,14 +82,13 @@ export default function AttackPipelinePage() {
                   whileHover={{ scale: 1.04 }}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    width: 110, height: 56, borderRadius: 10, opacity,
+                    width: 110, height: 56, borderRadius: 3, opacity,
                     background: step.color, color: step.color === '#F59E0B' ? '#0F172A' : '#fff',
                     fontSize: 11, fontWeight: 600, textAlign: 'center', lineHeight: 1.3,
-                    border: isActive ? '2px solid #fff' : 'none',
-                    boxShadow: isActive ? '0 0 12px rgba(99,102,241,0.5)' : 'none',
+                    border: isActive ? '2px solid #1a1a1a' : 'none',
+                    fontFamily: 'inherit',
                   }}
                 >
-                  <Icon style={{ width: 14, height: 14, marginBottom: 3 }} />
                   {step.name.split('\n').map((l, li) => <span key={li}>{l}</span>)}
                 </motion.div>
                 {i < pipelineSteps.length - 1 && (
@@ -113,8 +111,10 @@ export default function AttackPipelinePage() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <span className="badge" style={{ background: 'var(--accent)', color: '#fff', fontSize: 11 }}>PIPELINE RUNNING</span>
-            <div style={{ marginTop: 8, width: 160, height: 6, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-              <div style={{ width: `${progress}%`, height: '100%', borderRadius: 4, background: 'var(--accent)', transition: 'width 0.5s' }} />
+            <div style={{ marginTop: 8 }}>
+              <span style={{ fontSize: 11, fontFamily: 'inherit', color: 'var(--text-primary)' }}>
+                {(() => { const total = 20; const filled = Math.round((progress / 100) * total); return `[${'█'.repeat(filled)}${'░'.repeat(total - filled)}] ${Math.round(progress)}%`; })()}
+              </span>
             </div>
             <p style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4 }}>Step {currentStep} of {pipelineSteps.length} — {pipelineSteps[currentStep - 1].name.replace('\n', ' ')}</p>
           </div>
@@ -169,9 +169,7 @@ export default function AttackPipelinePage() {
 
                   {/* Running progress */}
                   {atk.status === 'running' && (
-                    <div style={{ width: 60, height: 4, borderRadius: 3, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-                      <div style={{ width: '60%', height: '100%', borderRadius: 3, background: 'var(--accent)', animation: 'shimmer 1.5s infinite' }} />
-                    </div>
+                    <span style={{ fontSize: 11, fontFamily: 'inherit', color: 'var(--accent)' }}>[████░░░░░░]</span>
                   )}
                 </motion.div>
               );
@@ -198,7 +196,7 @@ export default function AttackPipelinePage() {
             <div className="space-y-2">
               {mockAttacks.filter(a => a.status === 'done').map((a) => (
                 <div key={a.name} className="flex items-center gap-3">
-                  <CheckCircle2 style={{ width: 14, height: 14, color: 'var(--success)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: 'var(--success)', flexShrink: 0, fontFamily: 'inherit' }}>✓</span>
                   <span style={{ fontSize: 12, color: 'var(--text-primary)', flex: 1 }}>{a.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.duration}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--danger)' }}>{a.score?.toFixed(2)}</span>
@@ -213,7 +211,7 @@ export default function AttackPipelinePage() {
               ))}
               {mockAttacks.filter(a => a.status === 'pending').map((a) => (
                 <div key={a.name} className="flex items-center gap-3">
-                  <Clock style={{ width: 14, height: 14, color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0, fontFamily: 'inherit' }}>○</span>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{a.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Pending</span>
                 </div>

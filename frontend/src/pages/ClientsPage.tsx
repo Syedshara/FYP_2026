@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Server, Plus, Loader2, Search, X, ChevronDown, ChevronRight,
-  Play, Square, Trash2, Pencil, Monitor, Activity,
+  Plus, Loader2, Search, X, ChevronDown, ChevronRight,
+  Play, Square, Trash2, Pencil,
 } from 'lucide-react';
 import { clientsApi } from '@/api/clients';
 import { devicesApi } from '@/api/devices';
@@ -10,7 +10,6 @@ import type {
   FLClient, FLClientCreate, FLClientUpdate,
   DeviceBrief,
 } from '@/types';
-import { formatRelativeTime } from '@/lib/utils';
 
 /* ── animation variants ─────────────────────────────── */
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -366,7 +365,7 @@ function AddDeviceModal({
         <div className="flex justify-end gap-3" style={{ marginTop: 20 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor style={{ width: 16, height: 16 }} />}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : '+'}
             {saving ? 'Adding…' : 'Add Device'}
           </button>
         </div>
@@ -481,10 +480,11 @@ function ClientCard({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div style={{
-              width: 44, height: 44, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 3,
               background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, fontWeight: 700, color: sc.color, fontFamily: 'inherit',
             }}>
-              <Server style={{ width: 20, height: 20, color: sc.color }} />
+              {'>'}
             </div>
             <div>
               <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{client.name}</p>
@@ -620,12 +620,6 @@ function ClientCard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Footer */}
-      <div style={{ padding: '8px 20px 12px', fontSize: 10, color: 'var(--text-muted)' }}>
-        {client.last_seen_at ? `Last seen ${formatRelativeTime(client.last_seen_at)}` : 'Never seen'}
-        {' • '}Created {formatRelativeTime(client.created_at)}
-      </div>
     </motion.div>
   );
 }
@@ -732,23 +726,14 @@ export default function ClientsPage() {
       {/* ── KPI Strip ── */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Clients', value: counts.all, icon: Server, color: 'var(--accent)' },
-          { label: 'Active', value: counts.active, icon: Activity, color: 'var(--success)' },
-          { label: 'Training', value: counts.training, icon: Activity, color: 'var(--info)' },
-          { label: 'Inactive', value: counts.inactive, icon: Server, color: 'var(--text-muted)' },
+          { label: 'Total Clients', value: counts.all, color: 'var(--accent)' },
+          { label: 'Active', value: counts.active, color: 'var(--success)' },
+          { label: 'Training', value: counts.training, color: 'var(--info)' },
+          { label: 'Inactive', value: counts.inactive, color: 'var(--text-muted)' },
         ].map((kpi) => (
-          <div key={kpi.label} className="kpi-card flex items-center gap-3" style={{ padding: 16 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: `color-mix(in srgb, ${kpi.color} 10%, transparent)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <kpi.icon style={{ width: 18, height: 18, color: kpi.color }} />
-            </div>
-            <div>
-              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{kpi.label}</p>
-            </div>
+          <div key={kpi.label} className="card" style={{ padding: '16px 20px' }}>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{kpi.label}</p>
+            <p style={{ fontSize: 24, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
           </div>
         ))}
       </motion.div>
@@ -814,7 +799,7 @@ export default function ClientsPage() {
         </div>
       ) : (
         <div className="card flex flex-col items-center justify-center" style={{ padding: 64 }}>
-          <Server style={{ width: 48, height: 48, color: 'var(--text-muted)', marginBottom: 16 }} />
+          <span style={{ fontSize: 24, color: 'var(--text-muted)', marginBottom: 16 }}>[ ]</span>
           <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
             {clients.length === 0 ? 'No clients yet' : 'No clients match your filter'}
           </p>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ShieldOff, Plus, Search, AlertTriangle, Ban, Wifi } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
@@ -38,11 +38,11 @@ const mockQuarantined: QuarantinedDevice[] = [
   { id: '2', name: 'Gateway_02', ip: '192.168.1.201', reason: 'DDoS Attack (Score: 0.88)', since: '5h ago' },
 ];
 
-const typeConfig: Record<string, { icon: typeof Shield; color: string; bg: string; label: string }> = {
-  block:      { icon: Ban,          color: 'var(--danger)',  bg: 'var(--danger-light)',  label: 'Block' },
-  alert:      { icon: AlertTriangle, color: 'var(--warning)', bg: 'var(--warning-light)', label: 'Alert' },
-  quarantine: { icon: ShieldOff,    color: '#A855F7',        bg: 'rgba(168,85,247,0.1)', label: 'Quarantine' },
-  rate_limit: { icon: Wifi,         color: 'var(--accent)',  bg: 'var(--accent-light)',  label: 'Rate Limit' },
+const typeConfig: Record<string, { symbol: string; color: string; bg: string; label: string }> = {
+  block:      { symbol: '✕', color: 'var(--danger)',  bg: 'var(--danger-light)',  label: 'Block' },
+  alert:      { symbol: '!', color: 'var(--warning)', bg: 'var(--warning-light)', label: 'Alert' },
+  quarantine: { symbol: '◉', color: '#A855F7',        bg: 'rgba(168,85,247,0.1)', label: 'Quarantine' },
+  rate_limit: { symbol: '~', color: 'var(--accent)',  bg: 'var(--accent-light)',  label: 'Rate Limit' },
 };
 
 export default function PreventionPage() {
@@ -125,7 +125,6 @@ export default function PreventionPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {filtered.map((rule) => {
           const tc = typeConfig[rule.type];
-          const Icon = tc.icon;
           return (
             <motion.div
               key={rule.id}
@@ -138,9 +137,9 @@ export default function PreventionPage() {
               }}
             >
               <div className="flex items-center gap-4">
-                {/* Icon */}
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon style={{ width: 18, height: 18, color: tc.color }} />
+                {/* Symbol */}
+                <div style={{ width: 40, height: 40, borderRadius: 3, background: tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16, fontWeight: 700, color: tc.color, fontFamily: 'inherit' }}>
+                  {tc.symbol}
                 </div>
 
                 {/* Info */}
@@ -186,7 +185,7 @@ export default function PreventionPage() {
       {/* Quarantined Devices */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
         <div className="flex items-center gap-3 mb-4">
-          <ShieldOff style={{ width: 18, height: 18, color: '#A855F7' }} />
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#A855F7', fontFamily: 'inherit' }}>◉</span>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Quarantined Devices</h2>
           <span className="badge" style={{ background: 'rgba(168,85,247,0.1)', color: '#A855F7' }}>{mockQuarantined.length}</span>
         </div>

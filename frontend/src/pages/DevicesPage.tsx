@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Monitor, Plus, Loader2, Search, X,
-  Trash2, Pencil, Activity, AlertTriangle, Server,
+  Plus, Loader2, Search, X,
+  Trash2, Pencil,
 } from 'lucide-react';
 import { devicesApi } from '@/api/devices';
 import { clientsApi } from '@/api/clients';
 import type { Device, DeviceCreate, DeviceUpdate, FLClient, Prediction } from '@/types';
-import { formatRelativeTime, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 /* ── animation variants ─────────────────────────────── */
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } };
@@ -19,11 +19,6 @@ const statusConfig: Record<string, { color: string; bg: string; label: string; d
   offline:      { color: 'var(--text-muted)', bg: 'var(--bg-secondary)', label: 'Offline',    dot: 'status-dot status-offline' },
   under_attack: { color: 'var(--danger)',  bg: 'var(--danger-light)',  label: 'Under Attack', dot: 'status-dot status-attack' },
   quarantined:  { color: 'var(--warning)', bg: 'var(--warning-light)', label: 'Quarantined',  dot: 'status-dot status-quarantined' },
-};
-
-const deviceTypeIcons: Record<string, string> = {
-  camera: '📷', sensor: '🌡️', router: '📡', gateway: '🔌',
-  switch: '🔀', controller: '🎛️', actuator: '⚙️',
 };
 
 /* ══════════════════════════════════════════════════════
@@ -339,9 +334,6 @@ function PredictionPanel({
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Monitor style={{ width: 18, height: 18, color: sc.color }} />
-            </div>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{device.name}</h3>
               <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{device.ip_address || 'No IP'}</p>
@@ -366,7 +358,7 @@ function PredictionPanel({
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Type</span>
-            <p style={{ color: 'var(--text-primary)' }}>{deviceTypeIcons[device.device_type] || '📦'} {device.device_type}</p>
+            <p style={{ color: 'var(--text-primary)' }}>{device.device_type}</p>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Client</span>
@@ -375,10 +367,6 @@ function PredictionPanel({
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Protocol / Port</span>
             <p style={{ color: 'var(--text-primary)' }}>{device.protocol.toUpperCase()} : {device.port}</p>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Last Seen</span>
-            <p style={{ color: 'var(--text-primary)' }}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'Never'}</p>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Threats Today</span>
@@ -392,11 +380,9 @@ function PredictionPanel({
       {/* Prediction Stats */}
       <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 16 }}>
         <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
-          <Activity style={{ width: 14, height: 14, color: 'var(--accent)' }} />
           <span style={{ color: 'var(--text-muted)' }}>Total: <strong style={{ color: 'var(--text-primary)' }}>{predictions.length}</strong></span>
         </div>
         <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
-          <AlertTriangle style={{ width: 14, height: 14, color: 'var(--danger)' }} />
           <span style={{ color: 'var(--text-muted)' }}>Attacks: <strong style={{ color: 'var(--danger)' }}>{attackCount}</strong></span>
         </div>
         <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
@@ -490,12 +476,9 @@ function DeviceCard({
       style={{ padding: 20, borderLeft: `3px solid ${sc.color}` }}
       onClick={onSelect}
     >
-      {/* Top row: icon + name + status dot */}
+      {/* Top row: name + status dot */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Monitor style={{ width: 18, height: 18, color: sc.color }} />
-          </div>
           <div>
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{device.name}</p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{device.ip_address || 'No IP'}</p>
@@ -506,24 +489,20 @@ function DeviceCard({
 
       {/* Client badge */}
       <div className="flex items-center gap-2" style={{ marginTop: 12 }}>
-        <Server style={{ width: 12, height: 12, color: 'var(--accent)' }} />
-        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>{clientName}</span>
+        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>&gt; {clientName}</span>
       </div>
 
-      {/* Status + last seen */}
+      {/* Status */}
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-          {device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'Never seen'}
-        </span>
       </div>
 
       {/* Meta info */}
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
-        <span>{deviceTypeIcons[device.device_type] || '📦'} {device.device_type}</span>
+        <span>{device.device_type}</span>
         {device.threat_count_today > 0 && (
-          <span className="flex items-center gap-1" style={{ color: 'var(--danger)', fontWeight: 600 }}>
-            <AlertTriangle style={{ width: 12, height: 12 }} /> {device.threat_count_today} threats
+          <span style={{ color: 'var(--danger)', fontWeight: 600 }}>
+            ! {device.threat_count_today} threats
           </span>
         )}
       </div>
@@ -746,7 +725,7 @@ export default function DevicesPage() {
             </div>
           ) : (
             <div className="card flex flex-col items-center justify-center" style={{ padding: 48 }}>
-              <Monitor style={{ width: 40, height: 40, color: 'var(--text-muted)', marginBottom: 12 }} />
+              <span style={{ fontSize: 24, color: 'var(--text-muted)', marginBottom: 12 }}>[ ]</span>
               <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>No devices found</p>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                 {search ? 'Try adjusting your search or filters.' : 'Create a device to get started.'}

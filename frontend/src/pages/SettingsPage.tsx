@@ -1,19 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Bell, Shield, Cpu, Database, Palette } from 'lucide-react';
-import { useThemeStore } from '@/stores/themeStore';
 import { useAuthStore } from '@/stores/authStore';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
 const tabs = [
-  { id: 'profile',       label: 'Profile',        icon: User },
-  { id: 'notifications', label: 'Notifications',  icon: Bell },
-  { id: 'security',      label: 'Security',       icon: Shield },
-  { id: 'model',         label: 'Model Config',   icon: Cpu },
-  { id: 'system',        label: 'System',         icon: Database },
-  { id: 'appearance',    label: 'Appearance',     icon: Palette },
+  { id: 'profile',       label: 'Profile' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'security',      label: 'Security' },
+  { id: 'model',         label: 'Model Config' },
+  { id: 'system',        label: 'System' },
 ];
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -49,7 +46,6 @@ function FieldRow({ label, description, children }: { label: string; description
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
-  const { theme, setTheme } = useThemeStore();
   const { user } = useAuthStore();
 
   // Notification settings
@@ -79,7 +75,6 @@ export default function SettingsPage() {
         <motion.div variants={fadeUp} className="card lg:col-span-1" style={{ padding: 8 }}>
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {tabs.map((tab) => {
-              const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -87,14 +82,15 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '10px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    padding: '10px 14px', borderRadius: 3, border: 'none', cursor: 'pointer',
                     fontSize: 13, fontWeight: isActive ? 600 : 400, textAlign: 'left',
                     background: isActive ? 'var(--accent-light)' : 'transparent',
                     color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                     transition: 'all .15s',
+                    fontFamily: 'inherit',
                   }}
                 >
-                  <Icon style={{ width: 16, height: 16 }} />
+                  <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>&gt;</span>
                   {tab.label}
                 </button>
               );
@@ -251,31 +247,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Appearance */}
-          {activeTab === 'appearance' && (
-            <div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Appearance</h2>
-              <FieldRow label="Theme" description="Switch between light and dark mode">
-                <div className="flex gap-2">
-                  {(['light', 'dark'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTheme(t)}
-                      style={{
-                        padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                        fontSize: 13, fontWeight: 500,
-                        background: theme === t ? 'var(--accent)' : 'var(--bg-secondary)',
-                        color: theme === t ? '#fff' : 'var(--text-secondary)',
-                        transition: 'all .15s',
-                      }}
-                    >
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </FieldRow>
-            </div>
-          )}
+
         </motion.div>
       </div>
     </motion.div>

@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, Download, Pause, Play, Cpu, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Download /* , Pause, Play */ } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
 import { useLiveStore } from '@/stores/liveStore';
-import type { Device, PredictionSummary, ModelInfo, Prediction } from '@/types';
+import type { Device, Prediction } from '@/types';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
@@ -40,7 +40,7 @@ function generateTimeline(predictions: Prediction[]) {
   }));
 }
 
-const featureImportance = [
+/* const featureImportance = [
   { name: 'Fwd Pkt Len Max', value: 0.34 },
   { name: 'Flow Duration', value: 0.28 },
   { name: 'Bwd Pkt Len Mean', value: 0.19 },
@@ -51,18 +51,16 @@ const featureImportance = [
   { name: 'SYN Flag Count', value: 0.05 },
   { name: 'Init Win Bytes Fwd', value: 0.04 },
   { name: 'Subflow Fwd Bytes', value: 0.03 },
-];
+]; */
 
 export default function TrafficMonitorPage() {
   const [searchParams] = useSearchParams();
   const initialDeviceId = searchParams.get('device_id') ?? '';
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>(initialDeviceId);
-  const [summary, setSummary] = useState<PredictionSummary | null>(null);
-  const [model, setModel] = useState<ModelInfo | null>(null);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paused, setPaused] = useState(false);
+  const paused = false; // const [paused, setPaused] = useState(false);
   const [range, setRange] = useState('1h');
 
   // Live store
@@ -72,13 +70,9 @@ export default function TrafficMonitorPage() {
   useEffect(() => {
     Promise.all([
       devicesApi.list(),
-      predictionsApi.summary().catch(() => null),
-      predictionsApi.model().catch(() => null),
-    ]).then(([devs, sum, mdl]) => {
+    ]).then(([devs]) => {
       setDevices(devs);
       if (!initialDeviceId && devs.length > 0) setSelectedDevice(devs[0].id);
-      setSummary(sum);
-      setModel(mdl);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -210,17 +204,10 @@ export default function TrafficMonitorPage() {
 
         <div className="flex-1" />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {wsConnected ? <Wifi style={{ width: 14, height: 14, color: 'var(--success)' }} /> : <WifiOff style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />}
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: paused ? 'var(--text-muted)' : wsConnected ? 'var(--success)' : 'var(--warning)', display: 'inline-block', animation: paused ? 'none' : 'status-pulse 2s infinite' }} />
-          <span style={{ fontSize: 11, fontWeight: 600, color: paused ? 'var(--text-muted)' : wsConnected ? 'var(--success)' : 'var(--warning)' }}>
-            {paused ? 'PAUSED' : wsConnected ? 'LIVE' : 'POLLING'}
-          </span>
-        </div>
-        <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={() => setPaused(!paused)}>
+        {/* <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={() => setPaused(!paused)}>
           {paused ? <Play style={{ width: 14, height: 14 }} /> : <Pause style={{ width: 14, height: 14 }} />}
           {paused ? 'Resume' : 'Pause'}
-        </button>
+        </button> */}
         <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExport} disabled={filteredPredictions.length === 0}>
           <Download style={{ width: 14, height: 14 }} /> Export
         </button>
@@ -231,12 +218,12 @@ export default function TrafficMonitorPage() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-              Anomaly Score — {wsConnected && !paused ? 'Real-time' : 'Historical'}
+              Anomaly Score
               {wsConnected && !paused && deviceLivePreds.length > 0 && (
                 <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● STREAMING</span>
               )}
             </h2>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>CNN-LSTM model prediction confidence (0 = benign, 1 = attack)</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>(0 = benign, 1 = attack)</p>
           </div>
           <div className="card" style={{ padding: '10px 16px', textAlign: 'right' }}>
             <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>Current Score</span>
@@ -271,8 +258,8 @@ export default function TrafficMonitorPage() {
         </div>
       </motion.div>
 
-      {/* Row 2: Traffic Volume + XAI */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Row 2: Traffic Volume */}
+      <div className="grid grid-cols-1 gap-6">
         {/* Traffic Volume */}
         <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Traffic Volume</h2>
@@ -289,7 +276,7 @@ export default function TrafficMonitorPage() {
           </div>
         </motion.div>
 
-        {/* XAI Feature Importance */}
+        {/* XAI Feature Importance — commented out for now
         <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -327,6 +314,7 @@ export default function TrafficMonitorPage() {
             })}
           </div>
         </motion.div>
+        */}
       </div>
 
       {/* Live Event Log */}
@@ -388,20 +376,6 @@ export default function TrafficMonitorPage() {
           </table>
         </div>
       </motion.div>
-
-      {/* Model Info Bar */}
-      {model && (
-        <motion.div variants={fadeUp} className="card flex items-center gap-6 flex-wrap" style={{ padding: '14px 20px' }}>
-          <Cpu style={{ width: 16, height: 16, color: 'var(--accent)' }} />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Model: <strong style={{ color: 'var(--text-primary)' }}>{model.architecture}</strong></span>
-          <span style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>Threshold: {model.threshold}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Input: {model.input_shape}</span>
-          {summary && <span style={{ fontSize: 12, color: 'var(--success)' }}>Latency: ~{summary.avg_latency_ms.toFixed(0)}ms/pred</span>}
-          <span style={{ fontSize: 12, color: model.loaded ? 'var(--success)' : 'var(--danger)' }}>
-            {model.loaded ? 'Model Loaded' : 'Model Not Loaded'}
-          </span>
-        </motion.div>
-      )}
     </motion.div>
   );
 }

@@ -5,6 +5,7 @@ These are called by FL client/server containers running on the same Docker netwo
 They are NOT exposed to the frontend.
 
 - GET  /client/by-client-id/{client_id}  — resolve client_id string → DB record
+- POST /client/register                  — auto-register a new FL client
 - GET  /client/{pk}/devices              — list devices for a client
 - POST /predictions                      — save a prediction result
 - POST /fl/progress                      — FL training progress update (broadcast via WS)
@@ -153,6 +154,40 @@ async def list_client_devices(
     """List all devices belonging to a specific FL client (no auth)."""
     devices = await device_service.get_all_devices(db, client_id=client_pk)
     return devices
+
+
+# ── Auto‑register client (called by monitor containers) ──
+
+
+class InternalClientRegister(BaseModel):
+    client_id: str
+    name: str
+    description: Optional[str] = None
+
+
+@router.post("/client/register", response_model=InternalClientOut, status_code=201)
+async def register_client_internal(
+    body: InternalClientRegister,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto‑register a new FL client from inside a simulation container.
+    If the client already exists, returns 409.
+    No Docker container is created (the caller IS the container).
+    """
+    from app.core.exceptions import ConflictException
+
+    try:
+        client = await fl_service.register_fl_client(
+            db,
+            client_id=body.client_id,
+            name=body.name,
+            description=body.description,
+            create_container=False,       # We ARE the container
+        )
+        return client
+    except ConflictException:
+        raise HTTPException(status_code=409, detail=f"Client '{body.client_id}' already exists")
 
 
 @router.post("/predictions", response_model=InternalPredictionOut, status_code=201)

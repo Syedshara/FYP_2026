@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Loader2, Activity, Lock, Server, Users, TrendingUp, Play, Pause,
-  Square, Settings, Wifi, WifiOff, SkipForward, SkipBack,
-  Zap, Shield, AlertTriangle, X, BarChart3, ChevronDown,
+  Loader2, Play, Pause,
+  Square, Settings,
+  X, ChevronDown, SkipBack, SkipForward,
 } from 'lucide-react';
 import {
   LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -26,10 +26,10 @@ const tooltipStyle = {
 
 /* ── Pipeline Steps ───────────────────────────── */
 const PIPELINE_STEPS = [
-  { key: 'distribute', label: 'Sending Weights', icon: Server, color: '#A855F7' },
-  { key: 'training', label: 'Local Training', icon: Activity, color: '#6366F1' },
-  { key: 'encrypting', label: 'Encrypting', icon: Lock, color: '#EF4444' },
-  { key: 'aggregating', label: 'Aggregating', icon: Zap, color: '#F59E0B' },
+  { key: 'distribute', label: 'Sending Weights', color: '#A855F7' },
+  { key: 'training', label: 'Local Training', color: '#6366F1' },
+  { key: 'encrypting', label: 'Encrypting', color: '#EF4444' },
+  { key: 'aggregating', label: 'Aggregating', color: '#F59E0B' },
 ];
 
 /* ── CKKS Config ──────────────────────────────── */
@@ -225,9 +225,8 @@ function PipelineVis({ activeStep, clients }: { activeStep: string; clients: Rec
       <div className="flex justify-center" style={{ marginBottom: 24 }}>
         <div className="card flex items-center gap-3" style={{
           padding: '12px 24px', borderColor: '#A855F7', borderWidth: 2,
-          background: 'linear-gradient(135deg, rgba(168,85,247,.08), transparent)',
         }}>
-          <Server style={{ width: 20, height: 20, color: '#A855F7' }} />
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#A855F7', fontFamily: 'inherit' }}>&gt;</span>
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#A855F7' }}>FL Server</p>
             <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>FedAvg + CKKS Aggregation</p>
@@ -238,7 +237,6 @@ function PipelineVis({ activeStep, clients }: { activeStep: string; clients: Rec
       {/* Connection Lines + Step Pills */}
       <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginBottom: 24 }}>
         {PIPELINE_STEPS.map((step, i) => {
-          const Icon = step.icon;
           const isActive = i === activeIdx;
           const isPast = i < activeIdx;
           return (
@@ -246,19 +244,18 @@ function PipelineVis({ activeStep, clients }: { activeStep: string; clients: Rec
               <motion.div
                 animate={{
                   scale: isActive ? 1.08 : 1,
-                  boxShadow: isActive ? `0 0 16px ${step.color}40` : 'none',
                 }}
                 transition={{ duration: 0.5, repeat: isActive ? Infinity : 0, repeatType: 'reverse' }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 16px', borderRadius: 8,
+                  padding: '8px 16px', borderRadius: 3,
                   background: isActive ? step.color : isPast ? `${step.color}22` : 'var(--bg-secondary)',
                   color: isActive ? '#fff' : isPast ? step.color : 'var(--text-muted)',
                   border: `1.5px solid ${isActive || isPast ? step.color : 'var(--border)'}`,
                   fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                  fontFamily: 'inherit',
                 }}
               >
-                <Icon style={{ width: 14, height: 14 }} />
                 {step.label}
               </motion.div>
               {i < PIPELINE_STEPS.length - 1 && (
@@ -293,7 +290,7 @@ function PipelineVis({ activeStep, clients }: { activeStep: string; clients: Rec
                 padding: 14, minWidth: 140, textAlign: 'center',
                 borderColor: color, borderWidth: 1.5,
               }}>
-                <Users style={{ width: 16, height: 16, color, margin: '0 auto 6px' }} />
+                <span style={{ fontSize: 14, fontWeight: 700, color, display: 'block', marginBottom: 6, fontFamily: 'inherit' }}>&gt;</span>
                 <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{c.client_id}</p>
                 <span className="badge" style={{
                   background: getClientStatusBg(c.status), color, fontSize: 10,
@@ -355,7 +352,7 @@ function ClientProgressCard({ progress, lossHistory }: { progress: FLClientProgr
       {/* Header */}
       <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
         <div className="flex items-center gap-2">
-          <Users style={{ width: 14, height: 14, color }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: 'inherit' }}>&gt;</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{progress.client_id}</span>
         </div>
         <span className="badge" style={{ background: getClientStatusBg(progress.status), color, textTransform: 'capitalize' }}>
@@ -373,12 +370,10 @@ function ClientProgressCard({ progress, lossHistory }: { progress: FLClientProgr
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color }}>{pct.toFixed(0)}%</span>
         </div>
-        <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--bg-secondary)' }}>
-          <motion.div
-            initial={{ width: 0 }} animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.5 }}
-            style={{ height: '100%', borderRadius: 3, background: color }}
-          />
+        <div style={{ width: '100%' }}>
+          <span style={{ fontSize: 11, fontFamily: 'inherit', color }}>
+            {(() => { const total = 20; const filled = Math.round((pct / 100) * total); return `[${'█'.repeat(filled)}${'░'.repeat(total - filled)}]`; })()}
+          </span>
         </div>
       </div>
 
@@ -473,7 +468,6 @@ export default function FLTrainingPage() {
   const [loadingClientMetrics, setLoadingClientMetrics] = useState(false);
 
   // ── Live store ──
-  const wsConnected = useLiveStore((s) => s.wsConnected);
   const flGlobal = useLiveStore((s) => s.flGlobalProgress);
   const flClientProgress = useLiveStore((s) => s.flClientProgress);
   const liveRoundResults = useLiveStore((s) => s.flRoundResults);
@@ -821,21 +815,8 @@ export default function FLTrainingPage() {
               </span>
             )}
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-            Flower Framework · FedAvg · TenSEAL CKKS · CNN-LSTM
-          </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* WS indicator */}
-          <div className="flex items-center gap-2" style={{
-            fontSize: 11, fontWeight: 600, padding: '6px 14px', borderRadius: 999,
-            background: wsConnected ? 'var(--success-light)' : 'var(--danger-light)',
-            color: wsConnected ? 'var(--success)' : 'var(--danger)',
-          }}>
-            {wsConnected ? <Wifi style={{ width: 12, height: 12 }} /> : <WifiOff style={{ width: 12, height: 12 }} />}
-            {wsConnected ? 'Live' : 'Offline'}
-          </div>
-
           {/* Action buttons */}
           {isLive ? (
             <button className="btn" onClick={handleStop} disabled={stopping} style={{
@@ -864,7 +845,7 @@ export default function FLTrainingPage() {
             className="card" style={{ padding: '12px 16px', borderColor: 'var(--danger)', borderWidth: 1.5, background: 'var(--danger-light)' }}
           >
             <div className="flex items-center gap-2">
-              <AlertTriangle style={{ width: 16, height: 16, color: 'var(--danger)' }} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--danger)' }}>!</span>
               <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>{error}</span>
               <button className="btn btn-ghost" style={{ marginLeft: 'auto', height: 24, width: 24, padding: 0 }} onClick={() => setError(null)}>
                 <X style={{ width: 14, height: 14 }} />
@@ -877,16 +858,9 @@ export default function FLTrainingPage() {
       {/* ════════════════════════════════════════════════════
          KPI STRIP
          ════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-5">
         {[
           {
-            icon: Activity,
-            label: 'Status',
-            value: isLive ? 'Training' : status?.is_training ? 'Active' : 'Idle',
-            color: isLive ? 'var(--success)' : 'var(--text-muted)',
-          },
-          {
-            icon: TrendingUp,
             label: 'Rounds',
             value: isLive
               ? `${flGlobal?.current_round ?? 0} / ${flGlobal?.total_rounds ?? 0}`
@@ -894,41 +868,18 @@ export default function FLTrainingPage() {
             color: 'var(--accent)',
           },
           {
-            icon: Users,
             label: 'Clients',
             value: isLive
               ? (clientProgressEntries.length || flGlobal?.expected_clients || clients.length)
               : (status?.active_clients ?? clients.length),
             color: 'var(--warning)',
           },
-          {
-            icon: Lock,
-            label: 'Encryption',
-            value: isLive
-              ? (flGlobal?.use_he !== false ? 'CKKS HE ✓' : 'Disabled')
-              : 'CKKS HE',
-            color: isLive && flGlobal?.use_he === false ? 'var(--text-muted)' : 'var(--danger)',
-          },
-        ].map((kpi) => {
-          const Icon = kpi.icon;
-          return (
+        ].map((kpi) => (
             <motion.div key={kpi.label} variants={fadeUp} className="card" style={{ padding: 16 }}>
-              <div className="flex items-center gap-3">
-                <div style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: `color-mix(in srgb, ${kpi.color} 15%, transparent)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Icon style={{ width: 16, height: 16, color: kpi.color }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{kpi.label}</p>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
-                </div>
-              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{kpi.label}</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
             </motion.div>
-          );
-        })}
+        ))}
       </div>
 
       {/* ════════════════════════════════════════════════════
@@ -1035,13 +986,11 @@ export default function FLTrainingPage() {
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
                 Global Metrics
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: 'Accuracy', value: flGlobal.global_accuracy != null ? `${(flGlobal.global_accuracy * 100).toFixed(1)}%` : '—', color: 'var(--success)' },
                   { label: 'Loss', value: flGlobal.global_loss != null ? flGlobal.global_loss.toFixed(4) : '—', color: 'var(--danger)' },
                   { label: 'Round', value: `${flGlobal.current_round} / ${flGlobal.total_rounds}`, color: 'var(--accent)' },
-                  { label: 'Aggregation', value: flGlobal.aggregation_method ?? 'FedAvg', color: 'var(--text-primary)' },
-                  { label: 'Encryption', value: flGlobal.use_he !== false ? 'CKKS HE' : 'None', color: 'var(--warning)' },
                 ].map((m) => (
                   <div key={m.label} style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-primary)', textAlign: 'center' }}>
                     <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>{m.label}</p>
@@ -1328,7 +1277,6 @@ export default function FLTrainingPage() {
           {/* Section Header */}
           <motion.div variants={fadeUp} style={{ marginTop: 8 }}>
             <div className="flex items-center gap-3" style={{ marginBottom: 16 }}>
-              <BarChart3 style={{ width: 20, height: 20, color: 'var(--accent)' }} />
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
                   Metrics &amp; Analytics
@@ -1408,44 +1356,7 @@ export default function FLTrainingPage() {
                 ))}
               </div>
 
-              {/* Secondary info row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  {
-                    label: 'Aggregation Method',
-                    value: globalMetricsSummary.latest.aggregation_method || 'FedAvg',
-                    icon: '⚙️',
-                  },
-                  {
-                    label: 'Encryption',
-                    value: globalMetricsSummary.latest.he_scheme || 'CKKS',
-                    icon: '🔒',
-                  },
-                  {
-                    label: 'Avg Duration / Round',
-                    value: globalMetricsSummary.avgDuration > 0
-                      ? `${globalMetricsSummary.avgDuration.toFixed(1)}s` : '—',
-                    icon: '⏱️',
-                  },
-                  {
-                    label: 'Clients per Round',
-                    value: globalMetricsSummary.latest.num_clients,
-                    icon: '👥',
-                  },
-                ].map((item) => (
-                  <div key={item.label} style={{
-                    padding: '10px 14px', borderRadius: 8,
-                    background: 'var(--bg-primary)', border: '1px solid var(--border)',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                  }}>
-                    <span style={{ fontSize: 18 }}>{item.icon}</span>
-                    <div>
-                      <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.label}</p>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+
             </motion.div>
           )}
 
@@ -1453,7 +1364,6 @@ export default function FLTrainingPage() {
           <motion.div variants={fadeUp} className="card" style={{ padding: 24, borderLeft: '3px solid #8B5CF6' }}>
             <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: 16 }}>
               <div className="flex items-center gap-2">
-                <Users style={{ width: 18, height: 18, color: '#8B5CF6' }} />
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
                   Per-Client Analytics
                 </h3>
@@ -1494,7 +1404,7 @@ export default function FLTrainingPage() {
 
             {!selectedMetricsClient ? (
               <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                <Users style={{ width: 36, height: 36, color: 'var(--text-muted)', margin: '0 auto 12px', opacity: 0.3 }} />
+                <span style={{ fontSize: 24, color: 'var(--text-muted)', display: 'block', margin: '0 auto 12px', opacity: 0.3 }}>[ ]</span>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                   Select a client from the dropdown to view its per-round training metrics.
                 </p>
@@ -1590,9 +1500,10 @@ export default function FLTrainingPage() {
       )}
 
       {/* ════════════════════════════════════════════════════
-         BOTTOM ROW: Strategy + CKKS + Clients (always visible)
+         BOTTOM ROW: Strategy + CKKS + Clients (hidden)
          ════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* eslint-disable-next-line no-constant-binary-expression */}
+      {false && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* FedAvg Strategy */}
         <motion.div variants={fadeUp} className="card" style={{ padding: 24, borderLeft: '3px solid #A855F7' }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#A855F7' }}>FedAvg Aggregation</h3>
@@ -1639,7 +1550,6 @@ export default function FLTrainingPage() {
         <motion.div variants={fadeUp} className="card" style={{ padding: 24, borderLeft: '3px solid var(--accent)' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>FL Clients</h3>
-            <Server style={{ width: 16, height: 16, color: 'var(--accent)' }} />
           </div>
 
           {clients.length > 0 ? (
@@ -1686,14 +1596,14 @@ export default function FLTrainingPage() {
             </p>
           )}
         </motion.div>
-      </div>
+      </div>}
 
       {/* Empty state if no training history and not live */}
       {!isLive && chartData.length === 0 && (
         <motion.div variants={fadeUp} className="card" style={{
           padding: 48, textAlign: 'center',
         }}>
-          <Shield style={{ width: 48, height: 48, color: 'var(--accent)', margin: '0 auto 16px', opacity: 0.4 }} />
+          <span style={{ fontSize: 32, color: 'var(--accent)', display: 'block', margin: '0 auto 16px', opacity: 0.4 }}>&gt;_</span>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
             No Training History
           </h3>
