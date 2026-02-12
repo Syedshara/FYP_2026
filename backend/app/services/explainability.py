@@ -6,7 +6,7 @@ for why the model classified a flow as attack or benign.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 # Feature indices and names (matching your 78-feature model)
 FEATURE_NAMES = {
@@ -77,6 +77,14 @@ class ExplainabilityAnalyzer:
         # Get current flow (most recent in window)
         current_flow = np.array(window[-1])
         
+        # Check for rule-based portscan signature (High SYN + Low ACK + small packets)
+        # Rule from Colab: Port Scans have High SYN flags, low ACK
+        detected_attack_type = self._detect_portscan_signature(current_flow)
+        if detected_attack_type and label == "benign":
+            # Override benign prediction if portscan signature is strong
+            label = "attack"
+            score = 0.9  # High confidence for rule-based detection
+        
         # Find anomalous features
         anomalies = self._find_anomalies(current_flow)
         
@@ -88,7 +96,8 @@ class ExplainabilityAnalyzer:
             label=label,
             score=score,
             anomalies=anomalies,
-            temporal=temporal
+            temporal=temporal,
+            detected_attack=detected_attack_type
         )
         
         return {
@@ -96,6 +105,7 @@ class ExplainabilityAnalyzer:
             "top_anomalies": anomalies[:5],  # Top 5 anomalous features
             "temporal_pattern": temporal,
             "anomaly_count": len(anomalies),
+            "detected_attack_type": detected_attack_type,
         }
     
     def _find_anomalies(self, flow: np.ndarray) -> List[Dict]:
@@ -113,8 +123,13 @@ class ExplainabilityAnalyzer:
             if baseline > 0:
                 ratio = value / baseline
             else:
-                # For zero baseline (like RST flags), any value is anomalous
-                ratio = 999.0 if value > 0 else 1.0
+                # For zero baseline (like RST flags), only non-zero values are anomalous
+                # Use an infinite ratio marker so they sort to the top
+                if value > 0:
+                    ratio = float('inf')
+                else:
+                    # No deviation when both baseline and value are zero
+                    continue
             
             # Consider it anomalous if >3x baseline
             if ratio > self.anomaly_threshold:
@@ -129,6 +144,52 @@ class ExplainabilityAnalyzer:
         anomalies.sort(key=lambda x: x["ratio"], reverse=True)
         
         return anomalies
+    
+    def _detect_portscan_signature(self, flow: np.ndarray) -> Optional[str]:
+        """
+        Rule-based detection for portscan attack signature.
+        
+        PortScan signature (from Colab):
+        - High SYN flags (>8x baseline) 
+        - Low ACK flags (<baseline or declining)
+        - Small packet sizes (<10x baseline)
+        - Moderate packet count (5-200)
+        """
+        
+        syn_idx = 21
+        ack_idx = 24
+        fwd_length_idx = 2
+        fwd_packets_idx = 0
+        
+        if syn_idx >= len(flow) or ack_idx >= len(flow):
+            return None
+        
+        syn_value = flow[syn_idx]
+        ack_value = flow[ack_idx]
+        fwd_length = flow[fwd_length_idx] if fwd_length_idx < len(flow) else 0
+        fwd_packets = flow[fwd_packets_idx] if fwd_packets_idx < len(flow) else 0
+        
+        syn_baseline = BENIGN_BASELINE.get(syn_idx, 2.0)
+        ack_baseline = BENIGN_BASELINE.get(ack_idx, 10.0)
+        fwd_length_baseline = BENIGN_BASELINE.get(fwd_length_idx, 500.0)
+        
+        # Check portscan signature
+        syn_ratio = syn_value / syn_baseline if syn_baseline > 0 else 0
+        ack_ratio = ack_value / ack_baseline if ack_baseline > 0 else 0
+        length_ratio = fwd_length / fwd_length_baseline if fwd_length_baseline > 0 else 0
+        
+        # PortScan: High SYN (>5x) + Low ACK (<0.5x) + Small packets (<10x)
+        is_portscan = (
+            syn_ratio > 5.0 and  # High SYN flags
+            ack_ratio < 0.8 and  # Low ACK response
+            length_ratio < 10.0 and  # Not too large packets
+            fwd_packets > 5  # Some packet activity
+        )
+        
+        if is_portscan:
+            return "portscan"
+        
+        return None
     
     def _analyze_temporal_pattern(self, window: List[List[float]]) -> str:
         """Detect temporal patterns in the flow sequence."""
@@ -165,13 +226,18 @@ class ExplainabilityAnalyzer:
         label: str,
         score: float,
         anomalies: List[Dict],
-        temporal: str
+        temporal: str,
+        detected_attack: Optional[str] = None
     ) -> str:
         """Generate human-readable explanation."""
         
         if label == "attack":
             # Attack detected
             reasons = ["Model detected attack because:"]
+            
+            # Rule-based detection reason
+            if detected_attack:
+                reasons.append(f"• Rule-based detection: {detected_attack} signature detected (High SYN + Low ACK)")
             
             # Temporal reason
             if temporal in ["Sudden spike detected", "Gradual increase"]:
@@ -196,10 +262,17 @@ class ExplainabilityAnalyzer:
             if len(anomalies) == 0:
                 reasons.append("• Features within normal ranges")
             else:
-                reasons.append("• Anomalies not sustained across window")
-            
-            reasons.append("• No sustained temporal anomaly pattern")
-            
+                reasons.append("• Anomalies present but not sustained across the window")
+                # Include top anomalous feature names so user can see which columns deviated
+                top_list = []
+                for i, a in enumerate(anomalies[:5], 1):
+                    top_list.append(f"{i}. {a['feature']} = {a['value']:.1f} (baseline: {a['baseline']:.1f}, {a['ratio']:.1f}x)")
+                reasons.append("• Top anomalous features:")
+                reasons.extend(top_list)
+
+            # Always mention temporal analysis result
+            reasons.append(f"• Temporal analysis: {temporal}")
+
             return "\n   ".join(reasons)
 
 

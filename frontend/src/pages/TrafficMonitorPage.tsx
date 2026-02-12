@@ -97,13 +97,14 @@ export default function TrafficMonitorPage() {
   // Merge API predictions with live predictions (live first, dedup by timestamp)
   const mergedPredictions = useMemo(() => {
     const seen = new Set<string>();
-    const merged: Array<{ id: number; score: number; label: string; confidence: number; inference_latency_ms: number; timestamp: string; device_name?: string; explanation?: string; temporal_pattern?: string; top_anomalies?: Array<{ feature: string; ratio: number }> }> = [];
+    const merged: Array<{ id: number; device_id: string; score: number; label: string; confidence: number; inference_latency_ms: number; timestamp: string; device_name?: string; explanation?: string; temporal_pattern?: string; top_anomalies?: Array<{ feature: string; value: number; baseline: number; ratio: number }> }> = [];
     for (const lp of deviceLivePreds) {
       const key = `${lp.device_id}-${lp.timestamp}`;
       if (!seen.has(key)) {
         seen.add(key);
         merged.push({
           id: lp.id ?? 0,
+          device_id: String(lp.device_id),
           score: lp.score,
           label: lp.label,
           confidence: lp.confidence,
@@ -133,23 +134,201 @@ export default function TrafficMonitorPage() {
     return mergedPredictions.filter((p) => now - new Date(p.timestamp).getTime() <= windowMs);
   }, [mergedPredictions, range]);
 
-  // Export CSV handler
+  // Export enhanced CSV handler with explanations
   const handleExport = useCallback(() => {
     if (filteredPredictions.length === 0) return;
-    const headers = ['Timestamp', 'Prediction', 'Score', 'Confidence', 'Latency (ms)'];
-    const rows = filteredPredictions.map((p) => [
-      new Date(p.timestamp).toISOString(),
-      p.label,
-      p.score.toFixed(4),
-      (p.confidence * 100).toFixed(1),
-      p.inference_latency_ms.toFixed(1),
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    
+    // Build CSV with 2 sections: summary + detailed explanations
+    const lines: string[] = [];
+    
+    // Header
+    lines.push('TRAFFIC MONITOR PREDICTIONS WITH EXPLANATIONS');
+    lines.push(`Device: ${selectedDevice}`);
+    lines.push(`Time Range: ${range}`);
+    lines.push(`Export Date: ${new Date().toISOString()}`);
+    lines.push('');
+    
+    // Summary table headers
+    const headers = [
+      'Timestamp', 
+      'Device', 
+      'Prediction', 
+      'Score', 
+      'Confidence (%)', 
+      'Latency (ms)',
+      'Temporal Pattern',
+      'Anomaly Count',
+      'Window Present',
+      'Top Feature',
+      'Feature Value',
+      'Baseline',
+      'Ratio (×)',
+      'Feature #2',
+      'Ratio #2 (×)',
+      'Feature #3',
+      'Ratio #3 (×)',
+      'Top Anomalies JSON',
+    ];
+    
+    lines.push(headers.join(','));
+    
+    const rows = filteredPredictions.map((p) => {
+      const anom1 = p.top_anomalies && p.top_anomalies.length > 0 ? p.top_anomalies[0] : null;
+      const anom2 = p.top_anomalies && p.top_anomalies.length > 1 ? p.top_anomalies[1] : null;
+      const anom3 = p.top_anomalies && p.top_anomalies.length > 2 ? p.top_anomalies[2] : null;
+      
+      return [
+        new Date(p.timestamp).toISOString(),
+        p.device_name || p.device_id,
+        p.label.toUpperCase(),
+        p.score.toFixed(4),
+        (p.confidence * 100).toFixed(1),
+        p.inference_latency_ms.toFixed(1),
+        p.temporal_pattern || 'N/A',
+        (p.anomaly_count ?? (p.top_anomalies ? p.top_anomalies.length : 0)),
+        p.window ? 'yes' : 'no',
+        anom1 ? anom1.feature : 'N/A',
+        anom1 ? anom1.value.toFixed(2) : 'N/A',
+        anom1 ? anom1.baseline.toFixed(2) : 'N/A',
+        anom1 ? anom1.ratio.toFixed(2) : 'N/A',
+        anom2 ? anom2.feature : 'N/A',
+        anom2 ? anom2.ratio.toFixed(2) : 'N/A',
+        anom3 ? anom3.feature : 'N/A',
+        anom3 ? anom3.ratio.toFixed(2) : 'N/A',
+        JSON.stringify(p.top_anomalies || []),
+      ];
+    });
+    
+    rows.forEach(r => lines.push(r.map(v => `"${v}"`).join(',')));
+    
+    lines.push('');
+    lines.push('');
+    lines.push('DETAILED EXPLANATION FOR EACH ATTACK');
+    lines.push('');
+    
+    // Detailed explanations for each prediction
+    filteredPredictions.filter(p => p.label === 'attack').forEach((p, idx) => {
+      lines.push(`ATTACK ${idx + 1}: ${new Date(p.timestamp).toISOString()}`);
+      lines.push(`Score: ${p.score.toFixed(4)} | Confidence: ${(p.confidence * 100).toFixed(1)}% | Device: ${p.device_name || p.device_id}`);
+      lines.push('');
+      
+      if (p.temporal_pattern) {
+        lines.push(`Temporal Pattern: ${p.temporal_pattern}`);
+        lines.push('(Describes how traffic evolved over the last 3 flows)');
+        lines.push('');
+      }
+      
+      if (p.top_anomalies && p.top_anomalies.length > 0) {
+        lines.push('ANOMALOUS FEATURES DETECTED:');
+        p.top_anomalies.forEach((anom, i) => {
+          lines.push('');
+          lines.push(`${i + 1}. ${anom.feature}`);
+          lines.push(`   Expected (Baseline): ${anom.baseline.toFixed(2)}`);
+          lines.push(`   Actual (Observed):   ${anom.value.toFixed(2)}`);
+          lines.push(`   Deviation:           ${anom.ratio.toFixed(2)}x higher than normal`);
+          lines.push(`   Severity:            ${anom.ratio > 10 ? 'CRITICAL' : anom.ratio > 5 ? 'HIGH' : 'MEDIUM'}`);
+        });
+      }
+
+      // Include generated window if present (from synthetic simulation)
+      const win = (p as any).window;
+      if (win && Array.isArray(win)) {
+        lines.push('');
+        lines.push('Generated window present: YES');
+        try {
+          lines.push(`First flow (excerpt): ${JSON.stringify(win[0].slice(0, 12))} ...`);
+        } catch (e) {
+          lines.push('Window data available');
+        }
+        lines.push('');
+      }
+      
+      lines.push('');
+      lines.push('─'.repeat(80));
+      lines.push('');
+    });
+    
+    const csv = lines.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `predictions_${selectedDevice}_${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `predictions_with_explanations_${selectedDevice}_${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredPredictions, selectedDevice, range]);
+
+  // Export JSON handler with detailed explanations
+  const handleExportJSON = useCallback(() => {
+    if (filteredPredictions.length === 0) return;
+
+    const jsonData = {
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        device: selectedDevice,
+        timeRange: range,
+        totalPredictions: filteredPredictions.length,
+        attackCount: filteredPredictions.filter(p => p.label === 'attack').length,
+        benignCount: filteredPredictions.filter(p => p.label === 'benign').length,
+      },
+      predictions: filteredPredictions.map((p) => ({
+        id: p.id,
+        timestamp: p.timestamp,
+        device: {
+          id: p.device_id,
+          name: p.device_name || 'Unknown',
+        },
+        prediction: {
+          label: p.label.toUpperCase(),
+          score: p.score,
+          scoreFormatted: p.score.toFixed(4),
+          confidence: (p.confidence * 100).toFixed(1) + '%',
+          confidenceDecimal: p.confidence,
+          isAttack: p.label === 'attack',
+        },
+        performance: {
+          inferenceLatency_ms: p.inference_latency_ms,
+          modelVersion: 'CNN-LSTM',
+        },
+        explanation: {
+          temporalPattern: p.temporal_pattern || 'No pattern available',
+          patternDescription: p.temporal_pattern 
+            ? `${p.temporal_pattern} - Indicates abnormal traffic behavior detected across the last 3 flows`
+            : 'Pattern analysis requires multiple flows to establish baseline',
+        },
+        anomalousFeatures: (p.top_anomalies && p.top_anomalies.length > 0)
+          ? p.top_anomalies.map((anom, idx) => ({
+              rank: idx + 1,
+              featureName: anom.feature,
+              observedValue: anom.value.toFixed(2),
+              baselineValue: anom.baseline.toFixed(2),
+              deviation: {
+                multiplier: anom.ratio.toFixed(2) + 'x',
+                severity: anom.ratio > 10 ? 'CRITICAL' : anom.ratio > 5 ? 'HIGH' : 'MEDIUM',
+                percentageAboveNormal: ((anom.ratio - 1) * 100).toFixed(1) + '%',
+              },
+              interpretation: `${anom.feature} is ${anom.ratio.toFixed(1)}x higher than normal (Expected: ${anom.baseline.toFixed(1)}, Got: ${anom.value.toFixed(2)})`,
+            }))
+          : [],
+        anomalyCount: p.anomaly_count ?? (p.top_anomalies ? p.top_anomalies.length : 0),
+        window: (p as any).window || null,
+        summary: {
+          causeOfDetection: p.label === 'attack'
+            ? `Attack detected with ${(p.confidence * 100).toFixed(1)}% confidence. ${p.top_anomalies && p.top_anomalies.length > 0 ? `Primary cause: ${p.top_anomalies[0].feature} (${p.top_anomalies[0].ratio.toFixed(1)}x abnormal).` : 'Multiple anomalies detected across features.'}`
+            : 'Traffic classified as benign - features within normal ranges.',
+          recommendation: p.label === 'attack'
+            ? 'ALERT: Review network traffic immediately. Isolate device if critical.'
+            : 'No action required - traffic pattern is normal.',
+        },
+      })),
+    };
+
+    const jsonString = JSON.stringify(jsonData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `predictions_detailed_${selectedDevice}_${range}_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [filteredPredictions, selectedDevice, range]);
@@ -224,9 +403,14 @@ export default function TrafficMonitorPage() {
           {paused ? <Play style={{ width: 14, height: 14 }} /> : <Pause style={{ width: 14, height: 14 }} />}
           {paused ? 'Resume' : 'Pause'}
         </button>
-        <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExport} disabled={filteredPredictions.length === 0}>
-          <Download style={{ width: 14, height: 14 }} /> Export
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExport} disabled={filteredPredictions.length === 0}>
+            <Download style={{ width: 14, height: 14 }} /> CSV
+          </button>
+          <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExportJSON} disabled={filteredPredictions.length === 0}>
+            <Download style={{ width: 14, height: 14 }} /> JSON
+          </button>
+        </div>
       </motion.div>
 
       {/* Anomaly Score Chart */}
@@ -332,6 +516,53 @@ export default function TrafficMonitorPage() {
         </motion.div>
       </div>
 
+      {/* Detected Anomalies Section */}
+      {filteredPredictions.some(p => p.label === 'attack' && p.top_anomalies && p.top_anomalies.length > 0) && (
+        <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>🚨 Detected Anomalies</h2>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Features causing attack detection</p>
+            </div>
+            <span className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: 'var(--danger)' }}>Active Threats</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+            {filteredPredictions
+              .filter(p => p.label === 'attack' && p.top_anomalies && p.top_anomalies.length > 0)
+              .slice(0, 6)
+              .map((pred, idx) => {
+                const topAnom = pred.top_anomalies![0];
+                return (
+                  <div key={`anom-${pred.id}-${idx}`} style={{
+                    padding: 12,
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: 8,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {topAnom.feature}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {new Date(pred.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: 4 }}>
+                        {topAnom.ratio.toFixed(1)}x
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <div>Value: <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{topAnom.value.toFixed(1)}</span></div>
+                      <div>Normal: <span style={{ fontFamily: 'monospace' }}>{topAnom.baseline.toFixed(1)}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </motion.div>
+      )}
+
       {/* Live Event Log */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
         <div className="flex items-center justify-between mb-4">
@@ -384,17 +615,33 @@ export default function TrafficMonitorPage() {
       {/* EXPLANATION ROW */}
       {p.explanation && (
         <tr key={`exp-${p.id}-${i}`} style={{ borderTop: 'none' }}>
-          <td colSpan={7} style={{ padding: '8px 16px', background: 'var(--bg-secondary)', fontSize: 11 }}>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <td colSpan={7} style={{ padding: '12px 16px', background: 'var(--bg-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Temporal Pattern Section */}
               {p.temporal_pattern && (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  📊 <strong>Pattern:</strong> {p.temporal_pattern}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>📊 Temporal Pattern:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{p.temporal_pattern}</span>
+                </div>
               )}
+              
+              {/* Top Anomalies Section */}
               {p.top_anomalies && p.top_anomalies.length > 0 && (
-                <span style={{ color: 'var(--accent)' }}>
-                  🔍 <strong>{p.top_anomalies[0].feature}:</strong> {p.top_anomalies[0].ratio.toFixed(1)}x higher
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ color: 'var(--accent)', fontWeight: 600 }}>🔍 Anomalous Features:</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 8, marginLeft: 16 }}>
+                    {p.top_anomalies.slice(0, 3).map((anom, idx) => (
+                      <div key={idx} style={{ padding: '6px 8px', background: 'rgba(239,68,68,0.08)', borderLeft: '2px solid var(--danger)', borderRadius: 4 }}>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 500, fontSize: 10 }}>
+                          {idx + 1}. {anom.feature}
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
+                          Value: {anom.value.toFixed(1)} | Baseline: {anom.baseline.toFixed(1)} | Ratio: <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{anom.ratio.toFixed(1)}x</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </td>

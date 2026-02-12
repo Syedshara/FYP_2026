@@ -79,6 +79,7 @@ class SimulationConfig:
     selected_client_id: Optional[str] = None  # Specific client to simulate
     selected_device_id: Optional[str] = None  # Specific device to simulate
     attack_ratio: float = 0.2        # Fraction of traffic that is attacks
+    selected_attack_type: Optional[str] = None  # Force a specific attack type (e.g. 'ddos')
 
 
 @dataclass
@@ -225,6 +226,7 @@ async def start_simulation(config: SimulationConfig) -> SimulationStatus:
                 window_size=10,
                 device_id=config.selected_device_id,
                 client_id=config.selected_client_id,
+                selected_attack_type=config.selected_attack_type,
             )
             log.info("Synthetic simulation started with attack_ratio=%.2f, device_id=%s",
                      config.attack_ratio, config.selected_device_id)

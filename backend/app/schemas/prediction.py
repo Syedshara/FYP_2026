@@ -19,6 +19,8 @@ class PredictionOut(BaseModel):
     attack_type: Optional[str]
     model_version: str
     feature_importance: Optional[Dict[str, Any]]
+    top_anomalies: Optional[list] = None
+    temporal_pattern: Optional[str] = None
     inference_latency_ms: Optional[float]
     timestamp: datetime
 

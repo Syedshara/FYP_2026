@@ -81,6 +81,7 @@ export default function SimulationControlPage() {
   const [replayLoop, setReplayLoop] = useState(true);
   const [replayShuffle, setReplayShuffle] = useState(false);
   const [attackRatio, setAttackRatio] = useState(0.2);
+  const [selectedAttackType, setSelectedAttackType] = useState<string | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set(ALL_CLIENTS));
 
   // Live predictions from WS
@@ -167,26 +168,8 @@ export default function SimulationControlPage() {
     // Probability as percentage
     const probPercent = (latest.confidence ?? 0) * 100;
     
-    // Mock feature importance based on attack type
-    const mockFeatures = latest.attack_type === 'ddos' 
-      ? [
-          { name: 'Fwd_Packets_Per_Sec', value: 1250, baseline: 10, severity: 5 },
-          { name: 'Fwd_Packets', value: 850, baseline: 10, severity: 5 },
-          { name: 'Fwd_Length', value: 42000, baseline: 500, severity: 4 },
-        ]
-      : latest.attack_type === 'portscan'
-      ? [
-          { name: 'SYN_Flag_Count', value: 72, baseline: 2, severity: 5 },
-          { name: 'ACK_Flag_Count', value: 1, baseline: 10, severity: 4 },
-          { name: 'Fwd_Packets', value: 95, baseline: 10, severity: 3 },
-        ]
-      : latest.attack_type === 'slowloris'
-      ? [
-          { name: 'Flow_IAT_Max', value: 8500, baseline: 500, severity: 5 },
-          { name: 'Flow_Duration', value: 35000, baseline: 1000, severity: 5 },
-          { name: 'Fwd_Packets', value: 8, baseline: 10, severity: 2 },
-        ]
-      : [];
+    // Use actual top_anomalies from the latest prediction
+    const topAnomalies = latest.top_anomalies || [];
     
     // Adaptive sequence length recommendation
     const seqLengths: Record<string, number> = {
@@ -201,7 +184,7 @@ export default function SimulationControlPage() {
       latest,
       probPercent,
       attackCounts,
-      mockFeatures,
+      topAnomalies,
       recommendedSeqLen,
       attackType,
     };
@@ -223,6 +206,7 @@ export default function SimulationControlPage() {
         selected_client_id: selectedClientObj?.client_id,
         selected_device_id: selectedDevice || undefined,
         attack_ratio: attackRatio,
+        attack_type: selectedAttackType || undefined,
       };
       const s = await simulationApi.start(config);
       setStatus(s);
@@ -232,7 +216,7 @@ export default function SimulationControlPage() {
     } finally {
       setActionLoading(false);
     }
-  }, [selectedScenario, replaySpeed, monitorInterval, replayLoop, replayShuffle, selectedClients, selectedClient, selectedDevice, attackRatio, flClients]);
+  }, [selectedScenario, replaySpeed, monitorInterval, replayLoop, replayShuffle, selectedClients, selectedClient, selectedDevice, attackRatio, selectedAttackType, flClients]);
 
   const handleStop = useCallback(async () => {
     setActionLoading(true);
@@ -473,6 +457,32 @@ export default function SimulationControlPage() {
             disabled={isRunning}
             style={{ width: '100%', marginBottom: 16, accentColor: 'var(--accent)', opacity: isRunning ? 0.6 : 1 }}
           />
+
+          {/* Attack Type Selector */}
+          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
+            <Zap style={{ width: 12, height: 12, display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            Attack Type
+          </label>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <select
+              value={selectedAttackType || ''}
+              onChange={(e) => setSelectedAttackType(e.target.value || null)}
+              disabled={isRunning}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 8,
+                border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)', fontSize: 13, cursor: isRunning ? 'not-allowed' : 'pointer',
+                appearance: 'none', outline: 'none', opacity: isRunning ? 0.6 : 1,
+              }}
+            >
+              <option value="">Auto (mix)</option>
+              <option value="ddos">DDoS</option>
+              <option value="portscan">Portscan</option>
+              <option value="slowloris">Slowloris</option>
+              <option value="infiltration">Infiltration</option>
+            </select>
+            <ChevronDown style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          </div>
 
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0', lineHeight: 1.5 }}>
             📊 Configure real-world traffic generation with controllable attack injection ratio
@@ -804,6 +814,77 @@ export default function SimulationControlPage() {
           </div>
         )}
       </motion.div>
+
+      {/* ── XAI: Prediction Explanation (Temporal + Anomalies) ── */}
+      {isRunning && analysisData?.latest && analysisData.latest.label === 'attack' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+          variants={fadeUp}
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--danger-light)', borderRadius: 14, padding: 24 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap style={{ width: 16, height: 16, color: 'var(--danger)' }} />
+              🔍 Attack Analysis - Why Detected?
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* Temporal Pattern */}
+            <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>📊 Temporal Pattern</div>
+              <div style={{ fontSize: 13, color: analysisData.latest.temporal_pattern ? 'var(--warning)' : 'var(--text-muted)' }}>
+                {analysisData.latest.temporal_pattern || 'Analyzing...'}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+                Pattern observed across the last 3 flows in the sequence
+              </div>
+            </div>
+
+            {/* Prediction Confidence */}
+            <div style={{ padding: 14, borderRadius: 10, background: 'rgba(239,68,68,0.1)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>🎯 Prediction Stats</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Score:</span>
+                <span style={{ fontWeight: 600, color: 'var(--danger)' }}>
+                  {analysisData.latest.score.toFixed(4)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Confidence:</span>
+                <span style={{ fontWeight: 600, color: 'var(--danger)' }}>
+                  {(analysisData.latest.confidence * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Anomalies - Feature Importance */}
+          {analysisData.latest.top_anomalies && analysisData.latest.top_anomalies.length > 0 && (
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)', marginBottom: 12 }}>🔴 Top Anomalous Features Causing Detection</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                {analysisData.latest.top_anomalies.slice(0, 3).map((anom, idx) => (
+                  <div key={idx} style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {idx + 1}. {anom.feature}
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger)', background: 'rgba(239,68,68,0.3)', padding: '2px 6px', borderRadius: 4 }}>
+                        {anom.ratio.toFixed(1)}x
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace', lineHeight: 1.6 }}>
+                      <div>Observed: <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{anom.value.toFixed(1)}</span></div>
+                      <div>Normal: {anom.baseline.toFixed(1)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* ── How it works ────────────────────────── */}
       {!isRunning && (

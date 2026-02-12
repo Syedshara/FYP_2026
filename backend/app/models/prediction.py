@@ -43,6 +43,8 @@ class Prediction(Base):
     window_start_idx: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     window_end_idx: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     feature_importance: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    top_anomalies: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    temporal_pattern: Mapped[str | None] = mapped_column(String(100), nullable=True)
     inference_latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

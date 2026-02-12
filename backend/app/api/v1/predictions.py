@@ -54,6 +54,9 @@ class PredictResult(BaseModel):
     confidence: float
     inference_latency_ms: float
     model_version: str
+    explanation: Optional[str] = None
+    top_anomalies: Optional[List[dict]] = None
+    temporal_pattern: Optional[str] = None
 
 
 class PredictResponse(BaseModel):
@@ -89,6 +92,10 @@ class PredictionOut(BaseModel):
     inference_latency_ms: float
     timestamp: datetime
     device_name: Optional[str] = None
+    explanation: Optional[str] = None
+    top_anomalies: Optional[List[dict]] = None
+    temporal_pattern: Optional[str] = None
+
     model_config = {"from_attributes": True}
 
 
@@ -227,6 +234,9 @@ async def device_predictions(
             inference_latency_ms=p.inference_latency_ms,
             timestamp=p.timestamp,
             device_name=device_name,
+            explanation=getattr(p, 'explanation', None),
+            top_anomalies=getattr(p, 'top_anomalies', None),
+            temporal_pattern=getattr(p, 'temporal_pattern', None),
         )
         for p in preds
     ]

@@ -12,6 +12,7 @@ import json
 import logging
 import time
 from typing import Optional, Dict, Any
+from pathlib import Path
 import numpy as np
 
 from app.core.websocket import ws_manager, WSMessageType, build_ws_message
@@ -112,35 +113,45 @@ class SyntheticTrafficGenerator:
     
     def _generate_portscan_flow(self, intensity: float) -> np.ndarray:
         """
-        Port scan based on CIC-IDS2017 PortScan pattern.
-        Key: Many small packets, high SYN count, small packet sizes.
+        Port Scan attack based on CIC-IDS2017 PortScan pattern.
+        
+        PortScan characteristics (matching Colab rules):
+        - Many connections to different ports (high SYN flags)
+        - Small packet sizes (probes)
+        - Low ACK response (rejected connections)
+        - Rapid scanning pattern
         """
         flow = np.zeros(NUM_FEATURES, dtype=np.float32)
         
-        # Many probes
-        flow[FEATURE_IDX["fwd_packets"]] = 5 + (195 * intensity)        # 5 → 200
-        flow[FEATURE_IDX["bwd_packets"]] = 3 + (147 * intensity)        # 3 → 150
+        # Scanning = many small probe packets (key: more packets but still smaller than DDOS)
+        flow[FEATURE_IDX["fwd_packets"]] = 5 + (195 * intensity)        # 5 → 200 (many probes)
+        flow[FEATURE_IDX["bwd_packets"]] = 2 + (8 * intensity)          # 2 → 10 (few responses)
         
-        # Small packet sizes (CRITICAL for port scan detection)
-        flow[FEATURE_IDX["fwd_length"]] = 200 + (3800 * intensity)      # Small total
-        flow[FEATURE_IDX["bwd_length"]] = 150 + (2850 * intensity)
-        flow[FEATURE_IDX["packet_length_mean"]] = 40 + (20 * intensity) # 40-60 bytes
-        flow[FEATURE_IDX["packet_length_std"]] = 10 + (10 * intensity)
+        # Small packet volumes (probes are small) - This is CRITICAL for portscan vs DDOS
+        flow[FEATURE_IDX["fwd_length"]] = 200 + (3800 * intensity)      # 200 → 4000 (small probes)
+        flow[FEATURE_IDX["bwd_length"]] = 150 + (2850 * intensity)      # 150 → 3000 (small responses)
         
-        # Fast scanning
-        flow[FEATURE_IDX["flow_duration"]] = 100 + (900 * intensity)    # 100ms → 1s
-        flow[FEATURE_IDX["flow_iat_mean"]] = 5 + (20 * intensity)       # Low IAT
-        flow[FEATURE_IDX["fwd_packets_sec"]] = 50 + (150 * intensity)   # Fast rate
-        flow[FEATURE_IDX["bwd_packets_sec"]] = 40 + (110 * intensity)
+        # Moderate to fast packet rates (scanning speed)
+        flow[FEATURE_IDX["fwd_packets_sec"]] = 50 + (150 * intensity)   # 50 → 200 packets/sec
+        flow[FEATURE_IDX["bwd_packets_sec"]] = 30 + (110 * intensity)   # 30 → 140
         
-        flow[FEATURE_IDX["flow_iat_max"]] = 50 + (200 * intensity)
-        flow[FEATURE_IDX["fwd_iat_mean"]] = 5 + (15 * intensity)
+        # Short to moderate duration (quick scan)
+        flow[FEATURE_IDX["flow_duration"]] = 500 - (300 * intensity)    # 500ms → 200ms (quick)
         
-        # CRITICAL: High SYN flags (scanning behavior)
-        flow[FEATURE_IDX["syn_flag"]] = 10 + (90 * intensity)           # 10 → 100
-        flow[FEATURE_IDX["ack_flag"]] = 15 - (12 * intensity)           # Drops
-        flow[FEATURE_IDX["rst_flag"]] = 0 + (5 * intensity)             # Some RST
+        # Small packets in probe
+        flow[FEATURE_IDX["packet_length_mean"]] = 40 + (20 * intensity) # 40-60 bytes (tiny)
+        flow[FEATURE_IDX["packet_length_std"]] = 10 + (10 * intensity)  # 10-20
         
+        # Low IAT (rapid scanning)
+        flow[FEATURE_IDX["flow_iat_mean"]] = 20 + (10 * intensity)      # 20-30ms between packets
+        flow[FEATURE_IDX["flow_iat_max"]] = 100 + (50 * intensity)      # 100-150ms max
+        
+        # CRITICAL: HIGH SYN flags (connection attempts) - DIAGNOSTIC FEATURE FOR PORTSCAN
+        flow[FEATURE_IDX["syn_flag"]] = 10 + (90 * intensity)           # 10 → 100 (HIGH for port probing)
+        flow[FEATURE_IDX["ack_flag"]] = 5 - (4 * intensity)             # 5 → 1 (LOW - rejected connections)
+        flow[FEATURE_IDX["rst_flag"]] = 2 + (3 * intensity)             # 2 → 5 (reset responses)
+        
+        # Add realistic noise
         noise = self.rng.normal(0, 0.08, NUM_FEATURES)
         flow = flow * (1 + noise)
         
@@ -230,6 +241,7 @@ class SyntheticSimulationThread:
         window_size: int = 10,
         device_id: Optional[str] = None,
         client_id: Optional[str] = None,
+        selected_attack_type: Optional[str] = None,
     ):
         self.backend_db = backend_db
         self.monitor_interval = monitor_interval
@@ -247,6 +259,8 @@ class SyntheticSimulationThread:
         self.current_attack_idx = 0
         self.attack_flow_count = 0
         self.benign_count = 0
+        # Optional forced attack type (if provided, only that attack will be generated)
+        self.selected_attack_type = selected_attack_type
         
         # Sliding window buffer
         self._window_buffer = []
@@ -278,7 +292,11 @@ class SyntheticSimulationThread:
             return "benign", 0.0
         
         # Attack phase
-        attack_type = self.attack_types[self.current_attack_idx % len(self.attack_types)]
+        # If UI requested a specific attack type, honor it
+        if self.selected_attack_type:
+            attack_type = self.selected_attack_type
+        else:
+            attack_type = self.attack_types[self.current_attack_idx % len(self.attack_types)]
         
         # Intensity escalates over 30 flows: 0.1 → 1.0
         intensity = min(0.1 + (self.attack_flow_count / 30.0), 1.0)
@@ -313,7 +331,11 @@ class SyntheticSimulationThread:
                     
                     if is_attack:
                         # Get current attack type and intensity
-                        attack_type = self.attack_types[self.current_attack_idx % len(self.attack_types)]
+                        # If UI requested a specific attack type, honor it
+                        if self.selected_attack_type:
+                            attack_type = self.selected_attack_type
+                        else:
+                            attack_type = self.attack_types[self.current_attack_idx % len(self.attack_types)]
                         
                         # Intensity escalates from 0.1 → 1.0 over 30 attack flows
                         intensity = min(0.1 + (self.attack_flow_count * 0.03), 1.0)
@@ -322,10 +344,14 @@ class SyntheticSimulationThread:
                         flow = self.traffic_gen.generate_flow(attack_type, intensity)
                         ground_truth = attack_type
                         
+                        # DEBUG: Log which attack type is being generated
+                        if self.attack_flow_count % 5 == 0:
+                            log.info(f"[DEBUG] Flow {flow_idx}: Generating {attack_type} (intensity={intensity:.2f}, selected={self.selected_attack_type})")
+                        
                         self.attack_flow_count += 1
                         
-                        # Switch to next attack type after 40 flows at max intensity
-                        if intensity >= 1.0 and self.attack_flow_count > 40:
+                        # Switch to next attack type after 40 flows at max intensity (only if not forced)
+                        if not self.selected_attack_type and intensity >= 1.0 and self.attack_flow_count > 40:
                             self.current_attack_idx += 1
                             self.attack_flow_count = 0
                             log.info(f"🔄 Switching attack: {attack_type} → {self.attack_types[self.current_attack_idx % len(self.attack_types)]}")
@@ -370,6 +396,8 @@ class SyntheticSimulationThread:
                             "top_anomalies": result.get("top_anomalies", []),
                             "temporal_pattern": result.get("temporal_pattern", ""),
                             "anomaly_count": result.get("anomaly_count", 0),
+                                # include the full window for later analysis
+                                "window": window_array,
                         }
                         
                         # Broadcast prediction
@@ -377,6 +405,57 @@ class SyntheticSimulationThread:
                             WSMessageType.PREDICTION,
                             prediction,
                         ))
+
+                        # Persist generated window + prediction to JSONL for offline analysis
+                        try:
+                            logs_dir = Path("logs")
+                            logs_dir.mkdir(parents=True, exist_ok=True)
+                            out_path = logs_dir / "synthetic_windows.jsonl"
+                            with open(out_path, "a", encoding="utf-8") as fh:
+                                fh.write(json.dumps({
+                                    "timestamp": time.time(),
+                                    "device_id": self.device_id,
+                                    "flow_idx": flow_idx,
+                                    "ground_truth": ground_truth,
+                                    "prediction": result.get("label"),
+                                    "score": result.get("score"),
+                                    "confidence": result.get("confidence"),
+                                    "top_anomalies": result.get("top_anomalies", []),
+                                    "temporal_pattern": result.get("temporal_pattern", ""),
+                                    "window": window_array,
+                                }) + "\n")
+                        except Exception as e:
+                            log.error(f"Failed to write synthetic window log: {e}")
+
+                        # Also persist the prediction to the database so frontend exports include anomalies
+                        # Create a fresh DB session for the background task (do not reuse request-scoped sessions)
+                        if self.device_id:
+                            try:
+                                from app.database import async_session
+                                from app.services import prediction_service as pred_svc
+                                import uuid
+
+                                async def _save():
+                                    try:
+                                        async with async_session() as db:
+                                            # convert device_id to UUID if necessary
+                                            did = self.device_id
+                                            try:
+                                                did = uuid.UUID(str(did))
+                                            except Exception:
+                                                pass
+                                            await pred_svc.save_prediction(
+                                                db,
+                                                device_id=did,
+                                                result=prediction,
+                                            )
+                                    except Exception as e:
+                                        log.error(f"Failed to save synthetic prediction to DB: {e}")
+
+                                # Schedule save coroutine
+                                asyncio.create_task(_save())
+                            except Exception as e:
+                                log.error(f"Failed to schedule DB save for synthetic prediction: {e}")
                         
                         # Log detection results\
                         # Log detection results with explanation
@@ -447,6 +526,7 @@ async def start_synthetic_simulation(
     window_size: int = 10,
     device_id: Optional[str] = None,
     client_id: Optional[str] = None,
+    selected_attack_type: Optional[str] = None,
 ):
     """Start the synthetic simulation thread with REAL inference."""
     global _synthetic_thread
@@ -458,6 +538,7 @@ async def start_synthetic_simulation(
         window_size=window_size,
         device_id=device_id,
         client_id=client_id,
+        selected_attack_type=selected_attack_type,
     )
     await _synthetic_thread.start()
 

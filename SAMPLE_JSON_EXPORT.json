@@ -1,0 +1,185 @@
+{
+  "metadata": {
+    "exportedAt": "2026-02-11T10:45:30.123Z",
+    "device": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+    "timeRange": "1h",
+    "totalPredictions": 45,
+    "attackCount": 3,
+    "benignCount": 42
+  },
+  "predictions": [
+    {
+      "id": 1,
+      "timestamp": "2026-02-11T10:15:23.456Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "IoT_Camera_1"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.923456,
+        "scoreFormatted": "0.9235",
+        "confidence": "92.35%",
+        "confidenceDecimal": 0.923456,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 12.34,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden spike detected",
+        "patternDescription": "Sudden spike detected - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [
+        {
+          "rank": 1,
+          "featureName": "Fwd_Packets_Per_Sec",
+          "observedValue": "1250.50",
+          "baselineValue": "10.00",
+          "deviation": {
+            "multiplier": "125.05x",
+            "severity": "CRITICAL",
+            "percentageAboveNormal": "12405.0%"
+          },
+          "interpretation": "Fwd_Packets_Per_Sec is 125.05x higher than normal (Expected: 10.00, Got: 1250.50)"
+        },
+        {
+          "rank": 2,
+          "featureName": "Fwd_Packets_Total",
+          "observedValue": "850.00",
+          "baselineValue": "10.00",
+          "deviation": {
+            "multiplier": "85.00x",
+            "severity": "CRITICAL",
+            "percentageAboveNormal": "8400.0%"
+          },
+          "interpretation": "Fwd_Packets_Total is 85.00x higher than normal (Expected: 10.00, Got: 850.00)"
+        },
+        {
+          "rank": 3,
+          "featureName": "Fwd_Packet_Length_Total",
+          "observedValue": "42000.00",
+          "baselineValue": "500.00",
+          "deviation": {
+            "multiplier": "84.00x",
+            "severity": "CRITICAL",
+            "percentageAboveNormal": "8300.0%"
+          },
+          "interpretation": "Fwd_Packet_Length_Total is 84.00x higher than normal (Expected: 500.00, Got: 42000.00)"
+        },
+        {
+          "rank": 4,
+          "featureName": "Fwd_Packets_Per_Sec",
+          "observedValue": "1500.00",
+          "baselineValue": "8.00",
+          "deviation": {
+            "multiplier": "187.50x",
+            "severity": "CRITICAL",
+            "percentageAboveNormal": "18650.0%"
+          },
+          "interpretation": "Fwd_Packets_Per_Sec is 187.50x higher than normal (Expected: 8.00, Got: 1500.00)"
+        },
+        {
+          "rank": 5,
+          "featureName": "Init_Win_bytes_Forward",
+          "observedValue": "65535.00",
+          "baselineValue": "64240.00",
+          "deviation": {
+            "multiplier": "1.02x",
+            "severity": "MEDIUM",
+            "percentageAboveNormal": "2.0%"
+          },
+          "interpretation": "Init_Win_bytes_Forward is 1.02x higher than normal (Expected: 64240.00, Got: 65535.00)"
+        }
+      ],
+      "summary": {
+        "causeOfDetection": "Attack detected with 92.35% confidence. Primary cause: Fwd_Packets_Per_Sec (125.05x abnormal).",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-02-11T10:25:45.789Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "IoT_Camera_1"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.876543,
+        "scoreFormatted": "0.8765",
+        "confidence": "87.65%",
+        "confidenceDecimal": 0.876543,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 11.56,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Gradual increase",
+        "patternDescription": "Gradual increase - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [
+        {
+          "rank": 1,
+          "featureName": "SYN_Flag_Count",
+          "observedValue": "250.00",
+          "baselineValue": "2.00",
+          "deviation": {
+            "multiplier": "125.00x",
+            "severity": "CRITICAL",
+            "percentageAboveNormal": "12400.0%"
+          },
+          "interpretation": "SYN_Flag_Count is 125.00x higher than normal (Expected: 2.00, Got: 250.00)"
+        },
+        {
+          "rank": 2,
+          "featureName": "Fwd_Packets_Total",
+          "observedValue": "180.00",
+          "baselineValue": "10.00",
+          "deviation": {
+            "multiplier": "18.00x",
+            "severity": "HIGH",
+            "percentageAboveNormal": "1700.0%"
+          },
+          "interpretation": "Fwd_Packets_Total is 18.00x higher than normal (Expected: 10.00, Got: 180.00)"
+        }
+      ],
+      "summary": {
+        "causeOfDetection": "Attack detected with 87.65% confidence. Primary cause: SYN_Flag_Count (125.00x abnormal).",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-02-11T10:35:12.321Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "IoT_Camera_1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.234567,
+        "scoreFormatted": "0.2346",
+        "confidence": "76.54%",
+        "confidenceDecimal": 0.7654,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 11.89,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    }
+  ]
+}

@@ -65,6 +65,10 @@ class SimulationStartRequest(BaseModel):
         default=0.2, ge=0.0, le=1.0,
         description="Fraction of traffic that should be attacks (0.0–1.0)",
     )
+    attack_type: Optional[str] = Field(
+        default=None,
+        description="Optional: force a specific attack type (ddos|portscan|slowloris|infiltration)",
+    )
 
 
 class ScenarioOut(BaseModel):
@@ -128,6 +132,7 @@ async def start_simulation(req: SimulationStartRequest):
         selected_client_id=req.selected_client_id,
         selected_device_id=req.selected_device_id,
         attack_ratio=req.attack_ratio,
+        selected_attack_type=req.attack_type,
     )
 
     try:

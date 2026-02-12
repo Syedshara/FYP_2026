@@ -21,6 +21,7 @@ export interface SimulationStartConfig {
   selected_client_id?: string;
   selected_device_id?: string;
   attack_ratio?: number;
+  attack_type?: string;
 }
 
 export interface ClientSimStatus {

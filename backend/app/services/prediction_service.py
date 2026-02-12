@@ -197,17 +197,29 @@ def run_batch_inference(batch: list[list[list[float]]]) -> list[dict]:
     per_sample_ms = total_ms / len(batch)
 
     results = []
-    for prob_val in probs.tolist():
+    for idx, prob_val in enumerate(probs.tolist()):
         if not isinstance(prob_val, float):
             prob_val = float(prob_val)
         label = "attack" if prob_val >= THRESHOLD else "benign"
         confidence = prob_val if label == "attack" else 1.0 - prob_val
+        
+        # Generate explanations for each sequence
+        explanation_data = explain_prediction(
+            window=batch[idx],
+            score=prob_val,
+            label=label
+        )
+        
         results.append({
             "score": round(prob_val, 6),
             "label": label,
             "confidence": round(confidence, 6),
             "inference_latency_ms": round(per_sample_ms, 2),
             "model_version": _model_version,
+            "explanation": explanation_data["explanation"],
+            "top_anomalies": explanation_data["top_anomalies"],
+            "temporal_pattern": explanation_data["temporal_pattern"],
+            "anomaly_count": explanation_data["anomaly_count"],
         })
 
     return results
@@ -232,6 +244,8 @@ async def save_prediction(
         inference_latency_ms=result["inference_latency_ms"],
         window_start_idx=window_start_idx,
         window_end_idx=window_end_idx,
+        top_anomalies=result.get("top_anomalies"),
+        temporal_pattern=result.get("temporal_pattern"),
     )
     db.add(pred)
     await db.commit()
