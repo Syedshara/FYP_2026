@@ -1,0 +1,398 @@
+TRAFFIC MONITOR PREDICTIONS WITH EXPLANATIONS
+Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+Time Range: 1h
+Export Date: 2026-02-11T11:54:33.026Z
+
+Timestamp,Device,Prediction,Score,Confidence (%),Latency (ms),Temporal Pattern,Anomaly Count,Window Present,Top Feature,Feature Value,Baseline,Ratio (×),Feature #2,Ratio #2 (×),Feature #3,Ratio #3 (×),Top Anomalies JSON
+"2026-02-11T11:54:05.964Z","Cam1","BENIGN","0.0113","98.9","268.5","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:06.108Z","Cam1","BENIGN","0.0102","99.0","1.8","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:06.425Z","Cam1","BENIGN","0.0064","99.4","2.6","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:06.738Z","Cam1","BENIGN","0.0061","99.4","1.9","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:07.054Z","Cam1","BENIGN","0.0060","99.4","2.5","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:07.369Z","Cam1","BENIGN","0.0060","99.4","2.4","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:07.693Z","Cam1","BENIGN","0.0061","99.4","3.0","Stable pattern","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:08.011Z","Cam1","BENIGN","0.0162","98.4","2.1","Sudden spike detected","5","no","Fwd_Packet_Length_Total","17262.84","500.00","34.53","Bwd_Packet_Length_Total","21.57","Bwd_Packets_Per_Sec","20.77","[{"feature":"Fwd_Packet_Length_Total","value":17262.841796875,"baseline":500,"ratio":34.52568359375},{"feature":"Bwd_Packet_Length_Total","value":8628.9736328125,"baseline":400,"ratio":21.57243408203125},{"feature":"Bwd_Packets_Per_Sec","value":166.17340087890625,"baseline":8,"ratio":20.77167510986328},{"feature":"Fwd_Packets_Per_Sec","value":203.93728637695312,"baseline":10,"ratio":20.39372863769531},{"feature":"Fwd_Packets_Total","value":147.9735565185547,"baseline":10,"ratio":14.797355651855469}]"
+"2026-02-11T11:54:08.327Z","Cam1","BENIGN","0.0434","95.7","2.3","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:08.641Z","Cam1","BENIGN","0.0504","95.0","1.9","Gradual increase","5","no","Fwd_Packet_Length_Total","21252.46","500.00","42.50","Fwd_Packets_Per_Sec","29.34","Bwd_Packet_Length_Total","26.92","[{"feature":"Fwd_Packet_Length_Total","value":21252.462890625,"baseline":500,"ratio":42.50492578125},{"feature":"Fwd_Packets_Per_Sec","value":293.43646240234375,"baseline":10,"ratio":29.343646240234374},{"feature":"Bwd_Packet_Length_Total","value":10767.87890625,"baseline":400,"ratio":26.919697265625},{"feature":"Bwd_Packets_Per_Sec","value":195.54421997070312,"baseline":8,"ratio":24.44302749633789},{"feature":"Fwd_Packets_Total","value":182.7056427001953,"baseline":10,"ratio":18.27056427001953}]"
+"2026-02-11T11:54:08.962Z","Cam1","BENIGN","0.4116","58.8","3.9","Gradual increase","5","no","Fwd_Packet_Length_Total","25206.47","500.00","50.41","Bwd_Packet_Length_Total","32.82","Bwd_Packets_Per_Sec","32.48","[{"feature":"Fwd_Packet_Length_Total","value":25206.46875,"baseline":500,"ratio":50.4129375},{"feature":"Bwd_Packet_Length_Total","value":13126.3505859375,"baseline":400,"ratio":32.81587646484375},{"feature":"Bwd_Packets_Per_Sec","value":259.8521728515625,"baseline":8,"ratio":32.48152160644531},{"feature":"Fwd_Packets_Per_Sec","value":307.974853515625,"baseline":10,"ratio":30.7974853515625},{"feature":"Fwd_Packets_Total","value":226.23301696777344,"baseline":10,"ratio":22.623301696777343}]"
+"2026-02-11T11:54:09.276Z","Cam1","BENIGN","0.2066","79.3","3.3","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:09.598Z","Cam1","BENIGN","0.1628","83.7","1.8","Gradual increase","5","no","Fwd_Packet_Length_Total","29139.97","500.00","58.28","Bwd_Packet_Length_Total","40.59","Fwd_Packets_Per_Sec","35.83","[{"feature":"Fwd_Packet_Length_Total","value":29139.974609375,"baseline":500,"ratio":58.27994921875},{"feature":"Bwd_Packet_Length_Total","value":16235.30859375,"baseline":400,"ratio":40.588271484375},{"feature":"Fwd_Packets_Per_Sec","value":358.2983703613281,"baseline":10,"ratio":35.829837036132815},{"feature":"Bwd_Packets_Per_Sec","value":261.03662109375,"baseline":8,"ratio":32.62957763671875},{"feature":"Fwd_Packets_Total","value":266.0375061035156,"baseline":10,"ratio":26.60375061035156}]"
+"2026-02-11T11:54:09.912Z","Cam1","BENIGN","0.4354","56.5","2.3","Gradual increase","5","no","Fwd_Packet_Length_Total","37316.45","500.00","74.63","Bwd_Packet_Length_Total","46.93","Fwd_Packets_Per_Sec","44.10","[{"feature":"Fwd_Packet_Length_Total","value":37316.44921875,"baseline":500,"ratio":74.6328984375},{"feature":"Bwd_Packet_Length_Total","value":18770.505859375,"baseline":400,"ratio":46.9262646484375},{"feature":"Fwd_Packets_Per_Sec","value":441.0146789550781,"baseline":10,"ratio":44.10146789550781},{"feature":"Bwd_Packets_Per_Sec","value":330.7679443359375,"baseline":8,"ratio":41.34599304199219},{"feature":"Fwd_Packets_Total","value":345.7411193847656,"baseline":10,"ratio":34.57411193847656}]"
+"2026-02-11T11:54:10.228Z","Cam1","ATTACK","0.7096","71.0","2.1","Stable pattern","5","no","Fwd_Packet_Length_Total","39049.70","500.00","78.10","Fwd_Packets_Per_Sec","52.07","Bwd_Packet_Length_Total","51.13","[{"feature":"Fwd_Packet_Length_Total","value":39049.6953125,"baseline":500,"ratio":78.099390625},{"feature":"Fwd_Packets_Per_Sec","value":520.687255859375,"baseline":10,"ratio":52.0687255859375},{"feature":"Bwd_Packet_Length_Total","value":20453.48828125,"baseline":400,"ratio":51.133720703125},{"feature":"Bwd_Packets_Per_Sec","value":368.0280456542969,"baseline":8,"ratio":46.00350570678711},{"feature":"Fwd_Packets_Total","value":347.4378356933594,"baseline":10,"ratio":34.74378356933594}]"
+"2026-02-11T11:54:10.545Z","Cam1","BENIGN","0.2831","71.7","1.8","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:10.860Z","Cam1","BENIGN","0.3229","67.7","1.9","Stable pattern","5","no","Fwd_Packet_Length_Total","42791.41","500.00","85.58","Bwd_Packet_Length_Total","62.17","Bwd_Packets_Per_Sec","54.47","[{"feature":"Fwd_Packet_Length_Total","value":42791.40625,"baseline":500,"ratio":85.5828125},{"feature":"Bwd_Packet_Length_Total","value":24866.451171875,"baseline":400,"ratio":62.1661279296875},{"feature":"Bwd_Packets_Per_Sec","value":435.7462158203125,"baseline":8,"ratio":54.46827697753906},{"feature":"Fwd_Packets_Per_Sec","value":512.7072143554688,"baseline":10,"ratio":51.270721435546875},{"feature":"Fwd_Packets_Total","value":392.8383483886719,"baseline":10,"ratio":39.283834838867186}]"
+"2026-02-11T11:54:11.174Z","Cam1","ATTACK","0.7542","75.4","1.9","Gradual increase","5","no","Fwd_Packet_Length_Total","43837.69","500.00","87.68","Bwd_Packet_Length_Total","64.59","Bwd_Packets_Per_Sec","60.31","[{"feature":"Fwd_Packet_Length_Total","value":43837.69140625,"baseline":500,"ratio":87.6753828125},{"feature":"Bwd_Packet_Length_Total","value":25835.421875,"baseline":400,"ratio":64.5885546875},{"feature":"Bwd_Packets_Per_Sec","value":482.4586181640625,"baseline":8,"ratio":60.30732727050781},{"feature":"Fwd_Packets_Per_Sec","value":584.6505737304688,"baseline":10,"ratio":58.465057373046875},{"feature":"Bwd_Packets_Total","value":343.91290283203125,"baseline":8,"ratio":42.989112854003906}]"
+"2026-02-11T11:54:11.494Z","Cam1","ATTACK","0.5864","58.6","1.9","Stable pattern","5","no","Fwd_Packet_Length_Total","53150.75","500.00","106.30","Bwd_Packet_Length_Total","74.11","Fwd_Packets_Per_Sec","69.53","[{"feature":"Fwd_Packet_Length_Total","value":53150.74609375,"baseline":500,"ratio":106.3014921875},{"feature":"Bwd_Packet_Length_Total","value":29645.5390625,"baseline":400,"ratio":74.11384765625},{"feature":"Fwd_Packets_Per_Sec","value":695.2755737304688,"baseline":10,"ratio":69.52755737304688},{"feature":"Bwd_Packets_Per_Sec","value":494.8184509277344,"baseline":8,"ratio":61.8523063659668},{"feature":"Fwd_Packets_Total","value":504.2742919921875,"baseline":10,"ratio":50.42742919921875}]"
+"2026-02-11T11:54:11.819Z","Cam1","BENIGN","0.4546","54.5","3.0","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:12.142Z","Cam1","BENIGN","0.1815","81.8","6.2","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:12.460Z","Cam1","BENIGN","0.3307","66.9","2.4","Sudden spike detected","5","no","Fwd_Packet_Length_Total","59663.20","500.00","119.33","Bwd_Packet_Length_Total","81.04","Fwd_Packets_Per_Sec","78.48","[{"feature":"Fwd_Packet_Length_Total","value":59663.19921875,"baseline":500,"ratio":119.3263984375},{"feature":"Bwd_Packet_Length_Total","value":32416.265625,"baseline":400,"ratio":81.0406640625},{"feature":"Fwd_Packets_Per_Sec","value":784.8411254882812,"baseline":10,"ratio":78.48411254882812},{"feature":"Bwd_Packets_Per_Sec","value":563.7443237304688,"baseline":8,"ratio":70.4680404663086},{"feature":"Fwd_Packets_Total","value":509.7828369140625,"baseline":10,"ratio":50.97828369140625}]"
+"2026-02-11T11:54:12.859Z","Cam1","ATTACK","0.8336","83.4","49.0","Gradual increase","5","no","Fwd_Packet_Length_Total","54002.43","500.00","108.00","Bwd_Packet_Length_Total","84.64","Fwd_Packets_Per_Sec","82.80","[{"feature":"Fwd_Packet_Length_Total","value":54002.4296875,"baseline":500,"ratio":108.004859375},{"feature":"Bwd_Packet_Length_Total","value":33857.46875,"baseline":400,"ratio":84.643671875},{"feature":"Fwd_Packets_Per_Sec","value":827.998779296875,"baseline":10,"ratio":82.7998779296875},{"feature":"Bwd_Packets_Per_Sec","value":570.13037109375,"baseline":8,"ratio":71.26629638671875},{"feature":"Fwd_Packets_Total","value":572.2017211914062,"baseline":10,"ratio":57.22017211914063}]"
+"2026-02-11T11:54:13.506Z","Cam1","ATTACK","0.7876","78.8","3.3","Stable pattern","5","no","Fwd_Packet_Length_Total","61576.54","500.00","123.15","Bwd_Packet_Length_Total","86.05","Fwd_Packets_Per_Sec","81.83","[{"feature":"Fwd_Packet_Length_Total","value":61576.54296875,"baseline":500,"ratio":123.1530859375},{"feature":"Bwd_Packet_Length_Total","value":34419.015625,"baseline":400,"ratio":86.0475390625},{"feature":"Fwd_Packets_Per_Sec","value":818.3113403320312,"baseline":10,"ratio":81.83113403320313},{"feature":"Bwd_Packets_Per_Sec","value":645.7251586914062,"baseline":8,"ratio":80.71564483642578},{"feature":"Fwd_Packets_Total","value":617.60302734375,"baseline":10,"ratio":61.760302734375}]"
+"2026-02-11T11:54:13.590Z","Cam1","BENIGN","0.3919","60.8","1.8","Sudden drop","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:17.144Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.3106","68.9","2.3","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:17.462Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.6494","64.9","3.0","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:17.777Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.7963","79.6","2.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:18.092Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8671","86.7","1.8","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:18.414Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.7951","79.5","2.4","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:18.731Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.3299","67.0","2.5","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:19.050Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2783","72.2","3.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:19.367Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.3044","69.6","2.0","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:19.685Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.6104","61.0","2.7","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:20.002Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.7278","72.8","2.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:20.317Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8644","86.4","2.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:20.633Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8200","82.0","2.0","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:20.951Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8489","84.9","2.3","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:21.270Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.7773","77.7","2.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:21.590Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.9016","90.2","6.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:21.931Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8472","84.7","26.3","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:22.250Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.4193","58.1","2.5","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:22.566Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2834","71.7","1.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:22.882Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8441","84.4","3.4","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:23.204Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8122","81.2","2.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:23.534Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.7903","79.0","1.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:23.851Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8848","88.5","4.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:24.169Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.8842","88.4","2.4","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:24.485Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.3431","65.7","2.3","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:24.804Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.5981","59.8","2.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:25.123Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.4401","56.0","4.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:25.447Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.0545","94.6","7.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:25.763Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1195","88.1","1.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:26.079Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1328","86.7","2.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:26.395Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.3585","64.2","2.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:26.711Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1273","87.3","2.5","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:27.031Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2070","79.3","4.8","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:27.348Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2358","76.4","2.7","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:27.668Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2284","77.2","1.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:27.992Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2306","76.9","6.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:28.315Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1885","81.2","6.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:28.633Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2150","78.5","3.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:28.949Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2111","78.9","2.4","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:29.273Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1434","85.7","2.7","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:29.588Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1665","83.3","2.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:29.904Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1258","87.4","2.6","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:30.228Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1547","84.5","9.0","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:30.548Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2138","78.6","2.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:30.862Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1461","85.4","2.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:31.185Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2626","73.7","2.0","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:31.505Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","ATTACK","0.5487","54.9","2.5","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:31.824Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.2281","77.2","3.9","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:32.150Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.0967","90.3","1.7","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:32.467Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1038","89.6","2.2","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+"2026-02-11T11:54:32.782Z","1062b90c-7218-4828-b05b-0c3e77a29ea9","BENIGN","0.1126","88.7","3.1","N/A","0","no","N/A","N/A","N/A","N/A","N/A","N/A","N/A","N/A","[]"
+
+
+DETAILED EXPLANATION FOR EACH ATTACK
+
+ATTACK 1: 2026-02-11T11:54:10.228Z
+Score: 0.7096 | Confidence: 71.0% | Device: Cam1
+
+Temporal Pattern: Stable pattern
+(Describes how traffic evolved over the last 3 flows)
+
+ANOMALOUS FEATURES DETECTED:
+
+1. Fwd_Packet_Length_Total
+   Expected (Baseline): 500.00
+   Actual (Observed):   39049.70
+   Deviation:           78.10x higher than normal
+   Severity:            CRITICAL
+
+2. Fwd_Packets_Per_Sec
+   Expected (Baseline): 10.00
+   Actual (Observed):   520.69
+   Deviation:           52.07x higher than normal
+   Severity:            CRITICAL
+
+3. Bwd_Packet_Length_Total
+   Expected (Baseline): 400.00
+   Actual (Observed):   20453.49
+   Deviation:           51.13x higher than normal
+   Severity:            CRITICAL
+
+4. Bwd_Packets_Per_Sec
+   Expected (Baseline): 8.00
+   Actual (Observed):   368.03
+   Deviation:           46.00x higher than normal
+   Severity:            CRITICAL
+
+5. Fwd_Packets_Total
+   Expected (Baseline): 10.00
+   Actual (Observed):   347.44
+   Deviation:           34.74x higher than normal
+   Severity:            CRITICAL
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 2: 2026-02-11T11:54:11.174Z
+Score: 0.7542 | Confidence: 75.4% | Device: Cam1
+
+Temporal Pattern: Gradual increase
+(Describes how traffic evolved over the last 3 flows)
+
+ANOMALOUS FEATURES DETECTED:
+
+1. Fwd_Packet_Length_Total
+   Expected (Baseline): 500.00
+   Actual (Observed):   43837.69
+   Deviation:           87.68x higher than normal
+   Severity:            CRITICAL
+
+2. Bwd_Packet_Length_Total
+   Expected (Baseline): 400.00
+   Actual (Observed):   25835.42
+   Deviation:           64.59x higher than normal
+   Severity:            CRITICAL
+
+3. Bwd_Packets_Per_Sec
+   Expected (Baseline): 8.00
+   Actual (Observed):   482.46
+   Deviation:           60.31x higher than normal
+   Severity:            CRITICAL
+
+4. Fwd_Packets_Per_Sec
+   Expected (Baseline): 10.00
+   Actual (Observed):   584.65
+   Deviation:           58.47x higher than normal
+   Severity:            CRITICAL
+
+5. Bwd_Packets_Total
+   Expected (Baseline): 8.00
+   Actual (Observed):   343.91
+   Deviation:           42.99x higher than normal
+   Severity:            CRITICAL
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 3: 2026-02-11T11:54:11.494Z
+Score: 0.5864 | Confidence: 58.6% | Device: Cam1
+
+Temporal Pattern: Stable pattern
+(Describes how traffic evolved over the last 3 flows)
+
+ANOMALOUS FEATURES DETECTED:
+
+1. Fwd_Packet_Length_Total
+   Expected (Baseline): 500.00
+   Actual (Observed):   53150.75
+   Deviation:           106.30x higher than normal
+   Severity:            CRITICAL
+
+2. Bwd_Packet_Length_Total
+   Expected (Baseline): 400.00
+   Actual (Observed):   29645.54
+   Deviation:           74.11x higher than normal
+   Severity:            CRITICAL
+
+3. Fwd_Packets_Per_Sec
+   Expected (Baseline): 10.00
+   Actual (Observed):   695.28
+   Deviation:           69.53x higher than normal
+   Severity:            CRITICAL
+
+4. Bwd_Packets_Per_Sec
+   Expected (Baseline): 8.00
+   Actual (Observed):   494.82
+   Deviation:           61.85x higher than normal
+   Severity:            CRITICAL
+
+5. Fwd_Packets_Total
+   Expected (Baseline): 10.00
+   Actual (Observed):   504.27
+   Deviation:           50.43x higher than normal
+   Severity:            CRITICAL
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 4: 2026-02-11T11:54:12.859Z
+Score: 0.8336 | Confidence: 83.4% | Device: Cam1
+
+Temporal Pattern: Gradual increase
+(Describes how traffic evolved over the last 3 flows)
+
+ANOMALOUS FEATURES DETECTED:
+
+1. Fwd_Packet_Length_Total
+   Expected (Baseline): 500.00
+   Actual (Observed):   54002.43
+   Deviation:           108.00x higher than normal
+   Severity:            CRITICAL
+
+2. Bwd_Packet_Length_Total
+   Expected (Baseline): 400.00
+   Actual (Observed):   33857.47
+   Deviation:           84.64x higher than normal
+   Severity:            CRITICAL
+
+3. Fwd_Packets_Per_Sec
+   Expected (Baseline): 10.00
+   Actual (Observed):   828.00
+   Deviation:           82.80x higher than normal
+   Severity:            CRITICAL
+
+4. Bwd_Packets_Per_Sec
+   Expected (Baseline): 8.00
+   Actual (Observed):   570.13
+   Deviation:           71.27x higher than normal
+   Severity:            CRITICAL
+
+5. Fwd_Packets_Total
+   Expected (Baseline): 10.00
+   Actual (Observed):   572.20
+   Deviation:           57.22x higher than normal
+   Severity:            CRITICAL
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 5: 2026-02-11T11:54:13.506Z
+Score: 0.7876 | Confidence: 78.8% | Device: Cam1
+
+Temporal Pattern: Stable pattern
+(Describes how traffic evolved over the last 3 flows)
+
+ANOMALOUS FEATURES DETECTED:
+
+1. Fwd_Packet_Length_Total
+   Expected (Baseline): 500.00
+   Actual (Observed):   61576.54
+   Deviation:           123.15x higher than normal
+   Severity:            CRITICAL
+
+2. Bwd_Packet_Length_Total
+   Expected (Baseline): 400.00
+   Actual (Observed):   34419.02
+   Deviation:           86.05x higher than normal
+   Severity:            CRITICAL
+
+3. Fwd_Packets_Per_Sec
+   Expected (Baseline): 10.00
+   Actual (Observed):   818.31
+   Deviation:           81.83x higher than normal
+   Severity:            CRITICAL
+
+4. Bwd_Packets_Per_Sec
+   Expected (Baseline): 8.00
+   Actual (Observed):   645.73
+   Deviation:           80.72x higher than normal
+   Severity:            CRITICAL
+
+5. Fwd_Packets_Total
+   Expected (Baseline): 10.00
+   Actual (Observed):   617.60
+   Deviation:           61.76x higher than normal
+   Severity:            CRITICAL
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 6: 2026-02-11T11:54:17.462Z
+Score: 0.6494 | Confidence: 64.9% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 7: 2026-02-11T11:54:17.777Z
+Score: 0.7963 | Confidence: 79.6% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 8: 2026-02-11T11:54:18.092Z
+Score: 0.8671 | Confidence: 86.7% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 9: 2026-02-11T11:54:18.414Z
+Score: 0.7951 | Confidence: 79.5% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 10: 2026-02-11T11:54:19.685Z
+Score: 0.6104 | Confidence: 61.0% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 11: 2026-02-11T11:54:20.002Z
+Score: 0.7278 | Confidence: 72.8% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 12: 2026-02-11T11:54:20.317Z
+Score: 0.8644 | Confidence: 86.4% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 13: 2026-02-11T11:54:20.633Z
+Score: 0.8200 | Confidence: 82.0% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 14: 2026-02-11T11:54:20.951Z
+Score: 0.8489 | Confidence: 84.9% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 15: 2026-02-11T11:54:21.270Z
+Score: 0.7773 | Confidence: 77.7% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 16: 2026-02-11T11:54:21.590Z
+Score: 0.9016 | Confidence: 90.2% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 17: 2026-02-11T11:54:21.931Z
+Score: 0.8472 | Confidence: 84.7% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 18: 2026-02-11T11:54:22.882Z
+Score: 0.8441 | Confidence: 84.4% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 19: 2026-02-11T11:54:23.204Z
+Score: 0.8122 | Confidence: 81.2% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 20: 2026-02-11T11:54:23.534Z
+Score: 0.7903 | Confidence: 79.0% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 21: 2026-02-11T11:54:23.851Z
+Score: 0.8848 | Confidence: 88.5% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 22: 2026-02-11T11:54:24.169Z
+Score: 0.8842 | Confidence: 88.4% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 23: 2026-02-11T11:54:24.804Z
+Score: 0.5981 | Confidence: 59.8% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+ATTACK 24: 2026-02-11T11:54:31.505Z
+Score: 0.5487 | Confidence: 54.9% | Device: 1062b90c-7218-4828-b05b-0c3e77a29ea9
+
+
+────────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,2275 @@
+{
+  "metadata": {
+    "exportedAt": "2026-02-11T12:48:25.381Z",
+    "device": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+    "timeRange": "1h",
+    "totalPredictions": 73,
+    "attackCount": 10,
+    "benignCount": 63
+  },
+  "predictions": [
+    {
+      "id": 4585,
+      "timestamp": "2026-02-11T12:43:22.575254Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.009658,
+        "scoreFormatted": "0.0097",
+        "confidence": "99.0%",
+        "confidenceDecimal": 0.990342,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.88,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4586,
+      "timestamp": "2026-02-11T12:43:23.832401Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.097132,
+        "scoreFormatted": "0.0971",
+        "confidence": "90.3%",
+        "confidenceDecimal": 0.902868,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.17,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4587,
+      "timestamp": "2026-02-11T12:43:24.782864Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.181393,
+        "scoreFormatted": "0.1814",
+        "confidence": "81.9%",
+        "confidenceDecimal": 0.818607,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.71,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4588,
+      "timestamp": "2026-02-11T12:43:29.216015Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.180218,
+        "scoreFormatted": "0.1802",
+        "confidence": "82.0%",
+        "confidenceDecimal": 0.819782,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.72,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4589,
+      "timestamp": "2026-02-11T12:43:30.149645Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.296275,
+        "scoreFormatted": "0.2963",
+        "confidence": "70.4%",
+        "confidenceDecimal": 0.703725,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.63,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4590,
+      "timestamp": "2026-02-11T12:43:30.463199Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.017072,
+        "scoreFormatted": "0.0171",
+        "confidence": "98.3%",
+        "confidenceDecimal": 0.982928,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.94,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4591,
+      "timestamp": "2026-02-11T12:43:31.087380Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.124182,
+        "scoreFormatted": "0.1242",
+        "confidence": "87.6%",
+        "confidenceDecimal": 0.875818,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.47,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4592,
+      "timestamp": "2026-02-11T12:43:31.713899Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.219229,
+        "scoreFormatted": "0.2192",
+        "confidence": "78.1%",
+        "confidenceDecimal": 0.780771,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.84,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4593,
+      "timestamp": "2026-02-11T12:43:32.047136Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.021828,
+        "scoreFormatted": "0.0218",
+        "confidence": "97.8%",
+        "confidenceDecimal": 0.978172,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 18.26,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4594,
+      "timestamp": "2026-02-11T12:43:33.000133Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.157972,
+        "scoreFormatted": "0.1580",
+        "confidence": "84.2%",
+        "confidenceDecimal": 0.842028,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 4.25,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4595,
+      "timestamp": "2026-02-11T12:43:33.633466Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.220236,
+        "scoreFormatted": "0.2202",
+        "confidence": "78.0%",
+        "confidenceDecimal": 0.779764,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.54,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4596,
+      "timestamp": "2026-02-11T12:43:34.500619Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.213917,
+        "scoreFormatted": "0.2139",
+        "confidence": "78.6%",
+        "confidenceDecimal": 0.786083,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.19,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4597,
+      "timestamp": "2026-02-11T12:43:43.624737Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.197606,
+        "scoreFormatted": "0.1976",
+        "confidence": "80.2%",
+        "confidenceDecimal": 0.802394,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.24,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4598,
+      "timestamp": "2026-02-11T12:43:45.340515Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.15227,
+        "scoreFormatted": "0.1523",
+        "confidence": "84.8%",
+        "confidenceDecimal": 0.84773,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 37.03,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4599,
+      "timestamp": "2026-02-11T12:43:46.595952Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.162937,
+        "scoreFormatted": "0.1629",
+        "confidence": "83.7%",
+        "confidenceDecimal": 0.837063,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.92,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4600,
+      "timestamp": "2026-02-11T12:43:48.174341Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.140837,
+        "scoreFormatted": "0.1408",
+        "confidence": "85.9%",
+        "confidenceDecimal": 0.859163,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 17.12,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4601,
+      "timestamp": "2026-02-11T12:43:51.332984Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.18017,
+        "scoreFormatted": "0.1802",
+        "confidence": "82.0%",
+        "confidenceDecimal": 0.81983,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 3.15,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4602,
+      "timestamp": "2026-02-11T12:43:51.648073Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.008137,
+        "scoreFormatted": "0.0081",
+        "confidence": "99.2%",
+        "confidenceDecimal": 0.991863,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.95,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4603,
+      "timestamp": "2026-02-11T12:43:53.234647Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.097155,
+        "scoreFormatted": "0.0972",
+        "confidence": "90.3%",
+        "confidenceDecimal": 0.902845,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.06,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4604,
+      "timestamp": "2026-02-11T12:43:54.179185Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.195992,
+        "scoreFormatted": "0.1960",
+        "confidence": "80.4%",
+        "confidenceDecimal": 0.804008,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 3.07,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4605,
+      "timestamp": "2026-02-11T12:43:54.830943Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.298934,
+        "scoreFormatted": "0.2989",
+        "confidence": "70.1%",
+        "confidenceDecimal": 0.701066,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 15.76,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4606,
+      "timestamp": "2026-02-11T12:43:57.157836Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.196419,
+        "scoreFormatted": "0.1964",
+        "confidence": "80.4%",
+        "confidenceDecimal": 0.803581,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 9.52,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4607,
+      "timestamp": "2026-02-11T12:43:58.218299Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.239524,
+        "scoreFormatted": "0.2395",
+        "confidence": "76.0%",
+        "confidenceDecimal": 0.760476,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.68,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4608,
+      "timestamp": "2026-02-11T12:43:58.530250Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.024474,
+        "scoreFormatted": "0.0245",
+        "confidence": "97.6%",
+        "confidenceDecimal": 0.975526,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.26,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4609,
+      "timestamp": "2026-02-11T12:43:59.183988Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.157763,
+        "scoreFormatted": "0.1578",
+        "confidence": "84.2%",
+        "confidenceDecimal": 0.842237,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.95,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4610,
+      "timestamp": "2026-02-11T12:44:00.297299Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.182781,
+        "scoreFormatted": "0.1828",
+        "confidence": "81.7%",
+        "confidenceDecimal": 0.817219,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.59,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4611,
+      "timestamp": "2026-02-11T12:44:00.615841Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.034497,
+        "scoreFormatted": "0.0345",
+        "confidence": "96.6%",
+        "confidenceDecimal": 0.965503,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.26,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4612,
+      "timestamp": "2026-02-11T12:44:01.241318Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.119789,
+        "scoreFormatted": "0.1198",
+        "confidence": "88.0%",
+        "confidenceDecimal": 0.880211,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.61,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4613,
+      "timestamp": "2026-02-11T12:44:04.083815Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.147566,
+        "scoreFormatted": "0.1476",
+        "confidence": "85.2%",
+        "confidenceDecimal": 0.852434,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.37,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4614,
+      "timestamp": "2026-02-11T12:44:12.884718Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.208398,
+        "scoreFormatted": "0.2084",
+        "confidence": "79.2%",
+        "confidenceDecimal": 0.791602,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 43.65,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4615,
+      "timestamp": "2026-02-11T12:44:14.239512Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.146687,
+        "scoreFormatted": "0.1467",
+        "confidence": "85.3%",
+        "confidenceDecimal": 0.853313,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 53.88,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:56.369968+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006003,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993997,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 154.11,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4616,
+      "timestamp": "2026-02-11T12:47:56.394155Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006003,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993997,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 154.11,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:56.686679+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006041,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993959,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.78,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4617,
+      "timestamp": "2026-02-11T12:47:56.700556Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006041,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993959,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.78,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:57.016999+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006019,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993981,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 18.45,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4618,
+      "timestamp": "2026-02-11T12:47:57.046044Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006019,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993981,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 18.45,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:57.342372+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.00605,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.99395,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.49,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4619,
+      "timestamp": "2026-02-11T12:47:57.362198Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.00605,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.99395,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.49,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:57.667682+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006034,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993966,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 8.78,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4620,
+      "timestamp": "2026-02-11T12:47:57.685036Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006034,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993966,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 8.78,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:57.983956+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006025,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993975,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.84,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4621,
+      "timestamp": "2026-02-11T12:47:58.001821Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.006025,
+        "scoreFormatted": "0.0060",
+        "confidence": "99.4%",
+        "confidenceDecimal": 0.993975,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.84,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:47:58.615728+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.003782,
+        "scoreFormatted": "0.0038",
+        "confidence": "99.6%",
+        "confidenceDecimal": 0.996218,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.7,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4622,
+      "timestamp": "2026-02-11T12:47:58.629107Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.003782,
+        "scoreFormatted": "0.0038",
+        "confidence": "99.6%",
+        "confidenceDecimal": 0.996218,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.7,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:01.129923+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.1562,
+        "scoreFormatted": "0.1562",
+        "confidence": "84.4%",
+        "confidenceDecimal": 0.8438,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.33,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4623,
+      "timestamp": "2026-02-11T12:48:01.144041Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.1562,
+        "scoreFormatted": "0.1562",
+        "confidence": "84.4%",
+        "confidenceDecimal": 0.8438,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.33,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:01.442528+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.10275,
+        "scoreFormatted": "0.1027",
+        "confidence": "89.7%",
+        "confidenceDecimal": 0.89725,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.91,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4624,
+      "timestamp": "2026-02-11T12:48:01.459161Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.10275,
+        "scoreFormatted": "0.1027",
+        "confidence": "89.7%",
+        "confidenceDecimal": 0.89725,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.91,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:01.757018+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.086013,
+        "scoreFormatted": "0.0860",
+        "confidence": "91.4%",
+        "confidenceDecimal": 0.913987,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.68,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4625,
+      "timestamp": "2026-02-11T12:48:01.773294Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.086013,
+        "scoreFormatted": "0.0860",
+        "confidence": "91.4%",
+        "confidenceDecimal": 0.913987,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.68,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Stable pattern",
+        "patternDescription": "Stable pattern - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:04.285131+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.429393,
+        "scoreFormatted": "0.4294",
+        "confidence": "57.1%",
+        "confidenceDecimal": 0.570607,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.63,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4626,
+      "timestamp": "2026-02-11T12:48:04.300238Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.429393,
+        "scoreFormatted": "0.4294",
+        "confidence": "57.1%",
+        "confidenceDecimal": 0.570607,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.63,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:06.186980+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.59694,
+        "scoreFormatted": "0.5969",
+        "confidence": "59.7%",
+        "confidenceDecimal": 0.59694,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.74,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 59.7% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 4627,
+      "timestamp": "2026-02-11T12:48:06.200087Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.59694,
+        "scoreFormatted": "0.5969",
+        "confidence": "59.7%",
+        "confidenceDecimal": 0.59694,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.74,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 59.7% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:12.352214+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.707973,
+        "scoreFormatted": "0.7080",
+        "confidence": "70.8%",
+        "confidenceDecimal": 0.707973,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 23.06,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 70.8% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 4628,
+      "timestamp": "2026-02-11T12:48:12.395125Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.707973,
+        "scoreFormatted": "0.7080",
+        "confidence": "70.8%",
+        "confidenceDecimal": 0.707973,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 23.06,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 70.8% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:13.668183+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.725558,
+        "scoreFormatted": "0.7256",
+        "confidence": "72.6%",
+        "confidenceDecimal": 0.725558,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.41,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 72.6% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 4629,
+      "timestamp": "2026-02-11T12:48:13.682392Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.725558,
+        "scoreFormatted": "0.7256",
+        "confidence": "72.6%",
+        "confidenceDecimal": 0.725558,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.41,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 72.6% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:14.288816+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.297332,
+        "scoreFormatted": "0.2973",
+        "confidence": "70.3%",
+        "confidenceDecimal": 0.702668,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.65,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4630,
+      "timestamp": "2026-02-11T12:48:14.310501Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.297332,
+        "scoreFormatted": "0.2973",
+        "confidence": "70.3%",
+        "confidenceDecimal": 0.702668,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.65,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:15.228340+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.429926,
+        "scoreFormatted": "0.4299",
+        "confidence": "57.0%",
+        "confidenceDecimal": 0.570074,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.24,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4631,
+      "timestamp": "2026-02-11T12:48:15.246559Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.429926,
+        "scoreFormatted": "0.4299",
+        "confidence": "57.0%",
+        "confidenceDecimal": 0.570074,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.24,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:15.857523+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.207486,
+        "scoreFormatted": "0.2075",
+        "confidence": "79.3%",
+        "confidenceDecimal": 0.792514,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.68,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4632,
+      "timestamp": "2026-02-11T12:48:15.870566Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.207486,
+        "scoreFormatted": "0.2075",
+        "confidence": "79.3%",
+        "confidenceDecimal": 0.792514,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.68,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:16.480907+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.109471,
+        "scoreFormatted": "0.1095",
+        "confidence": "89.1%",
+        "confidenceDecimal": 0.890529,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.05,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4633,
+      "timestamp": "2026-02-11T12:48:16.496728Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.109471,
+        "scoreFormatted": "0.1095",
+        "confidence": "89.1%",
+        "confidenceDecimal": 0.890529,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.05,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:16.794508+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.158334,
+        "scoreFormatted": "0.1583",
+        "confidence": "84.2%",
+        "confidenceDecimal": 0.841666,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.71,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 4634,
+      "timestamp": "2026-02-11T12:48:16.805615Z",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Cam1"
+      },
+      "prediction": {
+        "label": "BENIGN",
+        "score": 0.158334,
+        "scoreFormatted": "0.1583",
+        "confidence": "84.2%",
+        "confidenceDecimal": 0.841666,
+        "isAttack": false
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.71,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "Sudden drop",
+        "patternDescription": "Sudden drop - Indicates abnormal traffic behavior detected across the last 3 flows"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Traffic classified as benign - features within normal ranges.",
+        "recommendation": "No action required - traffic pattern is normal."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:19.308196+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.724858,
+        "scoreFormatted": "0.7249",
+        "confidence": "72.5%",
+        "confidenceDecimal": 0.724858,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.39,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 72.5% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:20.564812+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.705299,
+        "scoreFormatted": "0.7053",
+        "confidence": "70.5%",
+        "confidenceDecimal": 0.705299,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 1.7,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 70.5% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:22.458095+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.728421,
+        "scoreFormatted": "0.7284",
+        "confidence": "72.8%",
+        "confidenceDecimal": 0.728421,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 13.86,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 72.8% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    },
+    {
+      "id": 0,
+      "timestamp": "2026-02-11T12:48:24.338202+00:00",
+      "device": {
+        "id": "1062b90c-7218-4828-b05b-0c3e77a29ea9",
+        "name": "Unknown"
+      },
+      "prediction": {
+        "label": "ATTACK",
+        "score": 0.732056,
+        "scoreFormatted": "0.7321",
+        "confidence": "73.2%",
+        "confidenceDecimal": 0.732056,
+        "isAttack": true
+      },
+      "performance": {
+        "inferenceLatency_ms": 2.45,
+        "modelVersion": "CNN-LSTM"
+      },
+      "explanation": {
+        "temporalPattern": "No pattern available",
+        "patternDescription": "Pattern analysis requires multiple flows to establish baseline"
+      },
+      "anomalousFeatures": [],
+      "anomalyCount": 0,
+      "window": null,
+      "summary": {
+        "causeOfDetection": "Attack detected with 73.2% confidence. Multiple anomalies detected across features.",
+        "recommendation": "ALERT: Review network traffic immediately. Isolate device if critical."
+      }
+    }
+  ]
+}
