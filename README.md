@@ -12,9 +12,16 @@ AI-powered Intrusion Detection System for IoT networks using Federated Learning 
    cd project
    ```
 
-2. **Run the setup script** (PowerShell)
+2. **Run the setup script for your platform**
+
+   Windows (PowerShell):
    ```powershell
-   .\setup.ps1
+   .\scripts\windows\setup.ps1
+   ```
+
+   Linux/macOS (Bash):
+   ```bash
+   ./scripts/linux/setup.sh
    ```
 
    This will:
@@ -38,23 +45,47 @@ AI-powered Intrusion Detection System for IoT networks using Federated Learning 
 
 ## 📋 Daily Usage
 
-### Start the project
+### Windows
+
+Start the project:
 ```powershell
-.\start.ps1
+.\scripts\windows\start.ps1
 ```
 
-### Stop the project
+Stop the project:
 ```powershell
-.\stop.ps1
+.\scripts\windows\stop.ps1
+```
+
+View logs:
+```powershell
+.\scripts\windows\logs.ps1
+```
+
+### Linux/macOS
+
+Start the project:
+```bash
+./scripts/linux/start.sh
+```
+
+Stop the project:
+```bash
+./scripts/linux/stop.sh
+```
+
+View logs:
+```bash
+./scripts/linux/logs.sh
 ```
 
 ---
 
 ## 🛠️ Prerequisites
 
-- **Docker Desktop** - [Download](https://www.docker.com/products/docker-desktop)
+- **Docker / Docker Desktop** - [Download](https://www.docker.com/products/docker-desktop)
 - **Node.js 18+** - [Download](https://nodejs.org/)
-- **PowerShell 5.1+** (included in Windows)
+- **PowerShell 5.1+** (Windows) or **Bash** (Linux/macOS)
 
 ---
 
@@ -87,9 +118,22 @@ project/
 ├── data/               # Training data
 ├── docs/               # Documentation
 ├── docker-compose.dev.yml
-├── setup.ps1           # Initial setup script
-├── start.ps1           # Start all services
-└── stop.ps1            # Stop all services
+├── scripts/
+│   ├── linux/
+│   │   ├── common.sh   # Shared Linux helpers
+│   │   ├── logs.sh     # View service logs
+│   │   ├── setup.sh    # Initial setup script
+│   │   ├── start.sh    # Start all services
+│   │   └── stop.sh     # Stop all services
+│   ├── windows/
+│   │   ├── common.ps1  # Shared Windows helpers
+│   │   ├── logs.ps1    # View service logs
+│   │   ├── setup.ps1   # Initial setup script
+│   │   ├── start.ps1   # Start all services
+│   │   └── stop.ps1    # Stop all services
+│   ├── create_scenarios.py
+│   └── preprocess_cicids2017.py
+└── task.md
 ```
 
 ---
@@ -134,22 +178,22 @@ npm run preview
 
 ```bash
 # View all running containers
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 
 # View logs for all services
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose.dev.yml logs -f
 
 # Rebuild specific service
-docker-compose -f docker-compose.dev.yml build backend
+docker compose -f docker-compose.dev.yml build backend
 
 # Restart specific service
-docker-compose -f docker-compose.dev.yml restart backend
+docker compose -f docker-compose.dev.yml restart backend
 
 # Stop and remove all containers
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 
 # Stop and remove all containers + volumes (⚠️ deletes database)
-docker-compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml down -v
 ```
 
 ---
@@ -185,7 +229,7 @@ docker-compose -f docker-compose.dev.yml down -v
 docker logs iot_ids_backend
 
 # Restart backend
-docker-compose -f docker-compose.dev.yml restart backend
+docker compose -f docker-compose.dev.yml restart backend
 ```
 
 ### Frontend can't connect to backend
@@ -199,19 +243,23 @@ docker-compose -f docker-compose.dev.yml restart backend
 docker ps | grep postgres
 
 # Restart PostgreSQL
-docker-compose -f docker-compose.dev.yml restart postgres
+docker compose -f docker-compose.dev.yml restart postgres
 ```
 
 ### Port already in use
-```bash
-# Find process using port 8000 (backend)
+
+Windows:
+```powershell
 netstat -ano | findstr :8000
-
-# Find process using port 5173 (frontend)
 netstat -ano | findstr :5173
-
-# Kill process by PID
 taskkill /F /PID <pid>
+```
+
+Linux/macOS:
+```bash
+lsof -i :8000
+lsof -i :5173
+kill -9 <pid>
 ```
 
 ---

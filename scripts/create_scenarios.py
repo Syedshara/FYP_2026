@@ -11,7 +11,7 @@ attack types or traffic patterns. Output:
         metadata.json  — scenario description, stats, attack labels
 
 This script uses the already-fitted StandardScaler from
-  backend/models/standard_scaler.pkl
+  model/standard_scaler.pkl
 
 Usage:
     python scripts/create_scenarios.py                  # all scenarios
@@ -37,7 +37,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASET_DIR = PROJECT_ROOT / "datasets" / "cicids2017"
 SCENARIO_DIR = PROJECT_ROOT / "data" / "scenarios"
-SCALER_PATH = PROJECT_ROOT / "backend" / "models" / "standard_scaler.pkl"
+SCALER_PATH = PROJECT_ROOT / "model" / "standard_scaler.pkl"
 
 # ── CSV file ↔ day mapping (same as preprocess script) ──
 CSV_FILES = {

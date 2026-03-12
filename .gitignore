@@ -17,6 +17,7 @@ build/
 # ──────────────────────────────────────
 venv/
 .venv/
+.venv-data/
 env/
 .env
 .env.local
@@ -73,3 +74,4 @@ Thumbs.db
 # ──────────────────────────────────────
 node_modules/
 .next/
+.gitnexus

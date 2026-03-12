@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Play, Pause,
@@ -10,9 +10,11 @@ import {
   ResponsiveContainer, Legend, CartesianGrid,
 } from 'recharts';
 import { flApi } from '@/api/fl';
-import { useLiveStore } from '@/stores/liveStore';
-import type { FLRound, FLRoundDetail, FLStatus, FLClient } from '@/types';
+import { useLiveStore, useFlaggedEvents } from '@/stores/liveStore';
+import type { FLRound, FLRoundDetail, FLStatus, FLClient, FLClientMetric } from '@/types';
 import type { FLClientProgress } from '@/stores/liveStore';
+import FLPipelineVis from '@/components/FLPipelineVis';
+import DetectionRoundBadge from '../components/DetectionRoundBadge';
 
 /* ── Animations ───────────────────────────────── */
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -21,6 +23,131 @@ const tooltipStyle = {
   contentStyle: {
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
     borderRadius: 8, fontSize: 12, color: 'var(--text-primary)',
+  },
+};
+
+/* ── Shell styles (n8n dark canvas) ──────────── */
+const shellStyles = {
+  page: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    minHeight: '100%',
+    background: 'var(--n8n-canvas-bg)',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap' as const,
+    background: 'var(--n8n-card-bg)',
+    borderBottom: '1px solid var(--n8n-card-border)',
+    padding: '12px 24px',
+    position: 'sticky' as const,
+    top: 0,
+    zIndex: 20,
+  },
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: 'var(--n8n-text-primary)',
+    letterSpacing: '-0.01em',
+    marginRight: 8,
+  },
+  headerDivider: {
+    width: 1,
+    height: 20,
+    background: 'var(--n8n-card-border)',
+    flexShrink: 0,
+  },
+  headerMeta: {
+    fontSize: 12,
+    color: 'var(--n8n-text-muted)',
+  },
+  headerMetaValue: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--n8n-text-primary)',
+    fontFamily: 'monospace',
+  },
+  startBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 14px',
+    background: 'var(--n8n-accent)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'background 0.15s',
+  },
+  stopBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 14px',
+    background: 'var(--n8n-danger)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'background 0.15s',
+  },
+  body: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 0,
+    padding: '0',
+  },
+  visSection: {
+    flex: '0 0 auto',
+    borderBottom: '1px solid var(--n8n-card-border)',
+  },
+  roundLogCard: {
+    background: 'var(--n8n-card-bg)',
+    borderBottom: '1px solid var(--n8n-card-border)',
+  },
+  roundLogHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 20px',
+    borderBottom: '1px solid var(--n8n-card-border)',
+  },
+  roundLogTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--n8n-text-muted)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+  },
+  roundLogBody: {
+    maxHeight: 200,
+    overflowY: 'auto' as const,
+    fontFamily: 'monospace',
+    fontSize: 12,
+  },
+  roundLogRow: (isRecess: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '7px 20px',
+    borderLeft: `3px solid ${isRecess ? 'var(--n8n-warning)' : 'transparent'}`,
+    borderBottom: '1px solid var(--n8n-card-border)',
+    background: isRecess ? 'rgba(240,160,32,0.04)' : 'transparent',
+  }),
+  metricsWrap: {
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 24,
   },
 };
 
@@ -213,101 +340,6 @@ function ConfigModal({
 }
 
 /* ══════════════════════════════════════════════════
-   Pipeline Visualization
-   ══════════════════════════════════════════════════ */
-function PipelineVis({ activeStep, clients }: { activeStep: string; clients: Record<string, FLClientProgress> }) {
-  const clientEntries = Object.values(clients);
-  const activeIdx = PIPELINE_STEPS.findIndex((s) => s.key === activeStep);
-
-  return (
-    <div style={{ padding: '24px 0' }}>
-      {/* Server Node */}
-      <div className="flex justify-center" style={{ marginBottom: 24 }}>
-        <div className="card flex items-center gap-3" style={{
-          padding: '12px 24px', borderColor: '#A855F7', borderWidth: 2,
-        }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#A855F7', fontFamily: 'inherit' }}>&gt;</span>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#A855F7' }}>FL Server</p>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>FedAvg + CKKS Aggregation</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Connection Lines + Step Pills */}
-      <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginBottom: 24 }}>
-        {PIPELINE_STEPS.map((step, i) => {
-          const isActive = i === activeIdx;
-          const isPast = i < activeIdx;
-          return (
-            <div key={step.key} className="flex items-center">
-              <motion.div
-                animate={{
-                  scale: isActive ? 1.08 : 1,
-                }}
-                transition={{ duration: 0.5, repeat: isActive ? Infinity : 0, repeatType: 'reverse' }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 16px', borderRadius: 3,
-                  background: isActive ? step.color : isPast ? `${step.color}22` : 'var(--bg-secondary)',
-                  color: isActive ? '#fff' : isPast ? step.color : 'var(--text-muted)',
-                  border: `1.5px solid ${isActive || isPast ? step.color : 'var(--border)'}`,
-                  fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {step.label}
-              </motion.div>
-              {i < PIPELINE_STEPS.length - 1 && (
-                <div style={{ position: 'relative', width: 32, height: 2, background: 'var(--border)', margin: '0 2px' }}>
-                  {isPast && (
-                    <motion.div
-                      initial={{ width: 0 }} animate={{ width: '100%' }}
-                      style={{ position: 'absolute', top: 0, left: 0, height: '100%', background: step.color, borderRadius: 1 }}
-                    />
-                  )}
-                  {isActive && (
-                    <motion.div
-                      animate={{ left: ['0%', '80%'] }}
-                      transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-                      style={{ position: 'absolute', top: -2, width: 6, height: 6, borderRadius: '50%', background: step.color }}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Client Nodes */}
-      {clientEntries.length > 0 && (
-        <div className="flex justify-center gap-4 flex-wrap">
-          {clientEntries.map((c) => {
-            const color = getClientStatusColor(c.status);
-            return (
-              <div key={c.client_id} className="card" style={{
-                padding: 14, minWidth: 140, textAlign: 'center',
-                borderColor: color, borderWidth: 1.5,
-              }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color, display: 'block', marginBottom: 6, fontFamily: 'inherit' }}>&gt;</span>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{c.client_id}</p>
-                <span className="badge" style={{
-                  background: getClientStatusBg(c.status), color, fontSize: 10,
-                  marginTop: 6, display: 'inline-block', textTransform: 'capitalize',
-                }}>
-                  {c.status}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════
    Client Progress Card
    ══════════════════════════════════════════════════ */
 /** Format seconds into human-readable "Xm Ys" or "Xs" */
@@ -473,8 +505,7 @@ export default function FLTrainingPage() {
   const liveRoundResults = useLiveStore((s) => s.flRoundResults);
   const flClientRoundHistory = useLiveStore((s) => s.flClientRoundHistory);
   const clearFLProgress = useLiveStore((s) => s.clearFLProgress);
-  const clearFLRoundResults = useLiveStore((s) => s.clearFLRoundResults);
-  const clearFLClientRoundHistory = useLiveStore((s) => s.clearFLClientRoundHistory);
+  const flaggedEvents = useFlaggedEvents();
 
   // ── Loss history per client (for mini sparklines) ──
   const clientLossHistoryRef = useRef<Record<string, number[]>>({});
@@ -560,24 +591,25 @@ export default function FLTrainingPage() {
     setStarting(true);
     setError(null);
     try {
-      clearFLProgress();
-      clearFLRoundResults();
-      clearFLClientRoundHistory();
+      // Atomic reset + initial live state in one Zustand update → single render, no blank flash
+      useLiveStore.setState({
+        flClientProgress: {},
+        flGlobalProgress: {
+          is_training: true,
+          current_round: 0,
+          total_rounds: cfg.num_rounds,
+          global_loss: null,
+          global_accuracy: null,
+          use_he: cfg.use_he,
+          expected_clients: (cfg.client_ids ?? clients.map((c) => c.client_id)).length,
+        },
+        flRoundResults: [],
+        flClientRoundHistory: {},
+      });
       clientLossHistoryRef.current = {};
 
       // Determine optimistic client list: explicit selection, or all registered clients
       const optimisticClientIds = cfg.client_ids ?? clients.map((c) => c.client_id);
-
-      // Set initial live state immediately so widgets aren't blank (Fix 3)
-      useLiveStore.getState().setFLGlobalProgress({
-        is_training: true,
-        current_round: 0,
-        total_rounds: cfg.num_rounds,
-        global_loss: null,
-        global_accuracy: null,
-        use_he: cfg.use_he,
-        expected_clients: optimisticClientIds.length,
-      });
 
       // Pre-populate client progress cards so they render instantly
       for (const cid of optimisticClientIds) {
@@ -634,7 +666,7 @@ export default function FLTrainingPage() {
     } finally {
       setStarting(false);
     }
-  }, [clearFLProgress, clearFLRoundResults, clearFLClientRoundHistory, fetchData, clients]);
+  }, [clearFLProgress, fetchData, clients]);
 
   // ── Stop training ──
   const handleStop = useCallback(async () => {
@@ -797,56 +829,115 @@ export default function FLTrainingPage() {
     );
   }
 
+  /* ── Status dot helpers ── */
+  const statusDotColor = isLive ? 'var(--n8n-success)' : error ? 'var(--n8n-danger)' : 'var(--n8n-warning)';
+  const statusLabel = isLive ? 'TRAINING' : error ? 'ERROR' : 'IDLE';
+
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="page-stack">
+    <div style={shellStyles.page}>
       {/* Config Modal */}
       <ConfigModal key={clients.map(c => c.client_id).join(',')} open={configOpen} onClose={() => setConfigOpen(false)} onStart={handleStart} starting={starting} clients={clients} />
 
       {/* ════════════════════════════════════════════════════
-         HEADER
+         HEADER BAR — n8n dark canvas style
          ════════════════════════════════════════════════════ */}
-      <motion.div variants={fadeUp} className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Federated Learning
-            {isLive && (
-              <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>
-                ● TRAINING
-              </span>
-            )}
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Action buttons */}
-          {isLive ? (
-            <button className="btn" onClick={handleStop} disabled={stopping} style={{
-              background: 'var(--danger)', color: '#fff', border: 'none',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              {stopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square style={{ width: 14, height: 14 }} />}
-              {stopping ? 'Stopping\u2026' : 'Stop Training'}
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setConfigOpen(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <Settings style={{ width: 14, height: 14 }} />
-              Start Training
-            </button>
-          )}
-        </div>
-      </motion.div>
+      <div style={shellStyles.header}>
+        <span style={shellStyles.headerTitle}>Federated Learning</span>
 
-      {/* Error */}
+        {/* Start / Stop */}
+        {isLive ? (
+          <button style={shellStyles.stopBtn} onClick={handleStop} disabled={stopping}>
+            {stopping ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Square style={{ width: 13, height: 13 }} />}
+            {stopping ? 'Stopping…' : 'Stop'}
+          </button>
+        ) : (
+          <button style={shellStyles.startBtn} onClick={() => setConfigOpen(true)}>
+            <Play style={{ width: 13, height: 13 }} />
+            Start Training
+          </button>
+        )}
+
+        <div style={shellStyles.headerDivider} />
+
+        {/* Round counter */}
+        <span style={shellStyles.headerMeta}>Round:&nbsp;</span>
+        <span style={shellStyles.headerMetaValue}>
+          {isLive
+            ? `${flGlobal?.current_round ?? 0} / ${flGlobal?.total_rounds ?? 0}`
+            : `${status?.total_rounds_completed ?? rounds.length} completed`}
+        </span>
+
+        <div style={shellStyles.headerDivider} />
+
+        {/* Clients counter */}
+        <span style={shellStyles.headerMeta}>Clients:&nbsp;</span>
+        <span style={shellStyles.headerMetaValue}>
+          {isLive
+            ? (clientProgressEntries.length || flGlobal?.expected_clients || clients.length)
+            : (status?.active_clients ?? clients.length)}
+        </span>
+
+        <div style={shellStyles.headerDivider} />
+
+        {/* Status indicator */}
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontSize: 12, fontWeight: 700,
+          color: statusDotColor,
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: statusDotColor, display: 'inline-block', flexShrink: 0,
+            animation: isLive ? 'pulse-dot 2s infinite' : 'none',
+          }} />
+          {statusLabel}
+        </span>
+
+        {/* HE badge */}
+        {isLive && flGlobal?.use_he && (
+          <span style={{
+            marginLeft: 4,
+            padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+            background: 'rgba(59,143,232,0.15)', color: 'var(--n8n-info)',
+            border: '1px solid rgba(59,143,232,0.3)',
+          }}>
+            CKKS
+          </span>
+        )}
+
+        {/* Global progress bar — inline in header when training */}
+        {isLive && (
+          <div style={{ flex: 1, minWidth: 120, maxWidth: 260, marginLeft: 4 }}>
+            <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'var(--n8n-card-border)', overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: 0 }} animate={{ width: `${globalProgress}%` }}
+                transition={{ duration: 0.8 }}
+                style={{ height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, var(--n8n-accent), #A855F7)' }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Settings gear for non-live state */}
+        {!isLive && (
+          <button className="btn btn-ghost" onClick={() => setConfigOpen(true)} style={{ padding: '6px 10px' }}>
+            <Settings style={{ width: 14, height: 14 }} />
+          </button>
+        )}
+      </div>
+
+      {/* Error banner */}
       <AnimatePresence>
         {error && (
           <motion.div
             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="card" style={{ padding: '12px 16px', borderColor: 'var(--danger)', borderWidth: 1.5, background: 'var(--danger-light)' }}
+            style={{ padding: '10px 24px', background: 'var(--n8n-danger-light)', borderBottom: '1px solid var(--n8n-danger)' }}
           >
-            <div className="flex items-center gap-2">
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--danger)' }}>!</span>
-              <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--n8n-danger)' }}>!</span>
+              <span style={{ fontSize: 13, color: 'var(--n8n-danger)', fontWeight: 600 }}>{error}</span>
               <button className="btn btn-ghost" style={{ marginLeft: 'auto', height: 24, width: 24, padding: 0 }} onClick={() => setError(null)}>
                 <X style={{ width: 14, height: 14 }} />
               </button>
@@ -856,34 +947,131 @@ export default function FLTrainingPage() {
       </AnimatePresence>
 
       {/* ════════════════════════════════════════════════════
-         KPI STRIP
+         BODY
          ════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-5">
-        {[
-          {
-            label: 'Rounds',
-            value: isLive
-              ? `${flGlobal?.current_round ?? 0} / ${flGlobal?.total_rounds ?? 0}`
-              : `${status?.total_rounds_completed ?? rounds.length}`,
-            color: 'var(--accent)',
-          },
-          {
-            label: 'Clients',
-            value: isLive
-              ? (clientProgressEntries.length || flGlobal?.expected_clients || clients.length)
-              : (status?.active_clients ?? clients.length),
-            color: 'var(--warning)',
-          },
-        ].map((kpi) => (
-            <motion.div key={kpi.label} variants={fadeUp} className="card" style={{ padding: 16 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{kpi.label}</p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
-            </motion.div>
-        ))}
+      <div style={shellStyles.body}>
+
+      {/* ════════════════════════════════════════════════════
+         PIPELINE VIS — PRESERVED AS-IS
+         ════════════════════════════════════════════════════ */}
+      <div style={shellStyles.visSection}>
+        <FLPipelineVis activeStep={activeStep} clients={flClientProgress} />
       </div>
 
       {/* ════════════════════════════════════════════════════
-         MODE 1: LIVE TRAINING
+         ROUND LOG PANEL
+         ════════════════════════════════════════════════════ */}
+      <div style={shellStyles.roundLogCard}>
+        <div style={shellStyles.roundLogHeader}>
+          <span style={shellStyles.roundLogTitle}>Round Log</span>
+          <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>
+            {rounds.length} rounds recorded
+          </span>
+        </div>
+        <div style={shellStyles.roundLogBody}>
+          {rounds.length === 0 && !isLive ? (
+            <div style={{ padding: '16px 20px', color: 'var(--n8n-text-muted)', fontSize: 12 }}>
+              No rounds yet — start training to see log entries.
+            </div>
+          ) : (
+            [...rounds].reverse().map((r) => {
+              /* A round is a RECESS detection round if round_number % 5 === 0
+                 (matching server RECESS_INTERVAL = 5). Also honour the server
+                 field recess_detected when present for backward compat. */
+              const isRecess =
+                r.round_number % 5 === 0 ||
+                !!(r as unknown as Record<string, unknown>)['recess_detected'];
+              const clientMetrics: FLClientMetric[] = (r as unknown as Record<string, unknown>)['client_metrics'] as FLClientMetric[] | undefined ?? [];
+              const flaggedClients: string[] = isRecess
+                ? flaggedEvents
+                    .filter((ev) => ev.round === r.round_number)
+                    .map((ev) => ev.clientId)
+                : clientMetrics
+                    .filter((cm: FLClientMetric) => (cm as unknown as Record<string, unknown>)['flagged'])
+                    .map((cm: FLClientMetric) => cm.client_id);
+              const accPct = r.global_accuracy != null ? (r.global_accuracy * 100).toFixed(1) : null;
+              return (
+                <div key={r.id} style={shellStyles.roundLogRow(isRecess)}>
+                  {/* Round number */}
+                  <span style={{ minWidth: 36, fontWeight: 700, color: 'var(--n8n-accent)', fontSize: 12 }}>
+                    #{r.round_number}
+                  </span>
+
+                  {/* Badge: DetectionRoundBadge for RECESS, TRAINING text for normal */}
+                  {isRecess ? (
+                    <DetectionRoundBadge
+                      round={r.round_number}
+                      isDetectionRound={true}
+                      flaggedClients={flaggedClients}
+                    />
+                  ) : (
+                    <span style={{
+                      padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+                      background: 'var(--n8n-success-light)', color: 'var(--n8n-success)',
+                    }}>TRAINING</span>
+                  )}
+
+                  {/* Client list with flagged highlight */}
+                  <span style={{ flex: 1, color: 'var(--n8n-text-muted)', fontSize: 11 }}>
+                    {clients.length > 0
+                      ? clients.map((c) => {
+                          const isFlagged = flaggedClients.includes(c.client_id);
+                          return (
+                            <span key={c.client_id} style={{ marginRight: 8 }}>
+                              <span style={{ color: isFlagged ? 'var(--n8n-danger)' : 'var(--n8n-text-primary)' }}>
+                                {c.name || c.client_id}
+                              </span>
+                              {isFlagged
+                                ? <span style={{ color: 'var(--n8n-danger)', fontSize: 10 }}> (flagged)</span>
+                                : <span style={{ color: 'var(--n8n-success)' }}> ✓</span>}
+                            </span>
+                          );
+                        })
+                      : <span>{r.num_clients} client{r.num_clients !== 1 ? 's' : ''}</span>}
+                  </span>
+
+                  {/* Accuracy */}
+                  {accPct != null && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--n8n-success)', whiteSpace: 'nowrap' }}>
+                      Acc: {accPct}%
+                    </span>
+                  )}
+
+                  {/* Duration */}
+                  {r.duration_seconds != null && (
+                    <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)', whiteSpace: 'nowrap', minWidth: 50, textAlign: 'right' }}>
+                      {r.duration_seconds.toFixed(1)}s
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* Live round in-progress placeholder */}
+          {isLive && (
+            <div style={{ ...shellStyles.roundLogRow(false), opacity: 0.6 }}>
+              <span style={{ minWidth: 36, fontWeight: 700, color: 'var(--n8n-accent)', fontSize: 12 }}>
+                #{flGlobal?.current_round ?? '…'}
+              </span>
+              <span style={{
+                padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 700,
+                background: 'var(--n8n-accent-light)', color: 'var(--n8n-accent)',
+                animation: 'pulse-dot 2s infinite',
+              }}>LIVE</span>
+              <span style={{ flex: 1, fontSize: 11, color: 'var(--n8n-text-muted)' }}>in progress…</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+         REST OF CONTENT (metrics, charts, etc.) in padded wrap
+         ════════════════════════════════════════════════════ */}
+      <motion.div variants={stagger} initial="hidden" animate="show" style={shellStyles.metricsWrap}>
+
+      {/* ════════════════════════════════════════════════════
+         MODE 1: LIVE TRAINING — progress + client cards
          ════════════════════════════════════════════════════ */}
       {isLive && (
         <>
@@ -917,13 +1105,6 @@ export default function FLTrainingPage() {
                 </span>
               </div>
             )}
-          </motion.div>
-
-          {/* Pipeline Visualization */}
-          <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Training Pipeline</h3>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Live data flow between server and clients</p>
-            <PipelineVis activeStep={activeStep} clients={flClientProgress} />
           </motion.div>
 
           {/* Per-Client Progress Cards */}
@@ -1616,6 +1797,9 @@ export default function FLTrainingPage() {
           </button>
         </motion.div>
       )}
-    </motion.div>
+
+      </motion.div>{/* end metricsWrap */}
+      </div>{/* end body */}
+    </div>
   );
 }

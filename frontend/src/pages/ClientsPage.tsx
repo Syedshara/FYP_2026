@@ -5,6 +5,7 @@ import {
   Play, Square, Trash2, Pencil,
 } from 'lucide-react';
 import { clientsApi } from '@/api/clients';
+import { useTrustScores } from '@/stores/liveStore';
 import { devicesApi } from '@/api/devices';
 import type {
   FLClient, FLClientCreate, FLClientUpdate,
@@ -12,24 +13,39 @@ import type {
 } from '@/types';
 
 /* ── animation variants ─────────────────────────────── */
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
-const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } };
 
-/* ── status config ──────────────────────────────────── */
+/** Normalise client name to a key for the trust score map. */
+function trustKey(name: string): string {
+  return name.replace(/\s+/g, '_');
+}
+
+/* ── relative-time helper ───────────────────────────── */
+function relativeTime(iso: string | null): string {
+  if (!iso) return 'Never';
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+/* ── status config (kept for modal / legacy usage) ──── */
 const clientStatusConfig: Record<string, { color: string; bg: string; label: string }> = {
-  active:   { color: 'var(--success)', bg: 'var(--success-light)', label: 'Active' },
-  inactive: { color: 'var(--text-muted)', bg: 'var(--bg-secondary)', label: 'Inactive' },
-  training: { color: 'var(--info)',    bg: 'var(--info-light)',    label: 'Training' },
-  error:    { color: 'var(--danger)',  bg: 'var(--danger-light)',  label: 'Error' },
+  active:   { color: 'var(--n8n-success)', bg: 'var(--n8n-success-light)', label: 'Connected' },
+  inactive: { color: 'var(--n8n-text-muted)', bg: 'rgba(136,136,136,0.12)', label: 'Offline' },
+  training: { color: 'var(--n8n-info)',    bg: 'var(--n8n-info-light)',    label: 'Training' },
+  error:    { color: 'var(--n8n-danger)',  bg: 'var(--n8n-danger-light)',  label: 'Error' },
 };
 
 const containerStatusConfig: Record<string, { color: string; label: string }> = {
-  running:   { color: 'var(--success)', label: 'Running' },
-  exited:    { color: 'var(--text-muted)', label: 'Stopped' },
-  created:   { color: 'var(--warning)', label: 'Created' },
-  paused:    { color: 'var(--warning)', label: 'Paused' },
-  dead:      { color: 'var(--danger)',  label: 'Dead' },
-  not_found: { color: 'var(--text-muted)', label: 'No Container' },
+  running:   { color: 'var(--n8n-success)',     label: 'Running' },
+  exited:    { color: 'var(--n8n-text-muted)', label: 'Stopped' },
+  created:   { color: 'var(--n8n-warning)',    label: 'Created' },
+  paused:    { color: 'var(--n8n-warning)',    label: 'Paused' },
+  dead:      { color: 'var(--n8n-danger)',     label: 'Dead' },
+  not_found: { color: 'var(--n8n-text-muted)', label: 'No Container' },
 };
 
 const deviceTypeIcons: Record<string, string> = {
@@ -41,6 +57,57 @@ const deviceTypeIcons: Record<string, string> = {
 interface ClientWithMeta extends FLClient {
   devices: DeviceBrief[];
   containerStatus: string;
+}
+
+/* ══════════════════════════════════════════════════════
+   Node-card sub-components
+   ══════════════════════════════════════════════════════ */
+
+/** Trust score progress bar — accent when ≥ 0.5, danger below. */
+function TrustBar({ score }: { score: number }) {
+  const pct = Math.min(Math.max(score, 0), 1) * 100;
+  const barColor = score < 0.5 ? 'var(--n8n-danger)' : 'var(--n8n-accent)';
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--n8n-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          Trust Score
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: barColor }}>
+          {Math.round(pct)}%
+        </span>
+      </div>
+      <div style={{
+        height: 6, borderRadius: 999,
+        background: 'var(--n8n-card-border)',
+        overflow: 'hidden',
+      }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          style={{ height: '100%', borderRadius: 999, background: barColor }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Security feature check row (Gradient Signed / mTLS). */
+function SecurityRow({ gradientSigned, mtls }: { gradientSigned: boolean; mtls: boolean }) {
+  const check = (ok: boolean) => (
+    <span style={{ color: ok ? 'var(--n8n-success)' : 'var(--n8n-danger)', fontWeight: 700 }}>
+      {ok ? '✓' : '✗'}
+    </span>
+  );
+
+  return (
+    <div style={{ display: 'flex', gap: 20, fontSize: 12, color: 'var(--n8n-text-muted)' }}>
+      <span>Gradient Signed: {check(gradientSigned)}</span>
+      <span>mTLS: {check(mtls)}</span>
+    </div>
+  );
 }
 
 /* ══════════════════════════════════════════════════════
@@ -93,7 +160,7 @@ function CreateClientModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -105,35 +172,35 @@ function CreateClientModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between" style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Create Client</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>Create Client</h2>
           <button className="btn-ghost btn" onClick={onClose}><X style={{ width: 18, height: 18 }} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Client ID *</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Client ID *</label>
             <input className="input" placeholder="e.g. bank_a" value={form.client_id}
               onChange={(e) => setForm({ ...form, client_id: e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Name *</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Name *</label>
             <input className="input" placeholder="e.g. Bank A" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Description</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Description</label>
             <input className="input" placeholder="Optional description" value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>IP Address</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>IP Address</label>
             <input className="input" placeholder="e.g. 192.168.1.100" value={form.ip_address}
               onChange={(e) => setForm({ ...form, ip_address: e.target.value })} />
           </div>
         </div>
 
         {error && (
-          <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>
+          <p style={{ color: 'var(--n8n-danger)', fontSize: 13, marginTop: 12 }}>{error}</p>
         )}
 
         <div className="flex justify-end gap-3" style={{ marginTop: 20 }}>
@@ -195,7 +262,7 @@ function EditClientModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -206,26 +273,26 @@ function EditClientModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between" style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Edit Client</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>Edit Client</h2>
           <button className="btn-ghost btn" onClick={onClose}><X style={{ width: 18, height: 18 }} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Name</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Name</label>
             <input className="input" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Description</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Description</label>
             <input className="input" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>IP Address</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>IP Address</label>
             <input className="input" value={form.ip_address || ''} onChange={(e) => setForm({ ...form, ip_address: e.target.value })} />
           </div>
         </div>
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--n8n-danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
         <div className="flex justify-end gap-3" style={{ marginTop: 20 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -294,7 +361,7 @@ function AddDeviceModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -305,21 +372,21 @@ function AddDeviceModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between" style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Add Device to <span style={{ color: 'var(--accent)' }}>{clientId}</span>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>
+            Add Device to <span style={{ color: 'var(--n8n-accent)' }}>{clientId}</span>
           </h2>
           <button className="btn-ghost btn" onClick={onClose}><X style={{ width: 18, height: 18 }} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Device Name *</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Device Name *</label>
             <input className="input" placeholder="e.g. IoT Camera 01" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div className="flex gap-3">
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Type</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Type</label>
               <select className="input" value={form.device_type} onChange={(e) => setForm({ ...form, device_type: e.target.value })}>
                 <option value="sensor">Sensor</option>
                 <option value="camera">Camera</option>
@@ -331,7 +398,7 @@ function AddDeviceModal({
               </select>
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Protocol</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Protocol</label>
               <select className="input" value={form.protocol} onChange={(e) => setForm({ ...form, protocol: e.target.value })}>
                 <option value="tcp">TCP</option>
                 <option value="udp">UDP</option>
@@ -343,24 +410,24 @@ function AddDeviceModal({
           </div>
           <div className="flex gap-3">
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>IP Address</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>IP Address</label>
               <input className="input" placeholder="192.168.1.50" value={form.ip_address}
                 onChange={(e) => setForm({ ...form, ip_address: e.target.value })} />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Port</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Port</label>
               <input className="input" type="number" placeholder="8080" value={form.port}
                 onChange={(e) => setForm({ ...form, port: e.target.value })} />
             </div>
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Description</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--n8n-text-muted)', marginBottom: 4, display: 'block' }}>Description</label>
             <input className="input" placeholder="Optional" value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
         </div>
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--n8n-danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
         <div className="flex justify-end gap-3" style={{ marginTop: 20 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -403,7 +470,7 @@ function ConfirmDeleteDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -413,11 +480,16 @@ function ConfirmDeleteDialog({
         style={{ width: 400, padding: 28, textAlign: 'center' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--danger-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Trash2 style={{ width: 22, height: 22, color: 'var(--danger)' }} />
+        <div style={{
+          width: 48, height: 48, borderRadius: 12,
+          background: 'var(--n8n-danger-light)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 16px',
+        }}>
+          <Trash2 style={{ width: 22, height: 22, color: 'var(--n8n-danger)' }} />
         </div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Delete Client</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--n8n-text-primary)', marginBottom: 8 }}>Delete Client</h3>
+        <p style={{ fontSize: 13, color: 'var(--n8n-text-muted)', marginBottom: 20 }}>
           Are you sure you want to delete <strong>{client.name}</strong> ({client.client_id})?
           This will also remove its Docker container and all associated devices.
         </p>
@@ -425,7 +497,7 @@ function ConfirmDeleteDialog({
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button
             className="btn"
-            style={{ background: 'var(--danger)', color: '#fff' }}
+            style={{ background: 'var(--n8n-danger)', color: '#fff' }}
             onClick={handleDelete}
             disabled={deleting}
           >
@@ -439,12 +511,13 @@ function ConfirmDeleteDialog({
 }
 
 /* ══════════════════════════════════════════════════════
-   Client Card — Expandable
+   n8n Node Card — FL Client
    ══════════════════════════════════════════════════════ */
-function ClientCard({
+function ClientNodeCard({
   client,
   devices,
   containerStatus,
+  liveTrustScores,
   onEdit,
   onDelete,
   onAddDevice,
@@ -453,6 +526,7 @@ function ClientCard({
   client: FLClient;
   devices: DeviceBrief[];
   containerStatus: string;
+  liveTrustScores: Record<string, number>;
   onEdit: () => void;
   onDelete: () => void;
   onAddDevice: () => void;
@@ -460,9 +534,19 @@ function ClientCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
+
   const sc = clientStatusConfig[client.status] ?? clientStatusConfig.inactive;
   const cc = containerStatusConfig[containerStatus] ?? containerStatusConfig.not_found;
-  const isMonitoring = containerStatus === 'running' && client.status === 'active';
+  const isConnected = client.status === 'active';
+  const isMonitoring = containerStatus === 'running' && isConnected;
+  const trustScore = liveTrustScores[trustKey(client.name)] ?? 1.0;
+
+  /* Derive "rounds participated" from total_samples as proxy until Wave 4 */
+  const roundsParticipated = client.total_samples > 0 ? Math.floor(client.total_samples / 100) : 0;
+
+  /* Derive security feature flags from container status (placeholder until Wave 4) */
+  const gradientSigned = isConnected;
+  const mtlsEnabled = isConnected;
 
   const handleToggle = async () => {
     setToggling(true);
@@ -474,144 +558,209 @@ function ClientCard({
   };
 
   return (
-    <motion.div variants={fadeUp} className="card" style={{ overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '20px 20px 0 20px' }}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div style={{
-              width: 44, height: 44, borderRadius: 3,
-              background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 700, color: sc.color, fontFamily: 'inherit',
+    <motion.div
+      variants={fadeUp}
+      style={{
+        background: 'var(--n8n-card-bg)',
+        border: `1.5px solid ${isConnected ? 'var(--n8n-accent)' : 'var(--n8n-card-border)'}`,
+        borderRadius: 'var(--n8n-radius)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        boxShadow: isConnected
+          ? '0 0 0 1px rgba(255,109,90,0.15), 0 4px 24px rgba(0,0,0,0.35)'
+          : '0 4px 24px rgba(0,0,0,0.3)',
+      }}
+    >
+      {/* ── Card Header ── */}
+      <div style={{ padding: '18px 20px 14px 20px', borderBottom: '1px solid var(--n8n-card-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 0 }}>
+          {/* Client name + ID */}
+          <div>
+            <p style={{
+              fontSize: 16, fontWeight: 800, color: 'var(--n8n-text-primary)',
+              letterSpacing: '0.01em', textTransform: 'uppercase',
             }}>
-              {'>'}
-            </div>
-            <div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{client.name}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{client.client_id}</p>
-            </div>
+              {client.name}
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--n8n-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>
+              {client.client_id}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="btn btn-ghost" onClick={onEdit} title="Edit">
-              <Pencil style={{ width: 14, height: 14 }} />
+
+          {/* Status badge + action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
+              background: sc.bg, color: sc.color,
+              letterSpacing: '0.04em',
+            }}>
+              {sc.label}
+            </span>
+            <button
+              className="btn btn-ghost"
+              onClick={onEdit}
+              title="Edit"
+              style={{ padding: '4px 6px' }}
+            >
+              <Pencil style={{ width: 13, height: 13 }} />
             </button>
-            <button className="btn btn-ghost" onClick={onDelete} title="Delete" style={{ color: 'var(--danger)' }}>
-              <Trash2 style={{ width: 14, height: 14 }} />
+            <button
+              className="btn btn-ghost"
+              onClick={onDelete}
+              title="Delete"
+              style={{ padding: '4px 6px', color: 'var(--n8n-danger)' }}
+            >
+              <Trash2 style={{ width: 13, height: 13 }} />
             </button>
           </div>
         </div>
-
-        {/* Meta info */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Status: <span className="badge" style={{ background: sc.bg, color: sc.color, marginLeft: 4 }}>{sc.label}</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Container: <span style={{ color: cc.color, fontWeight: 600, marginLeft: 4 }}>{cc.label}</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Devices: <span style={{ color: 'var(--text-primary)', fontWeight: 600, marginLeft: 4 }}>{devices.length}</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Samples: <span style={{ color: 'var(--text-primary)', fontWeight: 600, marginLeft: 4 }}>{client.total_samples.toLocaleString()}</span>
-          </div>
-        </div>
-
-        {client.ip_address && (
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-            IP: <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{client.ip_address}</span>
-          </p>
-        )}
-        {client.description && (
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{client.description}</p>
-        )}
       </div>
 
-      {/* Action bar */}
-      <div
-        className="flex items-center justify-between"
-        style={{ padding: '12px 20px', marginTop: 16, borderTop: '1px solid var(--border)' }}
-      >
-        <div className="flex items-center gap-2">
-          {/* Monitor toggle */}
+      {/* ── Card Body ── */}
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+        {/* Trust Score bar */}
+        <TrustBar score={trustScore} />
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--n8n-card-border)' }} />
+
+        {/* Key metrics row */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--n8n-text-muted)' }}>Rounds Participated</span>
+            <span style={{ color: 'var(--n8n-text-primary)', fontWeight: 600, fontFamily: 'monospace' }}>
+              {roundsParticipated}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--n8n-text-muted)' }}>Last Seen</span>
+            <span style={{ color: 'var(--n8n-text-muted)', fontFamily: 'monospace' }}>
+              {relativeTime(client.last_seen_at)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--n8n-text-muted)' }}>Container</span>
+            <span style={{ color: cc.color, fontWeight: 600 }}>{cc.label}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--n8n-text-muted)' }}>Samples</span>
+            <span style={{ color: 'var(--n8n-text-primary)', fontWeight: 600, fontFamily: 'monospace' }}>
+              {client.total_samples.toLocaleString()}
+            </span>
+          </div>
+
+          {client.ip_address && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+              <span style={{ color: 'var(--n8n-text-muted)' }}>IP Address</span>
+              <span style={{ color: 'var(--n8n-text-muted)', fontFamily: 'monospace' }}>{client.ip_address}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Security feature row */}
+        <SecurityRow gradientSigned={gradientSigned} mtls={mtlsEnabled} />
+      </div>
+
+      {/* ── Card Footer: action bar ── */}
+      <div style={{
+        padding: '12px 20px',
+        borderTop: '1px solid var(--n8n-card-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 8,
+      }}>
+        {/* Left: monitoring toggle + add device */}
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn"
             style={{
-              padding: '6px 14px',
-              fontSize: 12,
-              background: isMonitoring ? 'var(--danger-light)' : 'var(--success-light)',
-              color: isMonitoring ? 'var(--danger)' : 'var(--success)',
+              padding: '5px 12px', fontSize: 12,
+              background: isMonitoring ? 'var(--n8n-danger-light)' : 'var(--n8n-success-light)',
+              color: isMonitoring ? 'var(--n8n-danger)' : 'var(--n8n-success)',
+              border: `1px solid ${isMonitoring ? 'var(--n8n-danger)' : 'var(--n8n-success)'}`,
+              borderRadius: 'var(--n8n-radius-sm)',
             }}
             onClick={handleToggle}
             disabled={toggling}
           >
             {toggling ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
             ) : isMonitoring ? (
-              <Square style={{ width: 14, height: 14 }} />
+              <Square style={{ width: 13, height: 13 }} />
             ) : (
-              <Play style={{ width: 14, height: 14 }} />
+              <Play style={{ width: 13, height: 13 }} />
             )}
-            {isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'}
+            {isMonitoring ? 'Stop' : 'Monitor'}
           </button>
 
-          {/* Add device */}
           <button
             className="btn"
-            style={{ padding: '6px 14px', fontSize: 12, background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
+            style={{
+              padding: '5px 12px', fontSize: 12,
+              background: 'rgba(255,109,90,0.08)',
+              color: 'var(--n8n-accent)',
+              border: '1px solid var(--n8n-accent)',
+              borderRadius: 'var(--n8n-radius-sm)',
+            }}
             onClick={onAddDevice}
           >
-            <Plus style={{ width: 14, height: 14 }} />
-            Add Device
+            <Plus style={{ width: 13, height: 13 }} />
+            Device
           </button>
         </div>
 
-        {/* Expand toggle */}
+        {/* Right: expand device list */}
         <button
           className="btn btn-ghost"
           onClick={() => setExpanded(!expanded)}
-          style={{ fontSize: 12, gap: 4, color: 'var(--text-muted)' }}
+          style={{ fontSize: 12, gap: 4, color: 'var(--n8n-text-muted)', padding: '5px 8px' }}
         >
-          {expanded ? <ChevronDown style={{ width: 14, height: 14 }} /> : <ChevronRight style={{ width: 14, height: 14 }} />}
+          {expanded
+            ? <ChevronDown style={{ width: 13, height: 13 }} />
+            : <ChevronRight style={{ width: 13, height: 13 }} />}
           {devices.length} device{devices.length !== 1 ? 's' : ''}
         </button>
       </div>
 
-      {/* Expandable device list */}
+      {/* ── Expandable device list ── */}
       <AnimatePresence>
         {expanded && devices.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            style={{ overflow: 'hidden', borderTop: '1px solid var(--border)' }}
+            style={{ overflow: 'hidden', borderTop: '1px solid var(--n8n-card-border)' }}
           >
             <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {devices.map((dev) => (
                 <div
                   key={dev.id}
-                  className="flex items-center justify-between"
                   style={{
-                    padding: '10px 14px', borderRadius: 8,
-                    background: 'var(--bg-secondary)', fontSize: 13,
+                    padding: '9px 12px', borderRadius: 'var(--n8n-radius-sm)',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--n8n-card-border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontSize: 12,
                   }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span style={{ fontSize: 16 }}>{deviceTypeIcons[dev.device_type] || '📟'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 15 }}>{deviceTypeIcons[dev.device_type] || '📟'}</span>
                     <div>
-                      <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{dev.name}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      <p style={{ fontWeight: 600, color: 'var(--n8n-text-primary)', fontSize: 12 }}>{dev.name}</p>
+                      <p style={{ fontSize: 10, color: 'var(--n8n-text-muted)' }}>
                         {dev.device_type}{dev.ip_address ? ` • ${dev.ip_address}` : ''}
                       </p>
                     </div>
                   </div>
-                  <span
-                    className="badge"
-                    style={{
-                      background: dev.status === 'online' ? 'var(--success-light)' : 'var(--bg-primary)',
-                      color: dev.status === 'online' ? 'var(--success)' : 'var(--text-muted)',
-                    }}
-                  >
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                    background: dev.status === 'online' ? 'var(--n8n-success-light)' : 'rgba(136,136,136,0.12)',
+                    color: dev.status === 'online' ? 'var(--n8n-success)' : 'var(--n8n-text-muted)',
+                  }}>
                     {dev.status}
                   </span>
                 </div>
@@ -628,12 +777,13 @@ function ClientCard({
    Main Page
    ══════════════════════════════════════════════════════ */
 export default function ClientsPage() {
+  const liveTrustScores = useTrustScores();
   const [clients, setClients] = useState<ClientWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Modals
+  /* Modals */
   const [createOpen, setCreateOpen] = useState(false);
   const [editClient, setEditClient] = useState<FLClient | null>(null);
   const [deleteClient, setDeleteClient] = useState<FLClient | null>(null);
@@ -642,7 +792,6 @@ export default function ClientsPage() {
   const fetchClients = useCallback(async () => {
     try {
       const rawClients = await clientsApi.list();
-      // Fetch devices and container status for each client
       const enriched: ClientWithMeta[] = await Promise.all(
         rawClients.map(async (c) => {
           let devices: DeviceBrief[] = [];
@@ -703,7 +852,7 @@ export default function ClientsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--n8n-accent)' }} />
       </div>
     );
   }
@@ -713,9 +862,11 @@ export default function ClientsPage() {
       {/* ── Header ── */}
       <motion.div variants={fadeUp} className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Client Management</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-            {clients.length} registered FL client{clients.length !== 1 ? 's' : ''}
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>
+            FL Clients
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--n8n-text-muted)', marginTop: 2 }}>
+            {clients.length} registered federation node{clients.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
@@ -726,14 +877,22 @@ export default function ClientsPage() {
       {/* ── KPI Strip ── */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Clients', value: counts.all, color: 'var(--accent)' },
-          { label: 'Active', value: counts.active, color: 'var(--success)' },
-          { label: 'Training', value: counts.training, color: 'var(--info)' },
-          { label: 'Inactive', value: counts.inactive, color: 'var(--text-muted)' },
+          { label: 'Total Clients', value: counts.all,      color: 'var(--n8n-accent)' },
+          { label: 'Connected',     value: counts.active,   color: 'var(--n8n-success)' },
+          { label: 'Training',      value: counts.training, color: 'var(--n8n-info)' },
+          { label: 'Offline',       value: counts.inactive, color: 'var(--n8n-text-muted)' },
         ].map((kpi) => (
-          <div key={kpi.label} className="card" style={{ padding: '16px 20px' }}>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{kpi.label}</p>
-            <p style={{ fontSize: 24, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
+          <div
+            key={kpi.label}
+            style={{
+              background: 'var(--n8n-card-bg)',
+              border: '1px solid var(--n8n-card-border)',
+              borderRadius: 'var(--n8n-radius)',
+              padding: '16px 20px',
+            }}
+          >
+            <p style={{ fontSize: 11, color: 'var(--n8n-text-muted)', marginBottom: 4 }}>{kpi.label}</p>
+            <p style={{ fontSize: 26, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
           </div>
         ))}
       </motion.div>
@@ -746,21 +905,25 @@ export default function ClientsPage() {
               key={s}
               onClick={() => setStatusFilter(s)}
               style={{
-                padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontSize: 12, fontWeight: 500,
-                background: statusFilter === s ? 'var(--accent)' : 'var(--bg-secondary)',
-                color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
+                padding: '6px 14px', borderRadius: 'var(--n8n-radius-sm)',
+                border: statusFilter === s ? '1px solid var(--n8n-accent)' : '1px solid var(--n8n-card-border)',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                background: statusFilter === s ? 'var(--n8n-accent-light)' : 'var(--n8n-card-bg)',
+                color: statusFilter === s ? 'var(--n8n-accent)' : 'var(--n8n-text-muted)',
                 transition: 'all .15s',
               }}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === 'active' ? 'Connected' : s.charAt(0).toUpperCase() + s.slice(1)}
               <span style={{ marginLeft: 6, opacity: 0.7 }}>({counts[s as keyof typeof counts] ?? 0})</span>
             </button>
           ))}
         </div>
 
         <div className="relative flex-1" style={{ maxWidth: 280 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ width: 14, height: 14, color: 'var(--n8n-text-muted)' }}
+          />
           <input
             type="text"
             placeholder="Search by name or ID…"
@@ -773,7 +936,11 @@ export default function ClientsPage() {
             <button
               onClick={() => setSearch('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center"
-              style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--bg-secondary)', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              style={{
+                width: 20, height: 20, borderRadius: 4,
+                background: 'var(--n8n-card-bg)', border: 'none',
+                cursor: 'pointer', color: 'var(--n8n-text-muted)',
+              }}
             >
               <X style={{ width: 12, height: 12 }} />
             </button>
@@ -781,15 +948,20 @@ export default function ClientsPage() {
         </div>
       </motion.div>
 
-      {/* ── Client Grid ── */}
+      {/* ── Node Card Grid — 3 columns ── */}
       {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 20,
+        }}>
           {filtered.map((client) => (
-            <ClientCard
+            <ClientNodeCard
               key={client.id}
               client={client}
               devices={client.devices}
               containerStatus={client.containerStatus}
+              liveTrustScores={liveTrustScores}
               onEdit={() => setEditClient(client)}
               onDelete={() => setDeleteClient(client)}
               onAddDevice={() => setAddDeviceTarget({ id: client.client_id, pk: client.id })}
@@ -798,13 +970,23 @@ export default function ClientsPage() {
           ))}
         </div>
       ) : (
-        <div className="card flex flex-col items-center justify-center" style={{ padding: 64 }}>
-          <span style={{ fontSize: 24, color: 'var(--text-muted)', marginBottom: 16 }}>[ ]</span>
-          <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
+        <div
+          style={{
+            background: 'var(--n8n-card-bg)',
+            border: '1px solid var(--n8n-card-border)',
+            borderRadius: 'var(--n8n-radius)',
+            padding: 64,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <span style={{ fontSize: 28, color: 'var(--n8n-text-muted)', marginBottom: 14, fontFamily: 'monospace' }}>[ ]</span>
+          <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--n8n-text-primary)', marginBottom: 4 }}>
             {clients.length === 0 ? 'No clients yet' : 'No clients match your filter'}
           </p>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-            {clients.length === 0 ? 'Create your first FL client to get started.' : 'Try adjusting your search or filter.'}
+          <p style={{ fontSize: 13, color: 'var(--n8n-text-muted)', marginBottom: 16 }}>
+            {clients.length === 0
+              ? 'Create your first FL client to get started.'
+              : 'Try adjusting your search or filter.'}
           </p>
           {clients.length === 0 && (
             <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
@@ -820,7 +1002,10 @@ export default function ClientsPage() {
           <CreateClientModal
             open={createOpen}
             onClose={() => setCreateOpen(false)}
-            onCreated={() => fetchClients()}
+            onCreated={(newClient: FLClient) => {
+              setClients(prev => [{ ...newClient, devices: [], containerStatus: 'not_found' }, ...prev]);
+              fetchClients();
+            }}
           />
         )}
       </AnimatePresence>

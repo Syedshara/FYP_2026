@@ -11,15 +11,20 @@ The mode is controlled by the MODE env var (default: IDLE).
 
 Env vars
 --------
-CLIENT_ID       : str   — e.g. "bank_a"
-FL_SERVER_URL   : str   — e.g. "fl_server:8080"
-DATA_PATH       : str   — path to client data directory
-BACKEND_URL     : str   — e.g. "http://iot_ids_backend:8000"
-MODE            : str   — MONITOR | TRAIN | IDLE  (default: IDLE)
-MONITOR_INTERVAL: float — seconds between prediction cycles (default 3.0)
-ATTACK_RATIO    : float — fraction of simulated traffic that is attacks (default 0.2)
+CLIENT_ID          : str   — e.g. "bank_a"
+FL_SERVER_URL      : str   — e.g. "fl_server:8080"
+DATA_PATH          : str   — path to client data directory
+BACKEND_URL        : str   — e.g. "http://iot_ids_backend:8000"
+MODE               : str   — MONITOR | TRAIN | IDLE  (default: IDLE)
+MONITOR_INTERVAL   : float — seconds between prediction cycles (default 3.0)
+ATTACK_RATIO       : float — fraction of simulated traffic that is attacks (default 0.2)
+FL_CLIENT_CERT     : str   — path to mTLS client certificate PEM file
+FL_CLIENT_KEY      : str   — path to mTLS client private key PEM file
+FL_CA_CERT         : str   — path to CA certificate PEM for server verification
+CLIENT_SIGNING_KEY : str   — path to Ed25519 private key PEM file for gradient signing
 """
 
+import base64
 import os
 import sys
 import time
@@ -35,6 +40,7 @@ from torch.utils.data import Dataset, DataLoader
 # ── shared code ──────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG
+from fl_common import signing_utils, recess_utils
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("fl_client")
@@ -45,6 +51,20 @@ FL_SERVER_ADDRESS = os.environ.get("FL_SERVER_URL", "fl_server:8080")
 DATA_PATH = os.environ.get("DATA_PATH", "/app/data")
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://iot_ids_backend:8000")
 MODE = os.environ.get("MODE", "IDLE").upper()
+
+# ── mTLS certificate paths ────────────────────────────────
+FL_CLIENT_CERT = os.environ.get("FL_CLIENT_CERT", f"./certs/{CLIENT_ID}.crt")
+FL_CLIENT_KEY = os.environ.get("FL_CLIENT_KEY", f"./certs/{CLIENT_ID}.key")
+FL_CA_CERT = os.environ.get("FL_CA_CERT", "./certs/ca.crt")
+
+# ── Ed25519 signing key path ──────────────────────────────
+CLIENT_SIGNING_KEY = os.environ.get(
+    "CLIENT_SIGNING_KEY", f"./certs/{CLIENT_ID}_ed25519.pem"
+)
+
+# ── Message type constants (VSS share delivery) ───────────
+MSG_TYPE_SHARE = "vss_share"
+MSG_TYPE_REFRESH = "vss_refresh"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SEQ_LEN = DEFAULT_CONFIG["SEQUENCE_LENGTH"]
@@ -245,6 +265,46 @@ def local_train(
 #  Flower NumPy Client (TRAIN mode)
 # ═══════════════════════════════════════════════════════════
 
+def _load_tls_credentials() -> bytes | None:
+    """Load the CA certificate PEM bytes for server verification.
+
+    Flower's start_numpy_client() accepts the CA cert as raw bytes via
+    root_certificates= for server-side SSL verification.  Client-side mTLS
+    (mutual auth) is not supported by the Flower 1.x NumPy client API, so
+    FL_CLIENT_CERT / FL_CLIENT_KEY are loaded here for forward-compatibility
+    but only the CA bytes are returned and used.
+
+    Falls back to None (insecure channel) if any cert file is missing.
+    """
+    try:
+        with open(FL_CA_CERT, "rb") as f:
+            ca_bytes = f.read()
+        # Validate that client cert/key paths also exist (log warning if not)
+        for path, label in [(FL_CLIENT_CERT, "FL_CLIENT_CERT"), (FL_CLIENT_KEY, "FL_CLIENT_KEY")]:
+            if not os.path.isfile(path):
+                log.warning("[%s] mTLS client file missing (%s=%s)", CLIENT_ID, label, path)
+        log.info("[%s] CA cert loaded for server verification (CA=%s)", CLIENT_ID, FL_CA_CERT)
+        return ca_bytes
+    except FileNotFoundError as exc:
+        log.warning("[%s] mTLS cert file not found (%s) — using insecure channel", CLIENT_ID, exc)
+        return None
+
+
+def _load_signing_key() -> bytes | None:
+    """Load Ed25519 private key PEM bytes from CLIENT_SIGNING_KEY path."""
+    try:
+        with open(CLIENT_SIGNING_KEY, "rb") as f:
+            key_pem = f.read()
+        log.info("[%s] Ed25519 signing key loaded from %s", CLIENT_ID, CLIENT_SIGNING_KEY)
+        return key_pem
+    except FileNotFoundError:
+        log.warning(
+            "[%s] Signing key not found at %s — gradient signing disabled",
+            CLIENT_ID, CLIENT_SIGNING_KEY,
+        )
+        return None
+
+
 def run_train_mode():
     """
     TRAIN mode — starts the Flower FL client and connects to the FL server
@@ -260,6 +320,10 @@ def run_train_mode():
             self.model = model
             self.dataloader = dataloader
             self.num_samples = num_samples
+            # VSS share storage: set by MSG_TYPE_SHARE / MSG_TYPE_REFRESH messages
+            self._vss_share: bytes | None = None
+            # Ed25519 private key PEM — loaded once at startup
+            self._signing_key: bytes | None = _load_signing_key()
 
         def get_parameters(self, config) -> NDArrays:
             return [val.cpu().numpy() for val in self.model.state_dict().values()]
@@ -269,11 +333,71 @@ def run_train_mode():
             state = OrderedDict({k: torch.tensor(v) for k, v in zip(keys, parameters)})
             self.model.load_state_dict(state, strict=True)
 
-        def fit(self, parameters: NDArrays, config: dict):
-            self.set_parameters(parameters)
+        # ── VSS share message handlers ─────────────────────────────────────────
 
+        def _handle_vss_share(self, config: dict) -> None:
+            """Receive and store a VSS share sent by the server."""
+            share_b64 = config.get("vss_share_data", "")
+            if share_b64:
+                self._vss_share = base64.b64decode(share_b64)
+                log.info("[%s] VSS share received and stored (%d bytes)", CLIENT_ID, len(self._vss_share))
+            else:
+                log.warning("[%s] MSG_TYPE_SHARE received but no vss_share_data in config", CLIENT_ID)
+
+        def _handle_vss_refresh(self, config: dict) -> None:
+            """Replace existing VSS share with a newly issued one."""
+            share_b64 = config.get("vss_share_data", "")
+            if share_b64:
+                self._vss_share = base64.b64decode(share_b64)
+                log.info("[%s] VSS share refreshed (%d bytes)", CLIENT_ID, len(self._vss_share))
+            else:
+                log.warning("[%s] MSG_TYPE_REFRESH received but no vss_share_data in config", CLIENT_ID)
+
+        # ── Gradient serialisation helper ──────────────────────────────────────
+
+        @staticmethod
+        def _serialise_gradient(gradient_dict: dict) -> bytes:
+            """Flatten gradient dict to bytes for signing."""
+            flat = recess_utils.flatten_gradient(gradient_dict)
+            return flat.numpy().tobytes()
+
+        # ── fit ────────────────────────────────────────────────────────────────
+
+        def fit(self, parameters: NDArrays, config: dict):
+            # ── Handle VSS share delivery messages before anything else ────────
+            msg_type = config.get("msg_type", "")
+            if msg_type == MSG_TYPE_SHARE:
+                self._handle_vss_share(config)
+                # Return current parameters unchanged; no training this round
+                return self.get_parameters(config), self.num_samples, {"client_id": CLIENT_ID}
+            if msg_type == MSG_TYPE_REFRESH:
+                self._handle_vss_refresh(config)
+                return self.get_parameters(config), self.num_samples, {"client_id": CLIENT_ID}
+
+            # ── Extract round metadata ──────────────────────────────────────────
             server_round = config.get("server_round", 0)
             total_rounds = int(config.get("total_rounds", 0))
+            nonce = str(config.get("round_nonce", ""))
+
+            # ── RECESS detection round ──────────────────────────────────────────
+            if str(config.get("detect", "")).lower() == "true":
+                return self._fit_recess(parameters, config, server_round, total_rounds, nonce)
+
+            # ── Normal training round ───────────────────────────────────────────
+            return self._fit_normal(parameters, config, server_round, total_rounds, nonce)
+
+        # ── Normal training ────────────────────────────────────────────────────
+
+        def _fit_normal(
+            self,
+            parameters: NDArrays,
+            config: dict,
+            server_round: int,
+            total_rounds: int,
+            nonce: str,
+        ):
+            self.set_parameters(parameters)
+
             epochs = int(config.get("local_epochs", DEFAULT_CONFIG["LOCAL_EPOCHS"]))
             lr = float(config.get("lr", DEFAULT_CONFIG["LEARNING_RATE"]))
             max_batches = int(config.get("max_batches", DEFAULT_CONFIG["MAX_BATCHES"]))
@@ -305,6 +429,25 @@ def run_train_mode():
                 metrics["num_samples"], metrics.get("training_time_sec", 0),
             )
 
+            # ── Compute gradient for signing (local state − global state) ───────
+            updated_params = self.get_parameters(config)
+            gradient_dict: dict = {}
+            for key, local_val, global_val in zip(
+                self.model.state_dict().keys(), updated_params, parameters
+            ):
+                gradient_dict[key] = torch.tensor(local_val) - torch.tensor(global_val)
+
+            # ── Sign gradient ───────────────────────────────────────────────────
+            sig_b64 = ""
+            if self._signing_key is not None and gradient_dict:
+                try:
+                    gradient_bytes = self._serialise_gradient(gradient_dict)
+                    sig_bytes = signing_utils.sign_gradient(gradient_bytes, self._signing_key)
+                    sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
+                    log.debug("[%s] Gradient signed successfully", CLIENT_ID)
+                except Exception as exc:
+                    log.warning("[%s] Gradient signing failed: %s", CLIENT_ID, exc)
+
             # Report: sending weights
             _report_progress({
                 "round": server_round,
@@ -318,6 +461,61 @@ def run_train_mode():
 
             # Include CLIENT_ID so server can map Flower CID → registered client
             metrics["client_id"] = CLIENT_ID
+            metrics["nonce_echo"] = nonce
+            metrics["signature"] = sig_b64
+            return self.get_parameters(config), self.num_samples, metrics
+
+        # ── RECESS detection round ─────────────────────────────────────────────
+
+        def _fit_recess(
+            self,
+            parameters: NDArrays,
+            config: dict,
+            server_round: int,
+            total_rounds: int,
+            nonce: str,
+        ):
+            """Handle a RECESS behavioural-probing round.
+
+            Does NOT update local model weights.  Returns the local gradient
+            (flattened) encrypted against the test gradient sent by the server,
+            plus the nonce echo and signature.
+            """
+            log.info("[%s] Round %s — RECESS detection round", CLIENT_ID, server_round)
+
+            # Load global weights into a temporary copy without modifying self.model
+            temp_global_params = parameters  # these are the global weights
+
+            # ── Compute local gradient from current model vs. global weights ────
+            local_params = self.get_parameters(config)
+            gradient_dict: dict = {}
+            for key, local_val, global_val in zip(
+                self.model.state_dict().keys(), local_params, temp_global_params
+            ):
+                gradient_dict[key] = torch.tensor(local_val) - torch.tensor(global_val)
+
+            # Flatten local gradient to bytes for the RECESS response
+            local_gradient_bytes = self._serialise_gradient(gradient_dict)
+            recess_response_b64 = base64.b64encode(local_gradient_bytes).decode("ascii")
+
+            # ── Sign the local gradient bytes ────────────────────────────────────
+            sig_b64 = ""
+            if self._signing_key is not None:
+                try:
+                    sig_bytes = signing_utils.sign_gradient(local_gradient_bytes, self._signing_key)
+                    sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
+                    log.debug("[%s] RECESS gradient signed successfully", CLIENT_ID)
+                except Exception as exc:
+                    log.warning("[%s] RECESS gradient signing failed: %s", CLIENT_ID, exc)
+
+            metrics = {
+                "client_id": CLIENT_ID,
+                "nonce_echo": nonce,
+                "recess_signature": sig_b64,   # server reads 'recess_signature' in _run_recess_round
+                "recess_response": recess_response_b64,
+                "is_detection_round": "true",
+            }
+            # Return current (unmodified) parameters — no weight update in detection round
             return self.get_parameters(config), self.num_samples, metrics
 
         def evaluate(self, parameters: NDArrays, config: dict):
@@ -367,10 +565,20 @@ def run_train_mode():
 
     # Start Flower client
     client = IDSClient(model, dataloader, len(dataset))
-    fl.client.start_numpy_client(
-        server_address=FL_SERVER_ADDRESS,
-        client=client,
-    )
+    tls_credentials = _load_tls_credentials()
+    if tls_credentials is not None:
+        fl.client.start_numpy_client(
+            server_address=FL_SERVER_ADDRESS,
+            client=client,
+            grpc_max_message_length=512 * 1024 * 1024,
+            root_certificates=tls_credentials,  # CA PEM bytes for server cert verification
+        )
+    else:
+        fl.client.start_numpy_client(
+            server_address=FL_SERVER_ADDRESS,
+            client=client,
+            grpc_max_message_length=512 * 1024 * 1024,
+        )
     log.info("[%s] Training complete", CLIENT_ID)
 
 

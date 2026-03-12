@@ -276,3 +276,62 @@ async def delete_fl_round_data(db: AsyncSession) -> int:
     await db.commit()
 
     return rounds_count + metrics_count
+
+
+# ── Trust / Anomaly Detection (in-memory) ────────────────
+
+_trust_scores: dict[str, float] = {"Bank_A": 1.0, "Bank_B": 1.0, "Bank_C": 1.0}
+_detection_rounds: list[dict] = []
+_flagged_clients: list[dict] = []
+
+
+def update_trust_scores(scores: dict[str, float]) -> None:
+    """Update in-memory trust scores. Merges with existing."""
+    _trust_scores.update(scores)
+
+
+def record_detection_round(
+    round_number: int,
+    scores: dict[str, float],
+    flagged: list[str],
+) -> None:
+    """Append a detection round record with ISO timestamp."""
+    _detection_rounds.append(
+        {
+            "round_number": round_number,
+            "scores": dict(scores),
+            "flagged": list(flagged),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+
+def record_flagged_client(
+    client_id: str,
+    round_number: int,
+    abnormality: float,
+) -> None:
+    """Append a flagged client record with ISO timestamp."""
+    _flagged_clients.append(
+        {
+            "client_id": client_id,
+            "round_number": round_number,
+            "abnormality": abnormality,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+
+def get_trust_scores() -> dict[str, float]:
+    """Return current trust scores."""
+    return dict(_trust_scores)
+
+
+def get_detection_rounds() -> list[dict]:
+    """Return all detection round records."""
+    return list(_detection_rounds)
+
+
+def get_flagged_clients() -> list[dict]:
+    """Return all flagged client records."""
+    return list(_flagged_clients)

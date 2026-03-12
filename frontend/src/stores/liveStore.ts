@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import type { ClientTrustUpdatePayload, ClientFlaggedPayload } from '../types/index';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -70,8 +71,22 @@ export interface LiveDeviceStatus {
   status: string;         // online | offline | under_attack | quarantined
 }
 
-// ── Ring buffer size ──
+// ── Attack run live status ──
+
+export interface AttackRunLiveStatus {
+  run_id: number;
+  attack_id: number;
+  status: string;         // pending | running | completed | failed | cancelled
+  packets_sent?: number;
+  duration_seconds?: number;
+  error_message?: string;
+  results?: Record<string, unknown>;
+}
+
+// ── Ring buffer sizes ──
 const MAX_PREDICTIONS = 50;
+const MAX_FLAGGED_EVENTS = 100;
+const MAX_ATTACK_RESULTS = 50;
 
 // ── Store ──────────────────────────────────────────────
 
@@ -111,6 +126,23 @@ interface LiveState {
   // WebSocket connection state (mirrored from hook for non-component access)
   wsConnected: boolean;
   setWsConnected: (v: boolean) => void;
+
+  // ── Security: client trust scores (CLIENT_TRUST_UPDATE) ──
+  trustScores: Record<string, number>;
+  setTrustScores: (payload: ClientTrustUpdatePayload) => void;
+
+  // ── Security: flagged client events (CLIENT_FLAGGED) ──
+  flaggedEvents: Array<{ clientId: string; round: number; abnormality: number; timestamp: string }>;
+  addFlaggedEvent: (payload: ClientFlaggedPayload) => void;
+
+  // ── Attack run live statuses (ATTACK_STATUS / ATTACK_RESULT) ──
+  attackRunStatuses: Record<number, AttackRunLiveStatus>;
+  setAttackRunStatus: (status: AttackRunLiveStatus) => void;
+  clearAttackRunStatuses: () => void;
+
+  // ── Attack completed results (ring buffer for history) ──
+  attackResults: AttackRunLiveStatus[];
+  addAttackResult: (result: AttackRunLiveStatus) => void;
 }
 
 export const useLiveStore = create<LiveState>()((set) => ({
@@ -177,4 +209,42 @@ export const useLiveStore = create<LiveState>()((set) => ({
   // ── WS Connected ──
   wsConnected: false,
   setWsConnected: (v) => set({ wsConnected: v }),
+
+  // ── Trust Scores ──
+  trustScores: { Bank_A: 1.0, Bank_B: 1.0, Bank_C: 1.0 },
+  setTrustScores: (payload) =>
+    set({ trustScores: payload.scores }),
+
+  // ── Flagged Events ──
+  flaggedEvents: [],
+  addFlaggedEvent: (payload) =>
+    set((state) => {
+      const next = [
+        ...state.flaggedEvents,
+        { ...payload, timestamp: new Date().toISOString() },
+      ];
+      return { flaggedEvents: next.slice(-MAX_FLAGGED_EVENTS) };
+    }),
+
+  // ── Attack Run Statuses ──
+  attackRunStatuses: {},
+  setAttackRunStatus: (status) =>
+    set((state) => ({
+      attackRunStatuses: { ...state.attackRunStatuses, [status.run_id]: status },
+    })),
+  clearAttackRunStatuses: () =>
+    set({ attackRunStatuses: {} }),
+
+  // ── Attack Results (completed runs) ──
+  attackResults: [],
+  addAttackResult: (result) =>
+    set((state) => ({
+      attackResults: [result, ...state.attackResults].slice(0, MAX_ATTACK_RESULTS),
+    })),
 }));
+
+// ── Selectors ──────────────────────────────────────────
+export const useTrustScores = () => useLiveStore((s) => s.trustScores);
+export const useFlaggedEvents = () => useLiveStore((s) => s.flaggedEvents);
+export const useAttackRunStatuses = () => useLiveStore((s) => s.attackRunStatuses);
+export const useAttackResults = () => useLiveStore((s) => s.attackResults);

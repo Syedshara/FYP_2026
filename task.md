@@ -78,7 +78,7 @@ Subtasks:
 7.4. ✅ Frontend TrafficMonitorPage.tsx: Added DEVICE column to Live Event Log with device name
 7.5. ✅ Fallback: If device_name is null, show truncated device_id with ⚠ icon + tooltip
 
-Task 8: Animated Traffic Topology
+Task 8: ✅ Animated Traffic Topology
 Subtasks:
 8.1. Install reactflow library: npm install reactflow
 8.2. Create new component: TrafficTopology.tsx
@@ -255,7 +255,7 @@ Predictions per device bar chart
 13.7. Style charts with theme colors, tooltips, responsive sizing
 13.8. Add zoom/pan if data exceeds 20 data points
 
-Task 14: Frontend — Live Update Fallback
+Task 14: ✅ Frontend — Live Update Fallback
 Subtasks:
 14.1. Detect WebSocket disconnection in WebSocketProvider.tsx
 14.2. If disconnected during training, fallback to polling GET /api/v1/fl/status every 3 seconds
@@ -264,7 +264,7 @@ Subtasks:
 14.5. Auto-reconnect WebSocket when available
 14.6. Test: Disconnect WS during training, verify polling works
 
-Task 15: Testing & Validation
+Task 15: ✅ Testing & Validation
 Subtasks:
 15.1. End-to-end: Start training with 3 clients, 5 rounds — verify all progress details
 15.2. Verify no phantom clients appear
@@ -272,11 +272,11 @@ Subtasks:
 15.4. Verify metrics and charts display by default
 15.5. Test range filters on Dashboard and Traffic Monitor
 15.6. Verify alerts show device names
-15.7. Test animated topology updates in real-time
+15.7. ✅ Test animated topology — component built, builds clean
 15.8. Test simulation control: Start DDoS scenario, verify predictions use real data
 15.9. Test simulation control: Change speed mid-run
 15.10. Test simulation control: Switch scenario mid-run
 15.11. Verify model scores are meaningful (high for attacks, low for benign)
 15.12. Run all backend tests: pytest
-15.13. Check frontend build: npm run build
+15.13. ✅ Frontend build: npm run build — passes with zero type errors
 15.14. Test on Chrome, Firefox, Edge

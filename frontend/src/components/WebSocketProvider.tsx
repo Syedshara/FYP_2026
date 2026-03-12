@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useLiveStore } from '@/stores/liveStore';
+import { flApi } from '@/api/fl';
 import type { WSMessage } from '@/hooks/useWebSocket';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
@@ -20,12 +21,44 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     setClientStatus,
     setDeviceStatus,
     setWsConnected,
+    setTrustScores,
+    addFlaggedEvent,
+    setAttackRunStatus,
+    addAttackResult,
   } = useLiveStore();
 
   // Sync connection state
   useEffect(() => {
     setWsConnected(isConnected);
   }, [isConnected, setWsConnected]);
+
+  // ── Fallback polling when WS is disconnected ──────────────────────────────
+  useEffect(() => {
+    if (isConnected) return; // WS is up — no polling needed
+
+    const interval = setInterval(async () => {
+      try {
+        const status = await flApi.status();
+        const existing = useLiveStore.getState().flGlobalProgress;
+        if (status.is_training || existing?.is_training) {
+          setFLGlobalProgress({
+            is_training: status.is_training,
+            current_round: status.current_round ?? existing?.current_round ?? 0,
+            total_rounds: status.total_rounds ?? existing?.total_rounds ?? 0,
+            global_loss: existing?.global_loss ?? null,
+            global_accuracy: existing?.global_accuracy ?? null,
+            aggregation_method: existing?.aggregation_method,
+            use_he: existing?.use_he,
+            expected_clients: existing?.expected_clients,
+          });
+        }
+      } catch {
+        // Backend unreachable — silently ignore
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isConnected, setFLGlobalProgress]);
 
   // Subscribe to all message types and dispatch to store
   useEffect(() => {
@@ -231,10 +264,60 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       });
     }));
 
+    // ── Client trust scores updated ──
+    unsubs.push(subscribe('client_trust_update', (msg: WSMessage) => {
+      const d = msg.data;
+      setTrustScores({
+        scores: d.scores as Record<string, number>,
+        round: d.round as number,
+      });
+    }));
+
+    // ── Client flagged by RECESS detection ──
+    unsubs.push(subscribe('client_flagged', (msg: WSMessage) => {
+      const d = msg.data;
+      addFlaggedEvent({
+        clientId: d.client_id as string,
+        round: d.round as number,
+        abnormality: d.abnormality as number,
+      });
+    }));
+
+    // ── Attack run status change (running, progress updates) ──
+    unsubs.push(subscribe('attack_status', (msg: WSMessage) => {
+      const d = msg.data;
+      setAttackRunStatus({
+        run_id: d.run_id as number,
+        attack_id: d.attack_id as number,
+        status: d.status as string,
+        packets_sent: d.packets_sent as number | undefined,
+        duration_seconds: d.duration_seconds as number | undefined,
+        error_message: d.error_message as string | undefined,
+        results: d.results as Record<string, unknown> | undefined,
+      });
+    }));
+
+    // ── Attack run completed / failed / cancelled ──
+    unsubs.push(subscribe('attack_result', (msg: WSMessage) => {
+      const d = msg.data;
+      const result = {
+        run_id: d.run_id as number,
+        attack_id: d.attack_id as number,
+        status: d.status as string,
+        packets_sent: d.packets_sent as number | undefined,
+        duration_seconds: d.duration_seconds as number | undefined,
+        error_message: d.error_message as string | undefined,
+        results: d.results as Record<string, unknown> | undefined,
+      };
+      setAttackRunStatus(result);
+      addAttackResult(result);
+    }));
+
     return () => { unsubs.forEach((u) => u()); };
   }, [
     subscribe, addPrediction, setFLClientProgress, setFLGlobalProgress,
     addFLRoundResult, addFLClientRoundEntry, clearFLProgress, setClientStatus, setDeviceStatus,
+    setTrustScores, addFlaggedEvent, setAttackRunStatus, addAttackResult,
   ]);
 
   return <>{children}</>;

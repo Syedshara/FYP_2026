@@ -25,7 +25,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.services import fl_service, device_service
+from app.services import attack_service
 from app.core.websocket import ws_manager, WSMessageType, build_ws_message
+from app.api.v1.attacks import stop_pipeline
 
 log = logging.getLogger(__name__)
 
@@ -357,4 +359,66 @@ async def fl_status_change(
     await ws_manager.broadcast(build_ws_message(msg_type, body.model_dump(exclude_none=True)))
 
     log.info("FL status: %s (rounds=%s)", body.status, body.total_rounds)
+    return {"ok": True}
+
+
+# ── Attack engine status callback ────────────────────────
+
+class AttackRunStatusIn(BaseModel):
+    """Status update from an attack engine container."""
+    run_id: int
+    status: str  # running | completed | failed | cancelled
+    duration_seconds: Optional[float] = None
+    packets_sent: Optional[int] = None
+    packets_captured: Optional[int] = None
+    detections: Optional[int] = None
+    detection_rate: Optional[float] = None
+    error_message: Optional[str] = None
+    results: Optional[dict] = None
+
+
+@router.post("/attack-run-status", status_code=200)
+async def attack_run_status(
+    body: AttackRunStatusIn,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Receive status update from an attack engine container.
+    Updates the DB record and broadcasts via WebSocket.
+    """
+    finished = body.status in ("completed", "failed", "cancelled")
+
+    # If the run reached a terminal state, stop its capture pipeline
+    if finished:
+        stop_pipeline(body.run_id)
+
+    run = await attack_service.update_run_status(
+        db,
+        run_id=body.run_id,
+        status=body.status,
+        packets_sent=body.packets_sent,
+        packets_captured=body.packets_captured,
+        detections=body.detections,
+        detection_rate=body.detection_rate,
+        error_message=body.error_message,
+        results=body.results,
+        finished=finished,
+    )
+
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Attack run {body.run_id} not found")
+
+    # Broadcast status change via WebSocket
+    ws_type = WSMessageType.ATTACK_RESULT if finished else WSMessageType.ATTACK_STATUS
+    await ws_manager.broadcast(build_ws_message(ws_type, {
+        "run_id": run.id,
+        "attack_id": run.attack_id,
+        "status": run.status,
+        "packets_sent": run.packets_sent,
+        "duration_seconds": body.duration_seconds,
+        "error_message": run.error_message,
+        "results": body.results or {},
+    }))
+
+    log.info("Attack run %d status: %s (packets=%s)", run.id, run.status, run.packets_sent)
     return {"ok": True}

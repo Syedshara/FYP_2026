@@ -7,29 +7,31 @@ import {
 import { devicesApi } from '@/api/devices';
 import { clientsApi } from '@/api/clients';
 import type { Device, DeviceCreate, DeviceUpdate, FLClient, Prediction } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatRelativeTime } from '@/lib/utils';
 
 /* ── animation variants ─────────────────────────────── */
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } };
-const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.2 } } };
 
-/* ── status styling ─────────────────────────────────── */
-const statusConfig: Record<string, { color: string; bg: string; label: string; dot: string }> = {
-  online:       { color: 'var(--success)', bg: 'var(--success-light)', label: 'Online',      dot: 'status-dot status-online' },
-  offline:      { color: 'var(--text-muted)', bg: 'var(--bg-secondary)', label: 'Offline',    dot: 'status-dot status-offline' },
-  under_attack: { color: 'var(--danger)',  bg: 'var(--danger-light)',  label: 'Under Attack', dot: 'status-dot status-attack' },
-  quarantined:  { color: 'var(--warning)', bg: 'var(--warning-light)', label: 'Quarantined',  dot: 'status-dot status-quarantined' },
+/* ── status config ───────────────────────────────────── */
+type StatusKey = 'online' | 'offline' | 'under_attack' | 'quarantined';
+
+const statusConfig: Record<StatusKey, { dotColor: string; label: string; dotClass: string }> = {
+  online:       { dotColor: 'var(--n8n-success)',  label: 'Online',       dotClass: 'status-dot status-online' },
+  offline:      { dotColor: 'var(--n8n-text-muted)', label: 'Offline',    dotClass: 'status-dot status-offline' },
+  under_attack: { dotColor: 'var(--n8n-danger)',   label: 'Under Attack', dotClass: 'status-dot status-attack' },
+  quarantined:  { dotColor: 'var(--n8n-warning)',  label: 'Quarantined',  dotClass: 'status-dot status-quarantined' },
 };
 
+function getStatusCfg(status: string) {
+  return statusConfig[status as StatusKey] ?? statusConfig.offline;
+}
+
 /* ══════════════════════════════════════════════════════
-   Add / Edit Device Modal
+   Add / Edit Device Modal  (unchanged logic, updated style)
    ══════════════════════════════════════════════════════ */
 function DeviceModal({
-  open,
-  onClose,
-  onSaved,
-  clients,
-  editing,
+  open, onClose, onSaved, clients, editing,
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,13 +40,8 @@ function DeviceModal({
   editing?: Device;
 }) {
   const [form, setForm] = useState<DeviceCreate>({
-    name: '',
-    device_type: 'sensor',
-    ip_address: '',
-    protocol: 'tcp',
-    port: 0,
-    description: '',
-    client_id: undefined,
+    name: '', device_type: 'sensor', ip_address: '', protocol: 'tcp',
+    port: 0, description: '', client_id: undefined,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -101,35 +98,59 @@ function DeviceModal({
 
   if (!open) return null;
 
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 600, color: 'var(--n8n-text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
+    marginBottom: 6, display: 'block',
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.94 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="card"
-        style={{ width: 460, padding: 28 }}
+        exit={{ opacity: 0, scale: 0.94 }}
+        style={{
+          width: 480,
+          background: 'var(--n8n-card-bg)',
+          border: '1px solid var(--n8n-card-border)',
+          borderRadius: 'var(--n8n-radius)',
+          padding: 28,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>
-          {editing ? 'Edit Device' : 'Add Device'}
-        </h2>
+        {/* Modal header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>
+            {editing ? 'Edit Device' : 'Add Device'}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              width: 28, height: 28, borderRadius: 6, border: '1px solid var(--n8n-card-border)',
+              background: 'transparent', cursor: 'pointer', color: 'var(--n8n-text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <X style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
 
         <div className="page-stack" style={{ gap: 14 }}>
           {/* Client selector */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
-              Client <span style={{ color: 'var(--danger)' }}>*</span>
+            <label style={labelStyle}>
+              Client <span style={{ color: 'var(--n8n-danger)' }}>*</span>
             </label>
             <select
               value={form.client_id ?? ''}
               onChange={(e) => setForm({ ...form, client_id: e.target.value ? Number(e.target.value) : undefined })}
               className="input"
-              style={{ height: 38, fontSize: 13 }}
+              style={{ height: 38, fontSize: 12 }}
             >
               <option value="">Select a client…</option>
               {clients.map((c) => (
@@ -140,12 +161,12 @@ function DeviceModal({
 
           {/* Name */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
-              Device Name <span style={{ color: 'var(--danger)' }}>*</span>
+            <label style={labelStyle}>
+              Device Name <span style={{ color: 'var(--n8n-danger)' }}>*</span>
             </label>
             <input
               className="input"
-              style={{ height: 38, fontSize: 13 }}
+              style={{ height: 38, fontSize: 12 }}
               placeholder="e.g. Front Door Camera"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -155,12 +176,12 @@ function DeviceModal({
           {/* Type + Protocol */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Type</label>
+              <label style={labelStyle}>Type</label>
               <select
                 value={form.device_type}
                 onChange={(e) => setForm({ ...form, device_type: e.target.value })}
                 className="input"
-                style={{ height: 38, fontSize: 13 }}
+                style={{ height: 38, fontSize: 12 }}
               >
                 {['camera', 'sensor', 'router', 'gateway', 'switch', 'controller', 'actuator'].map((t) => (
                   <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -168,12 +189,12 @@ function DeviceModal({
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Protocol</label>
+              <label style={labelStyle}>Protocol</label>
               <select
                 value={form.protocol}
                 onChange={(e) => setForm({ ...form, protocol: e.target.value })}
                 className="input"
-                style={{ height: 38, fontSize: 13 }}
+                style={{ height: 38, fontSize: 12 }}
               >
                 {['tcp', 'udp', 'mqtt', 'coap', 'http', 'https'].map((p) => (
                   <option key={p} value={p}>{p.toUpperCase()}</option>
@@ -185,21 +206,21 @@ function DeviceModal({
           {/* IP + Port */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>IP Address</label>
+              <label style={labelStyle}>IP Address</label>
               <input
                 className="input"
-                style={{ height: 38, fontSize: 13 }}
+                style={{ height: 38, fontSize: 12 }}
                 placeholder="192.168.1.100"
                 value={form.ip_address || ''}
                 onChange={(e) => setForm({ ...form, ip_address: e.target.value })}
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Port</label>
+              <label style={labelStyle}>Port</label>
               <input
                 className="input"
                 type="number"
-                style={{ height: 38, fontSize: 13 }}
+                style={{ height: 38, fontSize: 12 }}
                 placeholder="8080"
                 value={form.port || ''}
                 onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
@@ -209,21 +230,28 @@ function DeviceModal({
 
           {/* Description */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Description</label>
+            <label style={labelStyle}>Description</label>
             <textarea
               className="input"
               rows={2}
-              style={{ fontSize: 13, resize: 'none' }}
+              style={{ fontSize: 12, resize: 'none' }}
               placeholder="Optional description…"
               value={form.description || ''}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </div>
 
-          {error && <p style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</p>}
+          {error && (
+            <p style={{
+              fontSize: 12, color: 'var(--n8n-danger)',
+              background: 'var(--n8n-danger-light)',
+              border: '1px solid var(--n8n-danger)',
+              borderRadius: 6, padding: '8px 12px',
+            }}>{error}</p>
+          )}
         </div>
 
-        <div className="flex justify-end gap-2" style={{ marginTop: 20 }}>
+        <div className="flex justify-end gap-2" style={{ marginTop: 22 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -239,10 +267,7 @@ function DeviceModal({
    Confirm Delete Dialog
    ══════════════════════════════════════════════════════ */
 function ConfirmDeleteDialog({
-  open,
-  deviceName,
-  onClose,
-  onConfirm,
+  open, deviceName, onClose, onConfirm,
 }: {
   open: boolean;
   deviceName: string;
@@ -256,33 +281,43 @@ function ConfirmDeleteDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="card"
-        style={{ width: 400, padding: 28 }}
+        style={{
+          width: 400,
+          background: 'var(--n8n-card-bg)',
+          border: '1px solid var(--n8n-danger)',
+          borderRadius: 'var(--n8n-radius)',
+          padding: 28,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3" style={{ marginBottom: 16 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--danger-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Trash2 style={{ width: 18, height: 18, color: 'var(--danger)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: 'var(--n8n-danger-light)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Trash2 style={{ width: 16, height: 16, color: 'var(--n8n-danger)' }} />
           </div>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Delete Device</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>Delete Device</h2>
         </div>
 
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          Are you sure you want to delete <strong>{deviceName}</strong>? This action cannot be undone. All associated predictions will remain in the database.
+        <p style={{ fontSize: 13, color: 'var(--n8n-text-muted)', lineHeight: 1.6 }}>
+          Are you sure you want to delete <strong style={{ color: 'var(--n8n-text-primary)' }}>{deviceName}</strong>?
+          This action cannot be undone.
         </p>
 
-        <div className="flex justify-end gap-2" style={{ marginTop: 20 }}>
+        <div className="flex justify-end gap-2" style={{ marginTop: 22 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button
             className="btn"
-            style={{ background: 'var(--danger)', color: '#fff' }}
+            style={{ background: 'var(--n8n-danger)', color: '#fff', borderColor: 'var(--n8n-danger)' }}
             disabled={deleting}
             onClick={async () => {
               setDeleting(true);
@@ -303,9 +338,7 @@ function ConfirmDeleteDialog({
    Prediction History Panel (slide-out detail)
    ══════════════════════════════════════════════════════ */
 function PredictionPanel({
-  device,
-  clientName,
-  onClose,
+  device, clientName, onClose,
 }: {
   device: Device;
   clientName: string;
@@ -315,93 +348,108 @@ function PredictionPanel({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    devicesApi.predictions(device.id, 50).then(setPredictions).catch(() => {}).finally(() => setLoading(false));
+    devicesApi.predictions(device.id, 50)
+      .then(setPredictions)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [device.id]);
 
-  const sc = statusConfig[device.status] ?? statusConfig.offline;
+  const sc = getStatusCfg(device.status);
   const attackCount = predictions.filter((p) => p.label === 'attack').length;
   const benignCount = predictions.filter((p) => p.label === 'benign').length;
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 40 }}
+      initial={{ opacity: 0, x: 32 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 40 }}
-      className="card"
-      style={{ padding: 0, overflow: 'hidden' }}
+      exit={{ opacity: 0, x: 32 }}
+      style={{
+        background: 'var(--n8n-card-bg)',
+        border: '1px solid var(--n8n-card-border)',
+        borderRadius: 'var(--n8n-radius)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
       {/* Header */}
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{device.name}</h3>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{device.ip_address || 'No IP'}</p>
-            </div>
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid var(--n8n-card-border)',
+        background: 'rgba(255,255,255,0.03)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>{device.name}</p>
+            <p style={{ fontSize: 11, color: 'var(--n8n-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>
+              {device.ip_address || 'No IP'} · {clientName}
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text-muted)' }}
+            style={{
+              width: 30, height: 30, borderRadius: 6,
+              background: 'transparent',
+              border: '1px solid var(--n8n-card-border)',
+              cursor: 'pointer', color: 'var(--n8n-text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
           >
-            <X style={{ width: 16, height: 16 }} />
+            <X style={{ width: 14, height: 14 }} />
           </button>
         </div>
       </div>
 
-      {/* Device Info */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-        <div className="grid grid-cols-2 gap-y-3 gap-x-6" style={{ fontSize: 12 }}>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Status</span>
-            <p style={{ color: sc.color, fontWeight: 600 }}>{sc.label}</p>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Type</span>
-            <p style={{ color: 'var(--text-primary)' }}>{device.device_type}</p>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Client</span>
-            <p style={{ color: 'var(--accent)', fontWeight: 500 }}>{clientName}</p>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Protocol / Port</span>
-            <p style={{ color: 'var(--text-primary)' }}>{device.protocol.toUpperCase()} : {device.port}</p>
-          </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Threats Today</span>
-            <p style={{ color: device.threat_count_today > 0 ? 'var(--danger)' : 'var(--text-primary)', fontWeight: device.threat_count_today > 0 ? 600 : 400 }}>
-              {device.threat_count_today}
-            </p>
-          </div>
+      {/* Device meta */}
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--n8n-card-border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px', fontSize: 12 }}>
+          {[
+            { label: 'Status', value: sc.label, color: sc.dotColor },
+            { label: 'Type', value: device.device_type, color: 'var(--n8n-text-primary)' },
+            { label: 'Protocol', value: `${device.protocol.toUpperCase()} : ${device.port}`, color: 'var(--n8n-text-primary)' },
+            {
+              label: 'Threats Today',
+              value: String(device.threat_count_today),
+              color: device.threat_count_today > 0 ? 'var(--n8n-danger)' : 'var(--n8n-text-primary)',
+            },
+          ].map((row) => (
+            <div key={row.label}>
+              <span style={{ color: 'var(--n8n-text-muted)', display: 'block', marginBottom: 2 }}>{row.label}</span>
+              <span style={{ color: row.color, fontWeight: 600 }}>{row.value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Prediction Stats */}
-      <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 16 }}>
-        <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
-          <span style={{ color: 'var(--text-muted)' }}>Total: <strong style={{ color: 'var(--text-primary)' }}>{predictions.length}</strong></span>
-        </div>
-        <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
-          <span style={{ color: 'var(--text-muted)' }}>Attacks: <strong style={{ color: 'var(--danger)' }}>{attackCount}</strong></span>
-        </div>
-        <div className="flex items-center gap-2" style={{ fontSize: 12 }}>
-          <span style={{ color: 'var(--text-muted)' }}>Benign: <strong style={{ color: 'var(--success)' }}>{benignCount}</strong></span>
-        </div>
+      {/* Prediction summary bar */}
+      <div style={{
+        padding: '10px 20px',
+        borderBottom: '1px solid var(--n8n-card-border)',
+        display: 'flex', gap: 20, fontSize: 12,
+      }}>
+        <span style={{ color: 'var(--n8n-text-muted)' }}>
+          Total: <strong style={{ color: 'var(--n8n-text-primary)' }}>{predictions.length}</strong>
+        </span>
+        <span style={{ color: 'var(--n8n-text-muted)' }}>
+          Attacks: <strong style={{ color: 'var(--n8n-danger)' }}>{attackCount}</strong>
+        </span>
+        <span style={{ color: 'var(--n8n-text-muted)' }}>
+          Benign: <strong style={{ color: 'var(--n8n-success)' }}>{benignCount}</strong>
+        </span>
       </div>
 
-      {/* Prediction History */}
-      <div style={{ padding: '16px 24px', maxHeight: 400, overflowY: 'auto' }}>
-        <h4 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+      {/* Prediction history */}
+      <div style={{ padding: '14px 20px', maxHeight: 380, overflowY: 'auto', flex: 1 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--n8n-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
           Recent Predictions
-        </h4>
+        </p>
 
         {loading ? (
-          <div className="flex justify-center" style={{ padding: 24 }}>
-            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--accent)' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--n8n-accent)' }} />
           </div>
         ) : predictions.length === 0 ? (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
+          <p style={{ fontSize: 12, color: 'var(--n8n-text-muted)', textAlign: 'center', padding: '20px 0' }}>
             No predictions recorded yet.
           </p>
         ) : (
@@ -412,33 +460,29 @@ function PredictionPanel({
                 <div
                   key={p.id}
                   style={{
-                    padding: '10px 14px',
+                    padding: '8px 12px',
                     borderRadius: 8,
-                    background: isAttack ? 'var(--danger-light)' : 'var(--bg-secondary)',
-                    borderLeft: `3px solid ${isAttack ? 'var(--danger)' : 'var(--success)'}`,
+                    background: isAttack ? 'var(--n8n-danger-light)' : 'rgba(255,255,255,0.03)',
+                    borderLeft: `3px solid ${isAttack ? 'var(--n8n-danger)' : 'var(--n8n-success)'}`,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: 12,
                   }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="badge"
-                      style={{
-                        background: isAttack ? 'var(--danger)' : 'var(--success)',
-                        color: '#fff',
-                        fontSize: 10,
-                        padding: '2px 8px',
-                      }}
-                    >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                      background: isAttack ? 'var(--n8n-danger)' : 'var(--n8n-success)',
+                      color: '#fff',
+                    }}>
                       {isAttack ? 'ATTACK' : 'BENIGN'}
                     </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      Score: {p.score.toFixed(4)} &middot; Conf: {(p.confidence * 100).toFixed(1)}%
+                    <span style={{ color: 'var(--n8n-text-muted)' }}>
+                      Score: {p.score.toFixed(4)} · Conf: {(p.confidence * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap' }}>
+                  <span style={{ color: 'var(--n8n-text-muted)', fontSize: 10, whiteSpace: 'nowrap' }}>
                     {formatDate(p.timestamp)}
                   </span>
                 </div>
@@ -452,14 +496,10 @@ function PredictionPanel({
 }
 
 /* ══════════════════════════════════════════════════════
-   Main Device Card
+   n8n Node Card  (D-0.2 redesign)
    ══════════════════════════════════════════════════════ */
-function DeviceCard({
-  device,
-  clientName,
-  onEdit,
-  onDelete,
-  onSelect,
+function DeviceNodeCard({
+  device, clientName, onEdit, onDelete, onSelect,
 }: {
   device: Device;
   clientName: string;
@@ -467,66 +507,150 @@ function DeviceCard({
   onDelete: () => void;
   onSelect: () => void;
 }) {
-  const sc = statusConfig[device.status] ?? statusConfig.offline;
+  const sc = getStatusCfg(device.status);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <motion.div
       variants={fadeUp}
-      className="card card-interactive cursor-pointer"
-      style={{ padding: 20, borderLeft: `3px solid ${sc.color}` }}
       onClick={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: 'var(--n8n-card-bg)',
+        border: `1px solid ${hovered ? 'var(--n8n-accent)' : 'var(--n8n-card-border)'}`,
+        boxShadow: hovered ? '0 0 0 1px var(--n8n-accent)' : 'none',
+        borderRadius: 12,
+        padding: 16,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+      }}
     >
-      {/* Top row: name + status dot */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{device.name}</p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{device.ip_address || 'No IP'}</p>
-          </div>
-        </div>
-        <span className={sc.dot} />
-      </div>
-
-      {/* Client badge */}
-      <div className="flex items-center gap-2" style={{ marginTop: 12 }}>
-        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>&gt; {clientName}</span>
-      </div>
-
-      {/* Status */}
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-      </div>
-
-      {/* Meta info */}
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
-        <span>{device.device_type}</span>
-        {device.threat_count_today > 0 && (
-          <span style={{ color: 'var(--danger)', fontWeight: 600 }}>
-            ! {device.threat_count_today} threats
+      {/* Row 1: status dot + label  |  IP right-aligned */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span className={sc.dotClass} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: sc.dotColor }}>
+            {sc.label}
           </span>
-        )}
+        </div>
+        <span style={{
+          fontSize: 10, fontFamily: 'monospace',
+          color: 'var(--n8n-text-muted)',
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid var(--n8n-card-border)',
+          borderRadius: 4, padding: '2px 6px',
+        }}>
+          {device.ip_address || '—'}
+        </span>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex justify-end gap-2" style={{ marginTop: 14 }}>
-        <button
-          className="btn btn-ghost"
-          style={{ padding: '4px 10px', fontSize: 11 }}
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        >
-          <Pencil style={{ width: 12, height: 12 }} /> Edit
-        </button>
-        <button
-          className="btn btn-ghost"
-          style={{ padding: '4px 10px', fontSize: 11, color: 'var(--danger)' }}
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        >
-          <Trash2 style={{ width: 12, height: 12 }} /> Delete
-        </button>
+      {/* Row 2: device name */}
+      <p style={{
+        fontSize: 14, fontWeight: 700, color: 'var(--n8n-text-primary)',
+        fontFamily: 'monospace', marginBottom: 4,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {device.name}
+      </p>
+
+      {/* Row 3: type / protocol (muted) */}
+      <p style={{ fontSize: 11, color: 'var(--n8n-text-muted)', marginBottom: 12 }}>
+        {device.device_type.charAt(0).toUpperCase() + device.device_type.slice(1)}
+        {' / '}
+        {device.protocol.toUpperCase()}
+        {' · '}
+        <span style={{ color: 'var(--n8n-accent)', fontWeight: 500 }}>{clientName}</span>
+      </p>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: 'var(--n8n-card-border)', marginBottom: 12 }} />
+
+      {/* Row 4: stats */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, marginBottom: 8 }}>
+        <span style={{ color: 'var(--n8n-text-muted)' }}>
+          Port:{' '}
+          <strong style={{ color: 'var(--n8n-text-primary)' }}>{device.port}</strong>
+        </span>
+        <span style={{ color: device.threat_count_today > 0 ? 'var(--n8n-danger)' : 'var(--n8n-text-muted)' }}>
+          Alerts:{' '}
+          <strong style={{ color: device.threat_count_today > 0 ? 'var(--n8n-danger)' : 'var(--n8n-text-primary)' }}>
+            {device.threat_count_today}
+          </strong>
+        </span>
+      </div>
+
+      {/* Row 5: last seen + action buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 10, color: 'var(--n8n-text-muted)' }}>
+          {device.last_seen_at
+            ? `Last seen: ${formatRelativeTime(device.last_seen_at)}`
+            : 'Never seen'}
+        </span>
+
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            title="Edit"
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            style={{
+              width: 26, height: 26, borderRadius: 6,
+              border: '1px solid var(--n8n-card-border)',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--n8n-text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'border-color 0.12s, color 0.12s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--n8n-accent)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--n8n-accent)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--n8n-card-border)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--n8n-text-muted)';
+            }}
+          >
+            <Pencil style={{ width: 11, height: 11 }} />
+          </button>
+          <button
+            title="Delete"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            style={{
+              width: 26, height: 26, borderRadius: 6,
+              border: '1px solid var(--n8n-card-border)',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--n8n-text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'border-color 0.12s, color 0.12s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--n8n-danger)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--n8n-danger)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--n8n-card-border)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--n8n-text-muted)';
+            }}
+          >
+            <Trash2 style={{ width: 11, height: 11 }} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
 }
+
+/* ══════════════════════════════════════════════════════
+   Filter chip type
+   ══════════════════════════════════════════════════════ */
+type FilterKey = 'all' | 'online' | 'offline' | 'under_attack' | 'quarantined';
+
+const filterChips: { key: FilterKey; label: string }[] = [
+  { key: 'all',          label: 'All' },
+  { key: 'online',       label: 'Online' },
+  { key: 'offline',      label: 'Offline' },
+  { key: 'under_attack', label: 'Alert' },
+  { key: 'quarantined',  label: 'Quarantined' },
+];
 
 /* ══════════════════════════════════════════════════════
    Page Component
@@ -535,11 +659,11 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [clients, setClients] = useState<FLClient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [clientFilter, setClientFilter] = useState<number | 'all'>('all');
   const [search, setSearch] = useState('');
 
-  // Modal / panel state
+  /* modal / panel state */
   const [modalOpen, setModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<Device | null>(null);
@@ -565,7 +689,7 @@ export default function DevicesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  /* ── derived ── */
+  /* derived */
   const filtered = devices
     .filter((d) => filter === 'all' || d.status === filter)
     .filter((d) => {
@@ -579,15 +703,14 @@ export default function DevicesPage() {
       );
     });
 
-  const counts = {
-    all: devices.length,
-    online: devices.filter((d) => d.status === 'online').length,
-    offline: devices.filter((d) => d.status === 'offline').length,
+  const counts: Record<FilterKey, number> = {
+    all:          devices.length,
+    online:       devices.filter((d) => d.status === 'online').length,
+    offline:      devices.filter((d) => d.status === 'offline').length,
     under_attack: devices.filter((d) => d.status === 'under_attack').length,
-    quarantined: devices.filter((d) => d.status === 'quarantined').length,
+    quarantined:  devices.filter((d) => d.status === 'quarantined').length,
   };
 
-  /* ── handlers ── */
   const handleDelete = async (device: Device) => {
     try {
       await devicesApi.delete(device.id);
@@ -604,140 +727,187 @@ export default function DevicesPage() {
     return clientMap.get(clientId)?.name ?? `Client #${clientId}`;
   };
 
+  /* ── Loading ── */
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--n8n-accent)' }} />
       </div>
     );
   }
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="page-stack">
+
       {/* ── Header ── */}
-      <motion.div variants={fadeUp} className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Device Management</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-            {devices.length} registered device{devices.length !== 1 ? 's' : ''}
-            {clientFilter !== 'all' && ` · Filtered by ${getClientName(clientFilter)}`}
-          </p>
+      <motion.div variants={fadeUp} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--n8n-text-primary)' }}>Devices</h1>
+          <span style={{
+            fontSize: 11, fontWeight: 600,
+            color: 'var(--n8n-accent)',
+            background: 'var(--n8n-accent-light)',
+            border: '1px solid var(--n8n-accent)',
+            borderRadius: 20, padding: '3px 10px',
+          }}>
+            {devices.length} {devices.length === 1 ? 'device' : 'devices'}
+          </span>
         </div>
         <button
           className="btn btn-primary"
           onClick={() => { setEditingDevice(undefined); setModalOpen(true); }}
         >
-          <Plus style={{ width: 16, height: 16 }} /> Add Device
+          <Plus style={{ width: 15, height: 15 }} />
+          Add Device
         </button>
       </motion.div>
 
-      {/* ── KPI Strip ── */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Devices', value: counts.all, color: 'var(--accent)' },
-          { label: 'Online', value: counts.online, color: 'var(--success)' },
-          { label: 'Under Attack', value: counts.under_attack, color: 'var(--danger)' },
-          { label: 'Offline', value: counts.offline, color: 'var(--text-muted)' },
-        ].map((kpi) => (
-          <div key={kpi.label} className="card" style={{ padding: '16px 20px' }}>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{kpi.label}</p>
-            <p style={{ fontSize: 24, fontWeight: 700, color: kpi.color }}>{kpi.value}</p>
+      {/* ── KPI strip ── */}
+      <motion.div variants={fadeUp} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        {([
+          { label: 'Total',        value: counts.all,          color: 'var(--n8n-accent)' },
+          { label: 'Online',       value: counts.online,       color: 'var(--n8n-success)' },
+          { label: 'Under Attack', value: counts.under_attack, color: 'var(--n8n-danger)' },
+          { label: 'Offline',      value: counts.offline,      color: 'var(--n8n-text-muted)' },
+        ] as const).map((kpi) => (
+          <div key={kpi.label} style={{
+            background: 'var(--n8n-card-bg)',
+            border: '1px solid var(--n8n-card-border)',
+            borderRadius: 'var(--n8n-radius)',
+            padding: '14px 18px',
+          }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--n8n-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              {kpi.label}
+            </p>
+            <p style={{ fontSize: 26, fontWeight: 700, color: kpi.color, lineHeight: 1 }}>{kpi.value}</p>
           </div>
         ))}
       </motion.div>
 
-      {/* ── Filters + Client Dropdown + Search ── */}
-      <motion.div variants={fadeUp} className="flex items-center gap-3 flex-wrap">
-        {/* Status tabs */}
-        <div className="flex gap-1.5">
-          {(['all', 'online', 'offline', 'under_attack', 'quarantined'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              style={{
-                padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontSize: 12, fontWeight: 500,
-                background: filter === s ? 'var(--accent)' : 'var(--bg-secondary)',
-                color: filter === s ? '#fff' : 'var(--text-secondary)',
-                transition: 'all .15s',
-              }}
-            >
-              {s === 'all' ? 'All' : s === 'under_attack' ? 'Attack' : s.charAt(0).toUpperCase() + s.slice(1)}
-              <span style={{ marginLeft: 6, opacity: 0.7 }}>({counts[s]})</span>
-            </button>
-          ))}
+      {/* ── Filter bar ── */}
+      <motion.div variants={fadeUp} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Status toggle chips */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {filterChips.map(({ key, label }) => {
+            const active = filter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: 20,
+                  border: `1px solid ${active ? 'var(--n8n-accent)' : 'var(--n8n-card-border)'}`,
+                  background: active ? 'var(--n8n-accent-light)' : 'transparent',
+                  color: active ? 'var(--n8n-accent)' : 'var(--n8n-text-muted)',
+                  fontSize: 12, fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {label}
+                <span style={{ marginLeft: 5, opacity: 0.75 }}>({counts[key]})</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Client filter dropdown */}
-        <div className="relative">
-          <select
-            value={clientFilter === 'all' ? '' : String(clientFilter)}
-            onChange={(e) => setClientFilter(e.target.value ? Number(e.target.value) : 'all')}
-            className="input"
-            style={{ height: 36, fontSize: 12, paddingLeft: 10, paddingRight: 28, minWidth: 160 }}
-          >
-            <option value="">All Clients</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+        {/* Client dropdown */}
+        <select
+          value={clientFilter === 'all' ? '' : String(clientFilter)}
+          onChange={(e) => setClientFilter(e.target.value ? Number(e.target.value) : 'all')}
+          className="input"
+          style={{ height: 34, fontSize: 12, minWidth: 155, width: 'auto' }}
+        >
+          <option value="">All Clients</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
 
         {/* Search */}
-        <div className="relative flex-1" style={{ maxWidth: 280 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: 'var(--text-muted)' }} />
+        <div style={{ position: 'relative', flex: 1, maxWidth: 280 }}>
+          <Search style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            width: 13, height: 13, color: 'var(--n8n-text-muted)',
+          }} />
           <input
             type="text"
             placeholder="Search by name, IP, or client…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input"
-            style={{ paddingLeft: 34, paddingRight: search ? 34 : 14, height: 36, fontSize: 13 }}
+            style={{ paddingLeft: 30, paddingRight: search ? 30 : 12, height: 34, fontSize: 12 }}
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center"
-              style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--bg-secondary)', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                width: 18, height: 18, borderRadius: 4,
+                background: 'var(--n8n-card-border)', border: 'none',
+                cursor: 'pointer', color: 'var(--n8n-text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
             >
-              <X style={{ width: 12, height: 12 }} />
+              <X style={{ width: 10, height: 10 }} />
             </button>
           )}
         </div>
       </motion.div>
 
-      {/* ── Main Content: Grid + Detail Panel ── */}
-      <div className="flex gap-6" style={{ minHeight: 400 }}>
-        {/* Device Grid */}
-        <div className="flex-1">
+      {/* ── Main: grid + detail panel ── */}
+      <div style={{ display: 'flex', gap: 20, minHeight: 400 }}>
+
+        {/* Node card grid */}
+        <div style={{ flex: 1, minWidth: 0 }}>
           {filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              animate="show"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 16,
+              }}
+            >
               {filtered.map((device) => (
-                <DeviceCard
+                <DeviceNodeCard
                   key={device.id}
                   device={device}
                   clientName={getClientName(device.client_id)}
                   onEdit={() => { setEditingDevice(device); setModalOpen(true); }}
                   onDelete={() => setDeleteTarget(device)}
-                  onSelect={() => setSelectedDevice(device)}
+                  onSelect={() => setSelectedDevice(prev => prev?.id === device.id ? null : device)}
                 />
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="card flex flex-col items-center justify-center" style={{ padding: 48 }}>
-              <span style={{ fontSize: 24, color: 'var(--text-muted)', marginBottom: 12 }}>[ ]</span>
-              <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>No devices found</p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                {search ? 'Try adjusting your search or filters.' : 'Create a device to get started.'}
+            /* Empty state */
+            <div style={{
+              background: 'var(--n8n-card-bg)',
+              border: '1px dashed var(--n8n-card-border)',
+              borderRadius: 'var(--n8n-radius)',
+              padding: 48,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 28, color: 'var(--n8n-card-border)' }}>[ ]</span>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--n8n-text-muted)' }}>No devices found</p>
+              <p style={{ fontSize: 12, color: 'var(--n8n-text-muted)' }}>
+                {search ? 'Try adjusting your search or filters.' : 'Add a device to get started.'}
               </p>
             </div>
           )}
         </div>
 
-        {/* Prediction Detail Panel */}
+        {/* Prediction panel */}
         <AnimatePresence>
           {selectedDevice && (
-            <div style={{ width: 420, flexShrink: 0 }}>
+            <div style={{ width: 400, flexShrink: 0 }}>
               <PredictionPanel
                 key={selectedDevice.id}
                 device={selectedDevice}

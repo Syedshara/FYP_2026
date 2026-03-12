@@ -80,10 +80,17 @@ services:
       ROUNDS: ${FL_ROUNDS:-5}
       MIN_CLIENTS: ${FL_MIN_CLIENTS:-2}
       USE_HE: ${FL_USE_HE:-true}
+      # Phase 2 — mTLS server credentials
+      FL_TLS_CERT: /app/certs/server.crt
+      FL_TLS_KEY: /app/certs/server.key
+      FL_TLS_CA: /app/certs/ca.crt
+      # Phase 2 — client Ed25519 public keys for gradient signature verification
+      CLIENT_KEY_DIR: /app/certs/client_keys/
     volumes:
       - ./fl_server:/app
       - ./fl_common:/fl_common
       - ./model:/app/models
+      - ./certs:/app/certs:ro          # Phase 2 — PKI certificates (read-only)
     depends_on:
       - backend
     profiles:
@@ -102,12 +109,19 @@ services:
       CLIENT_ID: Bank_A
       FL_SERVER_URL: fl_server:8080
       DATA_PATH: /app/data
+      # Phase 2 — mTLS client identity
+      FL_CLIENT_CERT: /app/certs/Bank_A.crt
+      FL_CLIENT_KEY: /app/certs/Bank_A.key
+      FL_CA_CERT: /app/certs/ca.crt
+      # Phase 2 — Ed25519 gradient signing key
+      CLIENT_SIGNING_KEY: /app/certs/Bank_A_ed25519.pem
     volumes:
       - ./fl_client:/app
       - ./fl_common:/fl_common
       - ./data/clients/bank_a:/app/data:ro
       - ./data/scenarios:/app/scenarios:ro
       - ./model:/app/models:ro
+      - ./certs:/app/certs:ro          # Phase 2 — PKI certificates (read-only)
     depends_on:
       - fl_server
     profiles:
@@ -126,12 +140,19 @@ services:
       CLIENT_ID: Bank_B
       FL_SERVER_URL: fl_server:8080
       DATA_PATH: /app/data
+      # Phase 2 — mTLS client identity
+      FL_CLIENT_CERT: /app/certs/Bank_B.crt
+      FL_CLIENT_KEY: /app/certs/Bank_B.key
+      FL_CA_CERT: /app/certs/ca.crt
+      # Phase 2 — Ed25519 gradient signing key
+      CLIENT_SIGNING_KEY: /app/certs/Bank_B_ed25519.pem
     volumes:
       - ./fl_client:/app
       - ./fl_common:/fl_common
       - ./data/clients/bank_b:/app/data:ro
       - ./data/scenarios:/app/scenarios:ro
       - ./model:/app/models:ro
+      - ./certs:/app/certs:ro          # Phase 2 — PKI certificates (read-only)
     depends_on:
       - fl_server
     profiles:
@@ -150,12 +171,19 @@ services:
       CLIENT_ID: Bank_C
       FL_SERVER_URL: fl_server:8080
       DATA_PATH: /app/data
+      # Phase 2 — mTLS client identity
+      FL_CLIENT_CERT: /app/certs/Bank_C.crt
+      FL_CLIENT_KEY: /app/certs/Bank_C.key
+      FL_CA_CERT: /app/certs/ca.crt
+      # Phase 2 — Ed25519 gradient signing key
+      CLIENT_SIGNING_KEY: /app/certs/Bank_C_ed25519.pem
     volumes:
       - ./fl_client:/app
       - ./fl_common:/fl_common
       - ./data/clients/bank_c:/app/data:ro
       - ./data/scenarios:/app/scenarios:ro
       - ./model:/app/models:ro
+      - ./certs:/app/certs:ro          # Phase 2 — PKI certificates (read-only)
     depends_on:
       - fl_server
     profiles:

@@ -10,8 +10,9 @@ import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
 import { clientsApi } from '@/api/clients';
 import type { PredictionSummary, Device, FLClient } from '@/types';
-import { useLiveStore } from '@/stores/liveStore';
+import { useLiveStore, useTrustScores, useFlaggedEvents } from '@/stores/liveStore';
 import { getStatusDotClass, formatRelativeTime } from '@/lib/utils';
+import { TrustScorePanel } from '../components/TrustScorePanel';
 
 const PIE_COLORS = ['#ef4444', '#22c55e'];
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -46,6 +47,10 @@ export default function DashboardPage() {
   const livePredictions = useLiveStore((s) => s.latestPredictions);
   const liveDeviceStatuses = useLiveStore((s) => s.deviceStatuses);
   const liveClientStatuses = useLiveStore((s) => s.clientStatuses);
+
+  // Security: trust scores & flagged events
+  const trustScores = useTrustScores();
+  const flaggedEvents = useFlaggedEvents();
 
   useEffect(() => {
     const load = async () => {
@@ -398,6 +403,68 @@ export default function DashboardPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Security — Client Trust Scores */}
+      <motion.div variants={fadeUp}>
+        <div style={{
+          background: 'var(--n8n-card-bg, var(--bg-card))',
+          border: '1px solid var(--n8n-card-border, var(--border))',
+          borderRadius: 12,
+          padding: 16,
+        }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Client Trust Scores
+              </h3>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Federated Learning client anomaly trust ratings
+              </p>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-muted)' }}>
+              Security
+            </span>
+          </div>
+
+          <TrustScorePanel
+            trustScores={trustScores}
+            flaggedEvents={flaggedEvents}
+            compact={false}
+          />
+
+          {/* Recent Flags row */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--n8n-card-border, var(--border))' }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              Recent Flags
+            </p>
+            {flaggedEvents.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {flaggedEvents.slice(-3).reverse().map((evt, idx) => (
+                  <span
+                    key={`${evt.clientId}-${evt.round}-${idx}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: 'var(--danger-light, rgba(239,68,68,0.12))',
+                      color: 'var(--danger, #ef4444)',
+                      border: '1px solid var(--danger, #ef4444)',
+                    }}
+                  >
+                    {evt.clientId} · Round #{evt.round} · {evt.abnormality.toFixed(2)}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No flagged clients</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
 
       {/* Device Health Map */}
       <motion.div variants={fadeUp} className="card" style={{ padding: 20 }}>

@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev curl && \
+    gcc libpq-dev curl tcpdump && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python deps

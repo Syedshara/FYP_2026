@@ -209,3 +209,48 @@ export interface ModelInfo {
   input_shape: string;
   threshold: number;
 }
+
+// ── Security / VSS / Trust ──
+export interface VSSState {
+  clients: string[];
+  commitmentsHeld: boolean;
+  lastRefreshRound: number;
+}
+
+export interface ClientTrustScore {
+  clientId: string;
+  score: number;          // 0.0 – 1.0
+  flagged: boolean;
+  lastDetectionRound: number;
+}
+
+export interface DetectionRound {
+  round: number;
+  scores: Record<string, number>;
+  flagged: string[];
+  timestamp: string;      // ISO 8601
+}
+
+export interface SecurityStatus {
+  vss: VSSState;
+  trustScores: ClientTrustScore[];
+  recentDetectionRounds: DetectionRound[];
+  flaggedClients: Array<{
+    client_id: string;
+    round_number: number;
+    abnormality: number;
+    timestamp: string;
+  }>;
+}
+
+// ── WebSocket message payloads ──
+export interface ClientTrustUpdatePayload {
+  scores: Record<string, number>;   // clientId → score
+  round: number;
+}
+
+export interface ClientFlaggedPayload {
+  clientId: string;
+  round: number;
+  abnormality: number;
+}

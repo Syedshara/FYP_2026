@@ -157,6 +157,13 @@ class WSMessageType:
     PING            = "ping"              # keep-alive ping
     PONG            = "pong"              # keep-alive pong
     ERROR           = "error"             # server-side error
+    # ── Phase 2 RECESS security events ──────────────────
+    DETECTION_ROUND_START = "detection_round_start"   # RECESS detection round beginning
+    CLIENT_TRUST_UPDATE   = "client_trust_update"     # trust scores updated after detection
+    CLIENT_FLAGGED        = "client_flagged"          # client trust score dropped below threshold
+    # ── Attack engine events ────────────────────────────
+    ATTACK_STATUS         = "attack_status"           # attack run status change
+    ATTACK_RESULT         = "attack_result"           # attack run completed with results
 
 
 def build_ws_message(msg_type: str, data: dict[str, Any] | None = None) -> dict[str, Any]:

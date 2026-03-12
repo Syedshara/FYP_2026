@@ -10,7 +10,7 @@ Output structure (per client):
     data/clients/<client_id>/y_seq_chunk_0.npy   (int64,   shape [N])
 
 Also saves:
-    backend/models/standard_scaler.pkl           (fitted StandardScaler)
+    model/standard_scaler.pkl                    (fitted StandardScaler)
 
 Usage:
     python scripts/preprocess_cicids2017.py                   # defaults
@@ -36,7 +36,7 @@ from sklearn.preprocessing import StandardScaler
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASET_DIR = PROJECT_ROOT / "datasets" / "cicids2017"
 CLIENT_DATA_DIR = PROJECT_ROOT / "data" / "clients"
-SCALER_OUT = PROJECT_ROOT / "backend" / "models" / "standard_scaler.pkl"
+SCALER_OUT = PROJECT_ROOT / "model" / "standard_scaler.pkl"
 
 # ── CSV file ↔ day mapping ───────────────────────────────
 # The CIC-IDS2017 dataset has 8 CSV files captured across 5 days.

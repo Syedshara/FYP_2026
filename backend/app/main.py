@@ -3,6 +3,7 @@ FastAPI application factory.
 """
 
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from sqlalchemy import select
@@ -16,6 +17,9 @@ from app.models.user import User
 from app.models.fl import FLClient
 from app.api.v1 import router as api_v1_router
 from app.core.websocket import ws_manager
+from app.services import docker_service
+
+log = logging.getLogger(__name__)
 
 
 async def seed_admin():
@@ -68,6 +72,47 @@ async def seed_fl_clients():
     print("🏢 FL clients ready")
 
 
+async def initialize_persistent_clients():
+    """
+    Ensure every registered FL client has an always-on Docker container
+    running in IDLE mode.  Called at startup after seed_fl_clients().
+
+    Errors per-client are caught and logged as warnings so that a Docker
+    outage never prevents the backend from starting.
+    """
+    async with async_session() as db:
+        result = await db.execute(select(FLClient))
+        clients = list(result.scalars().all())
+
+    for client in clients:
+        try:
+            info = docker_service.ensure_client_container_running(
+                client_id=client.client_id,
+                data_path=client.data_path,
+                mode="IDLE",
+            )
+            # Persist the (possibly updated) container name back to the DB
+            async with async_session() as db:
+                result = await db.execute(
+                    select(FLClient).where(FLClient.client_id == client.client_id)
+                )
+                db_client = result.scalar_one_or_none()
+                if db_client:
+                    db_client.container_id = info.container_id
+                    db_client.container_name = info.name
+                    await db.commit()
+            log.info(
+                "Persistent container ready for client %s: %s (%s)",
+                client.client_id, info.name, info.status,
+            )
+        except Exception as exc:
+            log.warning(
+                "Could not ensure container for client %s: %s — "
+                "Docker may be unavailable; skipping",
+                client.client_id, exc,
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown logic."""
@@ -75,10 +120,40 @@ async def lifespan(app: FastAPI):
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     await seed_admin()
     await seed_fl_clients()
-    # TODO: Load ML model into app.state
-    # TODO: Connect to Redis
+    await initialize_persistent_clients()
+    # Pre-load CNN-LSTM model so first inference request is fast
+    try:
+        from app.services.inference_service import ensure_model_loaded
+        model_ready = await ensure_model_loaded()
+        if model_ready:
+            print("🧠 ML model pre-loaded successfully")
+        else:
+            print("⚠️  ML model not available (model file missing?) — inference will fail")
+    except Exception as exc:
+        log.warning("ML model pre-load failed: %s — inference will be unavailable", exc)
+
+    # Connect to Redis for caching / pub-sub
+    redis_conn = None
+    try:
+        import redis.asyncio as aioredis
+        redis_conn = aioredis.from_url(
+            settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        await redis_conn.ping()
+        app.state.redis = redis_conn
+        print(f"🔴 Redis connected at {settings.REDIS_URL}")
+    except Exception as exc:
+        log.warning("Redis connection failed: %s — caching disabled", exc)
+        app.state.redis = None
+
     yield
+
     # ── Shutdown ─────────────────────────────────────────
+    if redis_conn is not None:
+        await redis_conn.close()
+        print("🔴 Redis connection closed")
     print("🛑 Shutting down…")
 
 

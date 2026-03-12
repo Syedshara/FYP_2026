@@ -1,30 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import { motion } from 'framer-motion';
+import { useLiveStore } from '@/stores/liveStore';
 
 export default function MainLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const wsConnected = useLiveStore((s) => s.wsConnected);
+  const [bannerReady, setBannerReady] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBannerReady(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: 'var(--n8n-canvas-bg)',
+      }}
+    >
+      {/* Sidebar: fixed, CSS hover-expand — no JS width tracking needed */}
+      <Sidebar />
 
-      <motion.div
-        initial={false}
-        animate={{ marginLeft: collapsed ? 72 : 256 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="flex flex-col min-h-screen"
+      {/* Main area: offset by the collapsed sidebar width */}
+      <div
+        style={{
+          flex: 1,
+          marginLeft: 'var(--n8n-sidebar-collapsed)',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          minWidth: 0,
+        }}
       >
         <Topbar />
 
-        <main className="flex-1 overflow-auto" style={{ padding: '20px 24px' }}>
-          <div className="animate-fade-in" style={{ maxWidth: 1600, margin: '0 auto' }}>
+        {/* WS reconnect banner */}
+        {!wsConnected && bannerReady && (
+          <div
+            style={{
+              background: 'rgba(240,160,32,0.10)',
+              borderBottom: '1px solid rgba(240,160,32,0.30)',
+              padding: '6px 24px',
+              fontSize: 12,
+              color: 'var(--n8n-warning)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>&#9888;</span>
+            <span>Live updates unavailable — reconnecting&hellip; polling every 3s</span>
+          </div>
+        )}
+
+        <main
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '24px',
+          }}
+        >
+          <div
+            className="animate-fade-in"
+            style={{ maxWidth: 1600, margin: '0 auto' }}
+          >
             <Outlet />
           </div>
         </main>
-      </motion.div>
+      </div>
     </div>
   );
 }

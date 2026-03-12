@@ -4,6 +4,8 @@ import { authApi } from '@/api/auth';
 import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+const FONT = 'JetBrains Mono, monospace';
+
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -42,58 +44,61 @@ export default function RegisterPage() {
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 12px', borderRadius: 2,
-    border: '1px solid #e0e0e0', background: '#f7f7f7',
-    color: '#1a1a1a', fontSize: 13, outline: 'none',
-    fontFamily: 'inherit',
+    width: '100%', padding: '10px 12px', borderRadius: 8,
+    border: '1px solid #3c3c3c', background: '#1c1c1c',
+    color: '#ececec', fontSize: 13, outline: 'none',
+    fontFamily: FONT,
   };
 
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#1a1a1a';
+    e.target.style.borderColor = '#ff6d5a';
   };
   const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#e0e0e0';
+    e.target.style.borderColor = '#3c3c3c';
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#ffffff' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#18191c' }}>
       <motion.div
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        style={{ width: '100%', maxWidth: 420, padding: 32 }}
+        style={{
+          width: '100%', maxWidth: 420, padding: 32,
+          background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: 12,
+        }}
       >
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a', marginBottom: 4, fontFamily: 'inherit' }}>
+          <h1 style={{ fontSize: 18, fontWeight: 600, color: '#ececec', marginBottom: 4, fontFamily: FONT }}>
             Create Account
           </h1>
-          <p style={{ fontSize: 12, color: '#999' }}>Register for a new security dashboard account</p>
+          <p style={{ fontSize: 12, color: '#888888', fontFamily: FONT }}>Register for a new security dashboard account</p>
         </div>
 
         {success ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             style={{
-              padding: 24, borderRadius: 2, textAlign: 'center',
-              background: '#f7f7f7', border: '1px solid #e0e0e0',
+              padding: 24, borderRadius: 8, textAlign: 'center',
+              background: '#1c1c1c', border: '1px solid #3c3c3c',
             }}
           >
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>Account Created!</p>
-            <p style={{ fontSize: 12, color: '#999' }}>Redirecting to login...</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#18a058', marginBottom: 4, fontFamily: FONT }}>Account Created!</p>
+            <p style={{ fontSize: 12, color: '#888888', fontFamily: FONT }}>Redirecting to login...</p>
           </motion.div>
         ) : (
           <form onSubmit={handleSubmit}>
             {error && (
               <div style={{
-                padding: '8px 12px', marginBottom: 16, fontSize: 12,
-                background: 'rgba(197,48,48,.07)', color: '#c53030',
-                border: '1px solid rgba(197,48,48,.2)', borderRadius: 2,
+                padding: '8px 12px', marginBottom: 16, fontSize: 12, fontFamily: FONT,
+                background: 'rgba(208,48,80,0.1)', color: '#d03050',
+                border: '1px solid rgba(208,48,80,0.3)', borderRadius: 8,
               }}>
                 {error}
               </div>
             )}
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#4a4a4a', marginBottom: 6 }}>Username</label>
+              <label style={{ display: 'block', fontSize: 12, color: '#888888', marginBottom: 6, fontFamily: FONT }}>Username</label>
               <input
                 type="text" value={username} onChange={(e) => setUsername(e.target.value)}
                 placeholder="Choose a username" required autoFocus
@@ -102,7 +107,7 @@ export default function RegisterPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#4a4a4a', marginBottom: 6 }}>Email</label>
+              <label style={{ display: 'block', fontSize: 12, color: '#888888', marginBottom: 6, fontFamily: FONT }}>Email</label>
               <input
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email" required
@@ -111,7 +116,7 @@ export default function RegisterPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#4a4a4a', marginBottom: 6 }}>Password</label>
+              <label style={{ display: 'block', fontSize: 12, color: '#888888', marginBottom: 6, fontFamily: FONT }}>Password</label>
               <div className="relative">
                 <input
                   type={showPw ? 'text' : 'password'} value={password}
@@ -122,7 +127,7 @@ export default function RegisterPage() {
                 <button
                   type="button" onClick={() => setShowPw(!showPw)}
                   className="absolute right-0 top-0 h-full flex items-center justify-center"
-                  style={{ width: 40, background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}
+                  style={{ width: 40, background: 'none', border: 'none', color: '#888888', cursor: 'pointer', fontSize: 11, fontFamily: FONT }}
                 >
                   {showPw ? 'hide' : 'show'}
                 </button>
@@ -130,7 +135,7 @@ export default function RegisterPage() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 12, color: '#4a4a4a', marginBottom: 6 }}>Confirm Password</label>
+              <label style={{ display: 'block', fontSize: 12, color: '#888888', marginBottom: 6, fontFamily: FONT }}>Confirm Password</label>
               <input
                 type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
                 placeholder="Re-enter your password" required
@@ -141,16 +146,16 @@ export default function RegisterPage() {
             <button
               type="submit" disabled={loading}
               style={{
-                width: '100%', padding: '10px 0', borderRadius: 2,
-                background: '#1a1a1a', color: '#fff',
+                width: '100%', padding: '10px 0', borderRadius: 8,
+                background: '#ff6d5a', color: '#fff',
                 fontSize: 13, fontWeight: 500, border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading ? 0.7 : 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                fontFamily: 'inherit',
+                fontFamily: FONT,
               }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#333'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#1a1a1a'; }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#e05a48'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#ff6d5a'; }}
             >
               {loading && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
               {loading ? 'Creating account...' : 'Create Account'}
@@ -158,9 +163,9 @@ export default function RegisterPage() {
           </form>
         )}
 
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#999' }}>
+        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#888888', fontFamily: FONT }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: '#1a1a1a', fontWeight: 500, textDecoration: 'none' }}
+          <Link to="/login" style={{ color: '#ff6d5a', fontWeight: 500, textDecoration: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
             onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
           >

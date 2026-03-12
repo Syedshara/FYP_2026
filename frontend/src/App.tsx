@@ -1,21 +1,25 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import MainLayout from '@/layouts/MainLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
-// import DashboardPage from '@/pages/DashboardPage';
-import DevicesPage from '@/pages/DevicesPage';
-import TrafficMonitorPage from '@/pages/TrafficMonitorPage';
-import FLTrainingPage from '@/pages/FLTrainingPage';
-// import AttackPipelinePage from '@/pages/AttackPipelinePage';
-// import PreventionPage from '@/pages/PreventionPage';
-import ClientsPage from '@/pages/ClientsPage';
-// import SettingsPage from '@/pages/SettingsPage';
 import RegisterPage from '@/pages/RegisterPage';
-import SimulationControlPage from '@/pages/SimulationControlPage';
+import WorkspacePage from '@/pages/WorkspacePage';
 import { WebSocketProvider } from '@/components/WebSocketProvider';
 import { useAuthStore } from '@/stores/authStore';
+
+// Legacy pages — kept for reference, no longer routed
+// import MainLayout from '@/layouts/MainLayout';
+// import DashboardPage from '@/pages/DashboardPage';
+// import DevicesPage from '@/pages/DevicesPage';
+// import TrafficMonitorPage from '@/pages/TrafficMonitorPage';
+// import FLTrainingPage from '@/pages/FLTrainingPage';
+// import AttackPipelinePage from '@/pages/AttackPipelinePage';
+// import PreventionPage from '@/pages/PreventionPage';
+// import ClientsPage from '@/pages/ClientsPage';
+// import SettingsPage from '@/pages/SettingsPage';
+// import PipelineBuilderPage from '@/pages/PipelineBuilderPage';
+// import SecurityMonitorPage from '@/pages/SecurityMonitorPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,27 +48,27 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Protected */}
+          {/* Workspace — full-screen canvas, the primary app view */}
           <Route
+            path="/workspace"
             element={
               <ProtectedRoute>
                 <WebSocketProvider>
-                  <MainLayout />
+                  <WorkspacePage />
                 </WebSocketProvider>
               </ProtectedRoute>
             }
-          >
-            {/* <Route index element={<DashboardPage />} /> */}
-            <Route index element={<Navigate to="/fl-training" replace />} />
-            <Route path="devices" element={<DevicesPage />} />
-            <Route path="traffic" element={<TrafficMonitorPage />} />
-            {/* <Route path="attack-pipeline" element={<AttackPipelinePage />} /> */}
-            <Route path="clients" element={<ClientsPage />} />
-            <Route path="fl-training" element={<FLTrainingPage />} />
-            <Route path="simulation" element={<SimulationControlPage />} />
-            {/* <Route path="prevention" element={<PreventionPage />} /> */}
-            {/* <Route path="settings" element={<SettingsPage />} /> */}
-          </Route>
+          />
+
+          {/* Default: authenticated users go to workspace */}
+          <Route
+            index
+            element={
+              <ProtectedRoute>
+                <Navigate to="/workspace" replace />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

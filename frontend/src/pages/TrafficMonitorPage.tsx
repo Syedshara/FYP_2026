@@ -1,26 +1,37 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, Download /* , Pause, Play */ } from 'lucide-react';
+import { Loader2, Download, Network, BarChart2, Activity, AlertTriangle, Gauge } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { predictionsApi } from '@/api/predictions';
 import { devicesApi } from '@/api/devices';
+import { clientsApi } from '@/api/clients';
 import { useLiveStore } from '@/stores/liveStore';
-import type { Device, Prediction } from '@/types';
+import TrafficTopology from '@/components/TrafficTopology';
+import type { Device, Prediction, FLClient } from '@/types';
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
-const tooltipStyle = { contentStyle: { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, itemStyle: { color: 'var(--accent)' } };
+const tooltipStyle = {
+  contentStyle: {
+    background: 'var(--n8n-card-bg)',
+    border: '1px solid var(--n8n-card-border)',
+    borderRadius: 8,
+    fontSize: 12,
+    color: 'var(--n8n-text-primary)',
+  },
+  itemStyle: { color: 'var(--n8n-accent)' },
+};
 
 /* ---------- Time range helper ---------- */
 function rangeToMs(range: string): number {
   switch (range) {
     case '15m': return 15 * 60 * 1000;
-    case '1h': return 60 * 60 * 1000;
-    case '6h': return 6 * 60 * 60 * 1000;
+    case '1h':  return 60 * 60 * 1000;
+    case '6h':  return 6 * 60 * 60 * 1000;
     case '24h': return 24 * 60 * 60 * 1000;
-    default: return 60 * 60 * 1000;
+    default:    return 60 * 60 * 1000;
   }
 }
 
@@ -40,28 +51,260 @@ function generateTimeline(predictions: Prediction[]) {
   }));
 }
 
-/* const featureImportance = [
-  { name: 'Fwd Pkt Len Max', value: 0.34 },
-  { name: 'Flow Duration', value: 0.28 },
-  { name: 'Bwd Pkt Len Mean', value: 0.19 },
-  { name: 'Tot Fwd Packets', value: 0.15 },
-  { name: 'Pkt Size Avg', value: 0.12 },
-  { name: 'Flow IAT Mean', value: 0.09 },
-  { name: 'Bwd IAT Total', value: 0.07 },
-  { name: 'SYN Flag Count', value: 0.05 },
-  { name: 'Init Win Bytes Fwd', value: 0.04 },
-  { name: 'Subflow Fwd Bytes', value: 0.03 },
-]; */
+/* ---------- Inline styles (n8n canvas design system) ---------- */
+const S = {
+  kpiRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 16,
+  } as React.CSSProperties,
+
+  kpiCard: (accentColor: string): React.CSSProperties => ({
+    background: 'var(--n8n-card-bg)',
+    border: '1px solid var(--n8n-card-border)',
+    borderRadius: 12,
+    padding: '18px 22px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    position: 'relative',
+    overflow: 'hidden',
+  }),
+
+  kpiAccentBar: (color: string): React.CSSProperties => ({
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    background: color,
+    borderRadius: '12px 12px 0 0',
+  }),
+
+  kpiLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase' as const,
+    color: 'var(--n8n-text-muted)',
+  } as React.CSSProperties,
+
+  kpiValue: (color: string): React.CSSProperties => ({
+    fontSize: 28,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    color,
+    fontFamily: 'inherit',
+  }),
+
+  kpiSubtext: {
+    fontSize: 11,
+    color: 'var(--n8n-text-muted)',
+    marginTop: 2,
+  } as React.CSSProperties,
+
+  sectionCard: {
+    background: 'var(--n8n-card-bg)',
+    border: '1px solid var(--n8n-card-border)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  sectionHeader: {
+    padding: '14px 20px',
+    background: 'var(--n8n-card-border)',
+    borderBottom: '1px solid var(--n8n-card-border)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  } as React.CSSProperties,
+
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: 'var(--n8n-text-primary)',
+    letterSpacing: '0.02em',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  } as React.CSSProperties,
+
+  tableContainer: {
+    overflowX: 'auto' as const,
+    overflowY: 'auto' as const,
+    maxHeight: 320,
+  },
+
+  thead: {
+    position: 'sticky' as const,
+    top: 0,
+    zIndex: 1,
+  },
+
+  th: {
+    padding: '10px 14px',
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.07em',
+    textTransform: 'uppercase' as const,
+    color: 'var(--n8n-text-muted)',
+    background: 'var(--n8n-card-border)',
+    borderBottom: '1px solid var(--n8n-card-border)',
+    whiteSpace: 'nowrap' as const,
+  },
+
+  td: {
+    padding: '10px 14px',
+    fontSize: 12,
+    color: 'var(--n8n-text-primary)',
+    borderBottom: '1px solid rgba(60,60,60,0.5)',
+    whiteSpace: 'nowrap' as const,
+  },
+
+  alertRow: {
+    borderLeft: '3px solid var(--n8n-danger)',
+    background: 'rgba(208, 48, 80, 0.07)',
+  } as React.CSSProperties,
+
+  normalRow: {
+    borderLeft: '3px solid transparent',
+  } as React.CSSProperties,
+
+  alertLog: {
+    overflowY: 'auto' as const,
+    maxHeight: 180,
+    fontFamily: 'inherit',
+    padding: '12px 16px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+  },
+
+  alertLogEntry: (isAlert: boolean): React.CSSProperties => ({
+    fontSize: 11,
+    fontFamily: 'inherit',
+    color: isAlert ? 'var(--n8n-danger)' : 'var(--n8n-text-muted)',
+    lineHeight: 1.5,
+  }),
+
+  tabBar: {
+    display: 'flex',
+    gap: 4,
+  } as React.CSSProperties,
+
+  tab: (active: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 16px',
+    borderRadius: 8,
+    border: `1.5px solid ${active ? 'var(--n8n-accent)' : 'var(--n8n-card-border)'}`,
+    background: active ? 'var(--n8n-accent-light)' : 'var(--n8n-card-bg)',
+    color: active ? 'var(--n8n-accent)' : 'var(--n8n-text-muted)',
+    fontSize: 13,
+    fontWeight: active ? 700 : 500,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    fontFamily: 'inherit',
+  }),
+
+  toolbar: {
+    padding: '12px 16px',
+    background: 'var(--n8n-card-bg)',
+    border: '1px solid var(--n8n-card-border)',
+    borderRadius: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap' as const,
+  },
+
+  select: {
+    height: 34,
+    fontSize: 12,
+    padding: '0 10px',
+    borderRadius: 6,
+    border: '1px solid var(--n8n-card-border)',
+    background: '#1e1f22',
+    color: 'var(--n8n-text-primary)',
+    outline: 'none',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  } as React.CSSProperties,
+
+  exportBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+    padding: '0 14px',
+    borderRadius: 6,
+    border: '1px solid var(--n8n-card-border)',
+    background: 'transparent',
+    color: 'var(--n8n-text-muted)',
+    fontSize: 12,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'color 0.15s, border-color 0.15s',
+  } as React.CSSProperties,
+
+  liveTag: {
+    marginLeft: 8,
+    fontSize: 9,
+    fontWeight: 700,
+    color: 'var(--n8n-success)',
+    verticalAlign: 'middle',
+    letterSpacing: '0.05em',
+  },
+
+  streamingTag: {
+    marginLeft: 8,
+    fontSize: 9,
+    fontWeight: 700,
+    color: 'var(--n8n-accent)',
+    verticalAlign: 'middle',
+    letterSpacing: '0.05em',
+  },
+} as const;
+
+/* ---------- KPI card component ---------- */
+function KpiCard({
+  label,
+  value,
+  subtext,
+  color,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  subtext?: string;
+  color: string;
+  icon: React.ElementType;
+}) {
+  return (
+    <div style={S.kpiCard(color)}>
+      <div style={S.kpiAccentBar(color)} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={S.kpiLabel}>{label}</span>
+        <Icon style={{ width: 16, height: 16, color, opacity: 0.7 }} />
+      </div>
+      <span style={S.kpiValue(color)}>{value}</span>
+      {subtext && <span style={S.kpiSubtext}>{subtext}</span>}
+    </div>
+  );
+}
 
 export default function TrafficMonitorPage() {
   const [searchParams] = useSearchParams();
   const initialDeviceId = searchParams.get('device_id') ?? '';
   const [devices, setDevices] = useState<Device[]>([]);
+  const [clients, setClients] = useState<FLClient[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>(initialDeviceId);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
-  const paused = false; // const [paused, setPaused] = useState(false);
+  const paused = false;
   const [range, setRange] = useState('1h');
+  const [activeTab, setActiveTab] = useState<'charts' | 'topology'>('charts');
 
   // Live store
   const wsConnected = useLiveStore((s) => s.wsConnected);
@@ -70,8 +313,10 @@ export default function TrafficMonitorPage() {
   useEffect(() => {
     Promise.all([
       devicesApi.list(),
-    ]).then(([devs]) => {
+      clientsApi.list(),
+    ]).then(([devs, cls]) => {
       setDevices(devs);
+      setClients(cls);
       if (!initialDeviceId && devs.length > 0) setSelectedDevice(devs[0].id);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +336,15 @@ export default function TrafficMonitorPage() {
   // Merge API predictions with live predictions (live first, dedup by timestamp)
   const mergedPredictions = useMemo(() => {
     const seen = new Set<string>();
-    const merged: Array<{ id: number; score: number; label: string; confidence: number; inference_latency_ms: number; timestamp: string; device_name?: string }> = [];
+    const merged: Array<{
+      id: number;
+      score: number;
+      label: string;
+      confidence: number;
+      inference_latency_ms: number;
+      timestamp: string;
+      device_name?: string;
+    }> = [];
     for (const lp of deviceLivePreds) {
       const key = `${lp.device_id}-${lp.timestamp}`;
       if (!seen.has(key)) {
@@ -149,233 +402,369 @@ export default function TrafficMonitorPage() {
   const currentScore = timeline.length > 0 ? timeline[timeline.length - 1].score : 0;
   const isBenign = currentScore < 0.5;
 
+  // KPI derivations
+  const recentPreds = filteredPredictions.slice(-20);
+  const alertCount = recentPreds.filter((p) => p.label.toLowerCase() === 'attack').length;
+  const anomalyRate = recentPreds.length > 0
+    ? ((alertCount / recentPreds.length) * 100).toFixed(1)
+    : '0.0';
+  const packetsPerSecond = recentPreds.length > 0
+    ? Math.round(recentPreds.length / Math.max(1, rangeToMs(range) / 1000 / 60))
+    : 0;
+
+  // Alert log entries (latest attacks, most recent first)
+  const alertLogEntries = useMemo(() => {
+    return [...filteredPredictions]
+      .reverse()
+      .filter((p) => p.label.toLowerCase() === 'attack')
+      .slice(0, 20)
+      .map((p) => ({
+        time: new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        message: `Attack detected from device ${p.device_name ?? selectedDevice.slice(0, 8)} — score ${p.score.toFixed(2)}`,
+        score: p.score,
+      }));
+  }, [filteredPredictions, selectedDevice]);
+
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} /></div>;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 256 }}>
+        <Loader2 style={{ width: 32, height: 32, color: 'var(--n8n-accent)', animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
   }
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="page-stack">
-      {/* Toolbar */}
-      <motion.div variants={fadeUp} className="flex items-center gap-4 flex-wrap" style={{
-        padding: '14px 20px',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Device:</span>
-          <select
-            value={selectedDevice}
-            onChange={(e) => setSelectedDevice(e.target.value)}
-            style={{
-              width: 200, height: 36, fontSize: 13,
-              padding: '6px 12px',
-              borderRadius: 6, border: '1.5px solid var(--border)',
-              background: 'var(--bg-input)', color: 'var(--text-primary)',
-              outline: 'none', cursor: 'pointer',
-            }}
-          >
-            {devices.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Range:</span>
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            style={{
-              width: 150, height: 36, fontSize: 13,
-              padding: '6px 12px',
-              borderRadius: 6, border: '1.5px solid var(--border)',
-              background: 'var(--bg-input)', color: 'var(--text-primary)',
-              outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value="15m">Last 15 min</option>
-            <option value="1h">Last 1 Hour</option>
-            <option value="6h">Last 6 Hours</option>
-            <option value="24h">Last 24 Hours</option>
-          </select>
-        </div>
-
-        <div className="flex-1" />
-
-        {/* <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={() => setPaused(!paused)}>
-          {paused ? <Play style={{ width: 14, height: 14 }} /> : <Pause style={{ width: 14, height: 14 }} />}
-          {paused ? 'Resume' : 'Pause'}
-        </button> */}
-        <button className="btn btn-ghost" style={{ height: 32, fontSize: 12, gap: 4 }} onClick={handleExport} disabled={filteredPredictions.length === 0}>
-          <Download style={{ width: 14, height: 14 }} /> Export
-        </button>
+      {/* ── Tab bar ── */}
+      <motion.div variants={fadeUp} style={S.tabBar}>
+        {(['charts', 'topology'] as const).map((tab) => {
+          const Icon = tab === 'charts' ? BarChart2 : Network;
+          const label = tab === 'charts' ? 'Charts' : 'Topology';
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={S.tab(activeTab === tab)}>
+              <Icon style={{ width: 14, height: 14 }} />
+              {label}
+            </button>
+          );
+        })}
       </motion.div>
 
-      {/* Anomaly Score Chart */}
-      <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-              Anomaly Score
-              {wsConnected && !paused && deviceLivePreds.length > 0 && (
-                <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● STREAMING</span>
+      {/* ── Topology tab ── */}
+      {activeTab === 'topology' && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          style={S.sectionCard}
+        >
+          <div style={S.sectionHeader}>
+            <span style={S.sectionTitle}>
+              <Network style={{ width: 14, height: 14, color: 'var(--n8n-accent)' }} />
+              Network Topology
+              {wsConnected && (
+                <span style={S.liveTag}>● LIVE</span>
               )}
-            </h2>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>(0 = benign, 1 = attack)</p>
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>
+              Real-time FL server · clients · IoT devices
+            </span>
           </div>
-          <div className="card" style={{ padding: '10px 16px', textAlign: 'right' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>Current Score</span>
-            <div className="flex items-baseline gap-3">
-              <span style={{ fontSize: 24, fontWeight: 700, color: isBenign ? 'var(--success)' : 'var(--danger)' }}>
-                {currentScore.toFixed(2)}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isBenign ? 'var(--success)' : 'var(--danger)' }}>
-                {isBenign ? 'BENIGN' : 'ATTACK'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ height: 260 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={timeline}>
-              <defs>
-                <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="time" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 1]} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} />
-              <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="6 4" label={{ value: '0.7 HIGH', fill: 'var(--danger)', fontSize: 9, position: 'right' }} />
-              <ReferenceLine y={0.5} stroke="var(--warning)" strokeDasharray="8 4" label={{ value: '0.5 DETECT', fill: 'var(--warning)', fontSize: 9, position: 'right' }} />
-              <Area type="monotone" dataKey="score" stroke="var(--accent)" strokeWidth={2} fill="url(#scoreGrad)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-
-      {/* Row 2: Traffic Volume */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* Traffic Volume */}
-        <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Traffic Volume</h2>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, marginBottom: 16 }}>Packets per second</p>
-          <div style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={timeline.slice(0, 12)}>
-                <XAxis dataKey="time" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip {...tooltipStyle} />
-                <Bar dataKey="score" radius={[4, 4, 0, 0]} fill="var(--accent)" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div style={{ padding: 20 }}>
+            <TrafficTopology clients={clients} devices={devices} />
           </div>
         </motion.div>
+      )}
 
-        {/* XAI Feature Importance — commented out for now
-        <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Feature Importance (XAI)</h2>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>SHAP values for latest prediction</p>
+      {/* ── Charts tab ── */}
+      {activeTab === 'charts' && (
+        <>
+          {/* ── Toolbar ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            style={S.toolbar}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)', whiteSpace: 'nowrap' }}>Device</span>
+              <select
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+                style={{ ...S.select, width: 200 }}
+              >
+                {devices.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
             </div>
-            <span className="badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>Top 10</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {featureImportance.map((f, i) => {
-              const maxVal = featureImportance[0].value;
-              const pct = (f.value / maxVal) * 100;
-              const opacity = 1 - i * 0.07;
-              return (
-                <div key={f.name} className="flex items-center gap-3">
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>
-                    {i + 1}.
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-primary)', width: 130, textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {f.name}
-                  </span>
-                  <div style={{ flex: 1, height: 18, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden', position: 'relative' }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.6, delay: 0.1 + i * 0.04 }}
-                      style={{ height: '100%', borderRadius: 4, background: 'var(--accent)', opacity, maxWidth: '100%' }}
-                    />
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', width: 38, textAlign: 'right', fontFamily: 'monospace' }}>
-                    {f.value.toFixed(2)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-        */}
-      </div>
 
-      {/* Live Event Log */}
-      <motion.div variants={fadeUp} className="card" style={{ padding: 24 }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-            Live Event Log
-            {wsConnected && !paused && deviceLivePreds.length > 0 && (
-              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', verticalAlign: 'middle' }}>● LIVE ({deviceLivePreds.length})</span>
-            )}
-          </h2>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)', whiteSpace: 'nowrap' }}>Range</span>
+              <select
+                value={range}
+                onChange={(e) => setRange(e.target.value)}
+                style={{ ...S.select, width: 140 }}
+              >
+                <option value="15m">Last 15 min</option>
+                <option value="1h">Last 1 Hour</option>
+                <option value="6h">Last 6 Hours</option>
+                <option value="24h">Last 24 Hours</option>
+              </select>
+            </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr className="table-header">
-                <th style={{ width: 60 }}>#</th>
-                <th style={{ textAlign: 'left' }}>TIMESTAMP</th>
-                <th style={{ textAlign: 'left' }}>DEVICE</th>
-                <th style={{ textAlign: 'left' }}>PREDICTION</th>
-                <th style={{ textAlign: 'center' }}>SCORE</th>
-                <th style={{ textAlign: 'center' }}>CONFIDENCE</th>
-                <th style={{ textAlign: 'center' }}>LATENCY</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPredictions.length > 0 ? [...filteredPredictions].reverse().slice(0, 20).map((p, i) => {
-                const isAttack = p.label.toLowerCase() === 'attack';
-                return (
-                  <tr key={`${p.id}-${p.timestamp}-${i}`} className="table-row" style={isAttack ? { background: 'rgba(239,68,68,0.06)' } : undefined}>
-                    <td style={{ textAlign: 'center', fontSize: 12 }}>{i + 1}</td>
-                    <td style={{ fontSize: 12 }}>{new Date(p.timestamp).toLocaleTimeString()}</td>
-                    <td style={{ fontSize: 12, fontWeight: 500 }}>
-                      {p.device_name ?? devices.find((d) => d.id === selectedDevice)?.name ?? (
-                        <span title={`ID: ${selectedDevice}`} style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>⚠ {selectedDevice.slice(0, 8)}…</span>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: isAttack ? 'var(--danger)' : 'var(--success)' }}>
-                        {isAttack ? 'ATTACK' : 'BENIGN'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: isAttack ? 'var(--danger)' : 'var(--success)' }}>
-                      {p.score.toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center', fontSize: 12 }}>{(p.confidence * 100).toFixed(0)}%</td>
-                    <td style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>{p.inference_latency_ms.toFixed(0)}ms</td>
+            <div style={{ flex: 1 }} />
+
+            <button
+              style={S.exportBtn}
+              onClick={handleExport}
+              disabled={filteredPredictions.length === 0}
+            >
+              <Download style={{ width: 13, height: 13 }} />
+              Export CSV
+            </button>
+          </motion.div>
+
+          {/* ── KPI Row ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.06 }}
+            style={S.kpiRow}
+          >
+            <KpiCard
+              label="Packets / s"
+              value={packetsPerSecond.toLocaleString()}
+              subtext={`${filteredPredictions.length} records in window`}
+              color="var(--n8n-accent)"
+              icon={Activity}
+            />
+            <KpiCard
+              label="Active Alerts"
+              value={String(alertCount)}
+              subtext={alertCount === 0 ? 'All clear' : 'Attack events detected'}
+              color={alertCount > 0 ? 'var(--n8n-danger)' : 'var(--n8n-success)'}
+              icon={AlertTriangle}
+            />
+            <KpiCard
+              label="Anomaly Rate"
+              value={`${anomalyRate}%`}
+              subtext={`Current score: ${currentScore.toFixed(2)} — ${isBenign ? 'BENIGN' : 'ATTACK'}`}
+              color={parseFloat(anomalyRate) > 5 ? 'var(--n8n-danger)' : 'var(--n8n-success)'}
+              icon={Gauge}
+            />
+          </motion.div>
+
+          {/* ── Anomaly Score Chart ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.12 }}
+            style={S.sectionCard}
+          >
+            <div style={S.sectionHeader}>
+              <span style={S.sectionTitle}>
+                <Activity style={{ width: 14, height: 14, color: 'var(--n8n-accent)' }} />
+                Anomaly Score
+                {wsConnected && !paused && deviceLivePreds.length > 0 && (
+                  <span style={S.streamingTag}>● STREAMING</span>
+                )}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>Current</span>
+                <span style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: isBenign ? 'var(--n8n-success)' : 'var(--n8n-danger)',
+                }}>
+                  {currentScore.toFixed(2)}
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  color: isBenign ? 'var(--n8n-success)' : 'var(--n8n-danger)',
+                }}>
+                  {isBenign ? 'BENIGN' : 'ATTACK'}
+                </span>
+              </div>
+            </div>
+            <div style={{ padding: '16px 16px 8px', height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={timeline}>
+                  <defs>
+                    <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--n8n-accent)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--n8n-accent)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" tick={{ fill: 'var(--n8n-text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 1]} tick={{ fill: 'var(--n8n-text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip {...tooltipStyle} />
+                  <ReferenceLine y={0.7} stroke="var(--n8n-danger)" strokeDasharray="6 4" label={{ value: '0.7 HIGH', fill: 'var(--n8n-danger)', fontSize: 9, position: 'right' }} />
+                  <ReferenceLine y={0.5} stroke="var(--n8n-warning)" strokeDasharray="8 4" label={{ value: '0.5 DETECT', fill: 'var(--n8n-warning)', fontSize: 9, position: 'right' }} />
+                  <Area type="monotone" dataKey="score" stroke="var(--n8n-accent)" strokeWidth={2} fill="url(#scoreGrad)" dot={false} animationDuration={600} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+
+          {/* ── Traffic Volume ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.18 }}
+            style={S.sectionCard}
+          >
+            <div style={S.sectionHeader}>
+              <span style={S.sectionTitle}>
+                <BarChart2 style={{ width: 14, height: 14, color: 'var(--n8n-accent)' }} />
+                Traffic Volume
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>Packets per second</span>
+            </div>
+            <div style={{ padding: '16px 16px 8px', height: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={timeline.slice(0, 12)}>
+                  <XAxis dataKey="time" tick={{ fill: 'var(--n8n-text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--n8n-text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip {...tooltipStyle} />
+                  <Bar dataKey="score" radius={[4, 4, 0, 0]} fill="var(--n8n-accent)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+
+          {/* ── Live Traffic Table ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.24 }}
+            style={S.sectionCard}
+          >
+            <div style={S.sectionHeader}>
+              <span style={S.sectionTitle}>
+                <Activity style={{ width: 14, height: 14, color: 'var(--n8n-accent)' }} />
+                Live Traffic Table
+                {wsConnected && !paused && deviceLivePreds.length > 0 && (
+                  <span style={S.liveTag}>● LIVE ({deviceLivePreds.length})</span>
+                )}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>
+                Latest {Math.min(filteredPredictions.length, 20)} records
+              </span>
+            </div>
+
+            <div style={S.tableContainer}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={S.thead}>
+                  <tr>
+                    <th style={{ ...S.th, textAlign: 'center', width: 48 }}>#</th>
+                    <th style={S.th}>Timestamp</th>
+                    <th style={S.th}>Device</th>
+                    <th style={S.th}>Label</th>
+                    <th style={{ ...S.th, textAlign: 'center' }}>Score</th>
+                    <th style={{ ...S.th, textAlign: 'center' }}>Confidence</th>
+                    <th style={{ ...S.th, textAlign: 'center' }}>Latency</th>
                   </tr>
-                );
-              }) : (
-                <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>
-                    No predictions yet — select a device and run traffic analysis
-                  </td>
-                </tr>
+                </thead>
+                <tbody>
+                  {filteredPredictions.length > 0 ? (
+                    [...filteredPredictions].reverse().slice(0, 20).map((p, i) => {
+                      const isAttack = p.label.toLowerCase() === 'attack';
+                      const highScore = p.score > 0.8;
+                      return (
+                        <tr
+                          key={`${p.id}-${p.timestamp}-${i}`}
+                          style={isAttack ? S.alertRow : S.normalRow}
+                        >
+                          <td style={{ ...S.td, textAlign: 'center', color: 'var(--n8n-text-muted)', fontSize: 11 }}>{i + 1}</td>
+                          <td style={{ ...S.td, fontFamily: 'inherit' }}>
+                            {new Date(p.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit', minute: '2-digit', second: '2-digit',
+                            })}
+                          </td>
+                          <td style={{ ...S.td, fontWeight: 500 }}>
+                            {p.device_name ?? devices.find((d) => d.id === selectedDevice)?.name ?? (
+                              <span style={{ color: 'var(--n8n-text-muted)', fontFamily: 'inherit' }}>
+                                {selectedDevice.slice(0, 8)}…
+                              </span>
+                            )}
+                          </td>
+                          <td style={S.td}>
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              color: isAttack ? 'var(--n8n-danger)' : 'var(--n8n-success)',
+                            }}>
+                              {isAttack ? 'ALERT' : 'Normal'}
+                            </span>
+                          </td>
+                          <td style={{ ...S.td, textAlign: 'center', fontWeight: 600 }}>
+                            <span style={{ color: highScore ? 'var(--n8n-danger)' : isAttack ? 'var(--n8n-warning)' : 'var(--n8n-success)' }}>
+                              {p.score.toFixed(2)}
+                              {highScore && ' ⚠'}
+                            </span>
+                          </td>
+                          <td style={{ ...S.td, textAlign: 'center' }}>
+                            {(p.confidence * 100).toFixed(0)}%
+                          </td>
+                          <td style={{ ...S.td, textAlign: 'center', color: 'var(--n8n-text-muted)' }}>
+                            {p.inference_latency_ms.toFixed(0)}ms
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        style={{ ...S.td, textAlign: 'center', padding: 32, color: 'var(--n8n-text-muted)' }}
+                      >
+                        No predictions yet — select a device and run traffic analysis
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+
+          {/* ── Alert Log ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.30 }}
+            style={S.sectionCard}
+          >
+            <div style={S.sectionHeader}>
+              <span style={S.sectionTitle}>
+                <AlertTriangle style={{ width: 14, height: 14, color: 'var(--n8n-danger)' }} />
+                Alert Log
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--n8n-text-muted)' }}>
+                {alertLogEntries.length} alert{alertLogEntries.length !== 1 ? 's' : ''} in range
+              </span>
+            </div>
+            <div style={S.alertLog}>
+              {alertLogEntries.length > 0 ? (
+                alertLogEntries.map((entry, i) => (
+                  <div key={i} style={S.alertLogEntry(true)}>
+                    <span style={{ color: 'var(--n8n-text-muted)', marginRight: 10 }}>{entry.time}</span>
+                    {entry.message}
+                  </div>
+                ))
+              ) : (
+                <div style={S.alertLogEntry(false)}>
+                  No alerts in the selected time range — network traffic appears normal.
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
+        </>
+      )}
+
     </motion.div>
   );
 }

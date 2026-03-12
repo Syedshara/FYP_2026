@@ -1,41 +1,123 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Design Tokens — Terminal Theme (Black & White Minimalist)
+   Design Tokens — n8n-style theming
+   Default = dark theme.  [data-theme="light"] = light theme.
    ================================================================ */
+
 :root {
-  --bg-primary:    #ffffff;
-  --bg-secondary:  #f7f7f7;
+  /* ── Typography ── */
+  --n8n-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+  --n8n-font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code',
+    'Consolas', monospace;
+
+  /* ── Dark palette (default) ── */
+  --n8n-canvas-bg:        #1a1a1a;
+  --n8n-sidebar-bg:       #111111;
+  --n8n-topbar-bg:        #1a1a1a;
+  --n8n-card-bg:          #232323;
+  --n8n-card-border:      #333333;
+  --n8n-dot-color:        rgba(255, 255, 255, 0.09);
+  --n8n-node-bg:          #2b2b30;
+  --n8n-node-border:      #3d3d42;
+  --n8n-node-shadow:      0 2px 6px rgba(0, 0, 0, 0.4);
+  --n8n-node-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.55);
+  --n8n-handle-bg:        #2b2b30;
+  --n8n-accent:           #ff6d5a;
+  --n8n-accent-hover:     #e85a48;
+  --n8n-accent-light:     rgba(255, 109, 90, 0.12);
+  --n8n-text-primary:     #e8e8e8;
+  --n8n-text-muted:       #8b8b8b;
+  --n8n-success:          #18a058;
+  --n8n-success-light:    rgba(24, 160, 88, 0.12);
+  --n8n-danger:           #d03050;
+  --n8n-danger-light:     rgba(208, 48, 80, 0.12);
+  --n8n-warning:          #f0a020;
+  --n8n-warning-light:    rgba(240, 160, 32, 0.12);
+  --n8n-info:             #3b8fe8;
+  --n8n-info-light:       rgba(59, 143, 232, 0.12);
+  --n8n-edge-default:     #6b6b6b;
+  --n8n-controls-bg:      #232323;
+
+  /* ── Layout ── */
+  --n8n-sidebar-collapsed: 64px;
+  --n8n-sidebar-expanded:  260px;
+  --n8n-topbar-height:    52px;
+  --n8n-radius:           12px;
+  --n8n-radius-sm:        8px;
+  --n8n-radius-xs:        4px;
+
+  /* ── Legacy aliases — keep existing components working ── */
+  --bg-primary:    var(--n8n-canvas-bg);
+  --bg-secondary:  #222222;
+  --bg-card:       var(--n8n-card-bg);
+  --bg-sidebar:    var(--n8n-sidebar-bg);
+  --bg-input:      #222222;
+  --text-primary:  var(--n8n-text-primary);
+  --text-secondary:#bbbbbb;
+  --text-muted:    var(--n8n-text-muted);
+  --border:        var(--n8n-card-border);
+  --border-subtle: #2a2a2a;
+  --accent:        var(--n8n-accent);
+  --accent-hover:  var(--n8n-accent-hover);
+  --accent-light:  var(--n8n-accent-light);
+  --accent-glow:   rgba(255, 109, 90, 0.2);
+  --success:       var(--n8n-success);
+  --success-light: var(--n8n-success-light);
+  --danger:        var(--n8n-danger);
+  --danger-light:  var(--n8n-danger-light);
+  --warning:       var(--n8n-warning);
+  --warning-light: var(--n8n-warning-light);
+  --info:          var(--n8n-info);
+  --info-light:    var(--n8n-info-light);
+  --shadow-sm:     0 1px 3px rgba(0,0,0,.4);
+  --shadow:        0 2px 8px rgba(0,0,0,.5);
+  --shadow-md:     0 4px 16px rgba(0,0,0,.6);
+  --shadow-lg:     0 8px 32px rgba(0,0,0,.7);
+  --radius:        var(--n8n-radius);
+  --radius-sm:     var(--n8n-radius-sm);
+  --radius-lg:     16px;
+  --sidebar-width:     var(--n8n-sidebar-expanded);
+  --sidebar-collapsed: var(--n8n-sidebar-collapsed);
+  --topbar-height:     var(--n8n-topbar-height);
+}
+
+/* ================================================================
+   Light Theme
+   ================================================================ */
+[data-theme="light"] {
+  --n8n-canvas-bg:        #f5f5f5;
+  --n8n-sidebar-bg:       #ffffff;
+  --n8n-topbar-bg:        #ffffff;
+  --n8n-card-bg:          #ffffff;
+  --n8n-card-border:      #dbdbdb;
+  --n8n-dot-color:        rgba(0, 0, 0, 0.1);
+  --n8n-node-bg:          #ffffff;
+  --n8n-node-border:      #d0d0d0;
+  --n8n-node-shadow:      0 2px 6px rgba(0, 0, 0, 0.08);
+  --n8n-node-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --n8n-handle-bg:        #ffffff;
+  --n8n-text-primary:     #1a1a1a;
+  --n8n-text-muted:       #6b6b6b;
+  --n8n-edge-default:     #a0a0a0;
+  --n8n-controls-bg:      #ffffff;
+
+  /* Legacy overrides */
+  --bg-primary:    #f5f5f5;
+  --bg-secondary:  #eeeeee;
   --bg-card:       #ffffff;
-  --bg-sidebar:    #fafafa;
-  --bg-input:      #f7f7f7;
+  --bg-sidebar:    #ffffff;
+  --bg-input:      #ffffff;
   --text-primary:  #1a1a1a;
-  --text-secondary:#4a4a4a;
-  --text-muted:    #999999;
-  --border:        #e0e0e0;
-  --border-subtle: #f0f0f0;
-  --accent:        #1a1a1a;
-  --accent-hover:  #333333;
-  --accent-light:  rgba(26, 26, 26, 0.05);
-  --accent-glow:   rgba(26, 26, 26, 0.12);
-  --success:       #2d8a4e;
-  --success-light: rgba(45, 138, 78, 0.07);
-  --danger:        #c53030;
-  --danger-light:  rgba(197, 48, 48, 0.07);
-  --warning:       #b7791f;
-  --warning-light: rgba(183, 121, 31, 0.07);
-  --info:          #2b6cb0;
-  --info-light:    rgba(43, 108, 176, 0.07);
-  --shadow-sm:     none;
-  --shadow:        none;
-  --shadow-md:     none;
-  --shadow-lg:     0 1px 4px rgba(0,0,0,.06);
-  --radius:        3px;
-  --radius-sm:     2px;
-  --radius-lg:     4px;
-  --sidebar-width: 256px;
-  --sidebar-collapsed: 72px;
-  --topbar-height: 48px;
+  --text-secondary:#444444;
+  --text-muted:    #6b6b6b;
+  --border:        #dbdbdb;
+  --border-subtle: #e5e5e5;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,.06);
+  --shadow:        0 2px 8px rgba(0,0,0,.08);
+  --shadow-md:     0 4px 16px rgba(0,0,0,.1);
+  --shadow-lg:     0 8px 32px rgba(0,0,0,.12);
 }
 
 /* ================================================================
@@ -44,36 +126,40 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--n8n-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 13px;
 }
 
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--n8n-canvas-bg);
+  color: var(--n8n-text-primary);
   min-height: 100vh;
+  transition: background-color 0.2s, color 0.2s;
 }
+
+/* Monospace utility — use on code/data displays only */
+.font-mono { font-family: var(--n8n-font-mono); }
 
 /* ================================================================
    Scrollbar
    ================================================================ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb { background: var(--n8n-card-border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--n8n-text-muted); }
 
 /* ================================================================
    Card
    ================================================================ */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--n8n-card-bg);
+  border: 1px solid var(--n8n-card-border);
+  border-radius: var(--n8n-radius);
   transition: border-color 0.15s;
 }
-.card-hover:hover, .card.card-interactive:hover { border-color: var(--text-muted); }
+.card-hover:hover, .card.card-interactive:hover { border-color: #555555; }
 
 /* ================================================================
    Form Inputs (global)
@@ -94,14 +180,23 @@ body {
 .input::placeholder { color: var(--text-muted); }
 .input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--n8n-accent-light);
 }
 
-/* Select dropdown styling */
+/* Select dropdown styling — custom chevron (n8n-style) */
 select.input {
-  appearance: auto;
+  appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
-  padding-right: 14px;
+  padding-right: 32px;
   min-height: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b8b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+[data-theme="light"] select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 select.input option {
   background: var(--bg-card);
@@ -123,9 +218,9 @@ select.input option {
 
 /* KPI card */
 .kpi-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--n8n-card-bg);
+  border: 1px solid var(--n8n-card-border);
+  border-radius: var(--n8n-radius);
   padding: 20px;
 }
 
@@ -270,3 +365,332 @@ select.input option {
 
 .animate-fade-in   { animation: fade-in 0.35s ease-out; }
 .animate-pulse-glow{ animation: pulse-glow 2s infinite; }
+
+/* ================================================================
+   Canvas Node — Running state animation (n8n-style pulsing glow)
+   ================================================================ */
+@keyframes node-running {
+  0%, 100% { filter: drop-shadow(0 0 4px var(--n8n-accent)); }
+  50%      { filter: drop-shadow(0 0 10px var(--n8n-accent)); }
+}
+
+/* Status badge pulse animations (n8n-style) */
+@keyframes status-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.4); opacity: 0.6; }
+}
+@keyframes status-pulse-error {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ================================================================
+   Canvas Edge Animations
+   ================================================================ */
+@keyframes fl-edge-flow {
+  to { stroke-dashoffset: -12; }
+}
+@keyframes attack-edge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ================================================================
+   Canvas Node — Handle visibility (appear on hover like n8n)
+   ================================================================ */
+.n8n-node .react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.n8n-node:hover .react-flow__handle,
+.n8n-node.selected .react-flow__handle {
+  opacity: 1;
+}
+
+/* ================================================================
+   ReactFlow + Tailwind v4 Preflight compatibility
+   Tailwind v4 resets border-width/style on *, and sets SVG to
+   display:block — both break ReactFlow's absolute-positioned
+   canvas layers. These overrides restore correct behaviour.
+   ================================================================ */
+.react-flow__viewport,
+.react-flow__renderer,
+.react-flow__zoompane,
+.react-flow__selectionpane,
+.react-flow__pane,
+.react-flow__container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.react-flow svg {
+  display: inline;
+  vertical-align: baseline;
+}
+
+/* ================================================================
+   ReactFlow Controls — theme-aware
+   ================================================================ */
+.react-flow__controls {
+  background: var(--n8n-controls-bg) !important;
+  border: 1px solid var(--n8n-card-border) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid var(--n8n-card-border) !important;
+  fill: var(--n8n-text-muted) !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-secondary) !important;
+}
+
+/* ================================================================
+   Palette — Node picker sidebar (canonical styles)
+   ================================================================ */
+
+/* ── Node item row ── */
+.n8n-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px 9px 16px;
+  border-radius: 8px;
+  cursor: grab;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  background: transparent;
+  user-select: none;
+}
+.n8n-palette-item:active { cursor: grabbing; }
+.n8n-palette-item:hover {
+  background: var(--n8n-card-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.n8n-palette-item:hover .n8n-palette-label {
+  color: var(--n8n-text-primary);
+}
+
+/* ── Palette search input ── */
+.n8n-palette-search {
+  width: 100%;
+  background: var(--n8n-card-bg);
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 8px;
+  padding: 9px 34px 9px 36px;
+  font-size: 13px;
+  color: var(--n8n-text-primary);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: var(--n8n-font);
+}
+.n8n-palette-search::placeholder { color: var(--n8n-text-muted); }
+.n8n-palette-search:focus {
+  border-color: var(--n8n-accent);
+  box-shadow: 0 0 0 2px var(--n8n-accent-light);
+}
+
+/* ── Clear button inside search ── */
+.n8n-palette-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--n8n-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.n8n-palette-clear:hover {
+  color: var(--n8n-text-primary);
+  background: var(--n8n-card-bg);
+}
+
+/* ── Palette scrollable area ── */
+.n8n-palette-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--n8n-card-border) transparent;
+}
+.n8n-palette-list::-webkit-scrollbar { width: 4px; }
+.n8n-palette-list::-webkit-scrollbar-track { background: transparent; }
+.n8n-palette-list::-webkit-scrollbar-thumb {
+  background: var(--n8n-card-border);
+  border-radius: 4px;
+}
+
+/* ================================================================
+   Toolbar Button — CSS-only hover (replaces JS onMouseEnter/Leave)
+   ================================================================ */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--n8n-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.toolbar-btn:hover {
+  background: var(--n8n-card-bg);
+  color: var(--n8n-text-primary);
+}
+.toolbar-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--n8n-accent-light);
+}
+.toolbar-btn[data-active="true"] {
+  background: var(--n8n-accent-light);
+  color: var(--n8n-accent);
+}
+.toolbar-btn[data-active="true"]:hover {
+  background: var(--n8n-accent-light);
+  color: var(--n8n-accent);
+}
+
+/* ================================================================
+   Panel Close Button — CSS-only hover
+   ================================================================ */
+.panel-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--n8n-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.panel-close-btn:hover {
+  background: var(--n8n-card-bg);
+  color: var(--n8n-text-primary);
+}
+.panel-close-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--n8n-accent-light);
+}
+
+/* ================================================================
+   Delete Button — CSS-only hover border
+   ================================================================ */
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--n8n-danger-light);
+  color: var(--n8n-danger);
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.delete-btn:hover {
+  border-color: var(--n8n-danger);
+}
+.delete-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--n8n-danger-light);
+}
+
+/* ================================================================
+   Panel Divider — reusable 1px line
+   ================================================================ */
+.panel-divider {
+  height: 1px;
+  background: var(--n8n-card-border);
+  margin: 4px 0;
+}
+
+/* ================================================================
+   Property Field — smaller inputs for properties panel
+   ================================================================ */
+.prop-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.prop-input::placeholder { color: var(--text-muted); }
+.prop-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--n8n-accent-light);
+}
+
+/* Select variant of prop-input */
+select.prop-input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 32px;
+  min-height: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b8b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+[data-theme="light"] select.prop-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+select.prop-input option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 6px 10px;
+}
+
+/* ================================================================
+   Form Label — consistent across properties panel
+   ================================================================ */
+.form-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--n8n-text-muted);
+  line-height: 1;
+}
+
+/* ================================================================
+   Icon Badge — token-based accent background (replaces hex tricks)
+   ================================================================ */
+.icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.icon-badge-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.icon-badge-md {
+  width: 32px;
+  height: 32px;
+}

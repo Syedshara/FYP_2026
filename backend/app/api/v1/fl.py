@@ -514,23 +514,16 @@ async def start_training(
     # Wait for the FL server gRPC to be ready (server needs ~2-3s to initialise)
     await asyncio.sleep(5)
 
-    # ── Step 2: Start client containers in TRAIN mode ──
+    # ── Step 2: Switch client containers to TRAIN mode ──
+    # Persistent containers are never destroyed — update_client_container_mode
+    # stops the current container and restarts it with MODE=TRAIN.
     active_client_ids = []
     for client in trainable_clients:
         try:
-            # Remove existing container if any
-            if client.container_id:
-                try:
-                    docker_service.remove_container(client.container_id, force=True)
-                except Exception:
-                    pass
-
-            # Create and start in TRAIN mode
-            info = docker_service.create_client_container(
+            info = docker_service.update_client_container_mode(
                 client_id=client.client_id,
                 data_path=client.data_path,
-                mode="TRAIN",
-                auto_start=True,
+                new_mode="TRAIN",
             )
             await fl_service.update_fl_client(
                 db, client.id,
@@ -539,10 +532,10 @@ async def start_training(
                 container_name=info.name,
             )
             active_client_ids.append(client.client_id)
-            log.info("Started client %s in TRAIN mode", client.client_id)
+            log.info("Switched client %s to TRAIN mode", client.client_id)
 
         except Exception as exc:
-            log.error("Failed to start client %s: %s", client.client_id, exc)
+            log.error("Failed to switch client %s to TRAIN mode: %s", client.client_id, exc)
 
     if len(active_client_ids) < body.min_clients:
         # Clean up: stop the FL server since not enough clients started
@@ -572,6 +565,81 @@ async def start_training(
     )
 
 
+# ── Detection / Trust Endpoints (called by FL server) ──
+
+class FlaggedClientBody(BaseModel):
+    """Payload from FL server when a client is flagged as anomalous."""
+    client_id: str
+    round: int
+    abnormality: float
+
+
+class DetectionRoundBody(BaseModel):
+    """Payload from FL server when a detection round completes."""
+    round: int
+    scores: dict[str, float]
+    flagged: list[str]
+
+
+@router.post("/flagged_client")
+async def post_flagged_client(body: FlaggedClientBody):
+    """
+    Record a flagged client.
+    Called by the FL server when a client's behaviour is anomalous.
+    No auth required (internal service-to-service call).
+    """
+    fl_service.record_flagged_client(
+        client_id=body.client_id,
+        round_number=body.round,
+        abnormality=body.abnormality,
+    )
+    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_FLAGGED, {
+        "client_id": body.client_id,
+        "round": body.round,
+        "abnormality": body.abnormality,
+    }))
+    return {"ok": True}
+
+
+@router.post("/detection_round")
+async def post_detection_round(body: DetectionRoundBody):
+    """
+    Record a completed detection round and update trust scores.
+    Called by the FL server after each RECESS anomaly-detection pass.
+    No auth required (internal service-to-service call).
+    """
+    fl_service.record_detection_round(
+        round_number=body.round,
+        scores=body.scores,
+        flagged=body.flagged,
+    )
+    fl_service.update_trust_scores(body.scores)
+    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_TRUST_UPDATE, {
+        "round": body.round,
+        "scores": body.scores,
+        "flagged": body.flagged,
+    }))
+    return {"ok": True}
+
+
+@router.get("/trust_scores")
+async def get_trust_scores(_user=Depends(get_current_user)):
+    """Return the current in-memory trust scores for all FL clients."""
+    return {"trust_scores": fl_service.get_trust_scores()}
+
+
+@router.get("/detection_rounds")
+async def get_detection_rounds(_user=Depends(get_current_user)):
+    """Return the full history of detection rounds."""
+    return {"rounds": fl_service.get_detection_rounds()}
+
+
+@router.get("/flagged_clients")
+async def get_flagged_clients(_user=Depends(get_current_user)):
+    """Return the full history of flagged client events."""
+    return {"flagged": fl_service.get_flagged_clients()}
+
+
 @router.post("/stop", response_model=FLStopResponse)
 async def stop_training(
     db: AsyncSession = Depends(get_db),
@@ -591,15 +659,27 @@ async def stop_training(
     except Exception as exc:
         log.warning("Failed to stop FL server: %s", exc)
 
-    # Switch all training clients back to IDLE
+    # Switch all training clients back to IDLE mode
+    # Persistent containers are never destroyed — update_client_container_mode
+    # stops TRAIN and restarts in IDLE so the container slot lives on.
     clients = await fl_service.get_all_fl_clients(db)
     for client in clients:
-        if client.status == "training" and client.container_id:
+        if client.status == "training":
             try:
-                docker_service.stop_container(client.container_id)
-                await fl_service.update_fl_client(db, client.id, status="inactive")
+                info = docker_service.update_client_container_mode(
+                    client_id=client.client_id,
+                    data_path=client.data_path,
+                    new_mode="IDLE",
+                )
+                await fl_service.update_fl_client(
+                    db, client.id,
+                    status="active",
+                    container_id=info.container_id,
+                    container_name=info.name,
+                )
+                log.info("Switched client %s back to IDLE mode", client.client_id)
             except Exception as exc:
-                log.warning("Failed to stop client %s: %s", client.client_id, exc)
+                log.warning("Failed to switch client %s to IDLE: %s", client.client_id, exc)
 
     # Broadcast training stop
     await ws_manager.broadcast(build_ws_message(WSMessageType.TRAINING_STOP, {
