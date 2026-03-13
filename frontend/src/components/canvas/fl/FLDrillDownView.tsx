@@ -63,10 +63,10 @@ export default function FLDrillDownView() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Also refresh client list when training starts/stops
+  // Also refresh client list when training starts/stops or round changes
   useEffect(() => {
     flApi.clients().then(setAllClients).catch(() => {});
-  }, [flGlobal?.is_training]);
+  }, [flGlobal?.is_training, flGlobal?.current_round]);
 
   const handleBack = useCallback(() => {
     setViewMode('canvas');

@@ -16,6 +16,10 @@ export interface TopologyValidationResult {
   connectedClientNodeIds: string[];
   /** Client node IDs that are missing a Device or Traffic Source */
   incompleteClientNodeIds: string[];
+  /** All Device node IDs in the valid topology chain */
+  deviceNodeIds: string[];
+  /** All Traffic Source node IDs in the valid topology chain */
+  trafficSourceNodeIds: string[];
 }
 
 export function validateFLTopology(
@@ -37,11 +41,13 @@ export function validateFLTopology(
 
   if (connectedClientNodeIds.length === 0) {
     errors.push('FL Server has no Client nodes connected. Connect at least one Client node.');
-    return { valid: false, errors, connectedClientNodeIds: [], incompleteClientNodeIds: [] };
+    return { valid: false, errors, connectedClientNodeIds: [], incompleteClientNodeIds: [], deviceNodeIds: [], trafficSourceNodeIds: [] };
   }
 
   // Step 2: For each connected Client, check it has a Device (ownership edge)
   const incompleteClientNodeIds: string[] = [];
+  const deviceNodeIds: string[] = [];
+  const trafficSourceNodeIds: string[] = [];
 
   for (const clientId of connectedClientNodeIds) {
     const clientNode = nodeMap.get(clientId);
@@ -62,18 +68,24 @@ export function validateFLTopology(
       continue;
     }
 
+    // Collect all owned devices
+    deviceNodeIds.push(...ownedDeviceIds);
+
     // Step 3: For each Device, check it has a Traffic Source (traffic-feed edge)
     let hasTrafficSource = false;
     for (const deviceId of ownedDeviceIds) {
-      const hasSource = edges.some(
-        (e) =>
-          e.target === deviceId &&
-          e.type === 'traffic-feed' &&
-          nodeMap.get(e.source)?.type === 'traffic-source',
-      );
-      if (hasSource) {
+      const sourceIds = edges
+        .filter(
+          (e) =>
+            e.target === deviceId &&
+            e.type === 'traffic-feed' &&
+            nodeMap.get(e.source)?.type === 'traffic-source',
+        )
+        .map((e) => e.source);
+
+      if (sourceIds.length > 0) {
         hasTrafficSource = true;
-        break;
+        trafficSourceNodeIds.push(...sourceIds);
       }
     }
 
@@ -93,5 +105,7 @@ export function validateFLTopology(
     errors,
     connectedClientNodeIds,
     incompleteClientNodeIds,
+    deviceNodeIds,
+    trafficSourceNodeIds,
   };
 }

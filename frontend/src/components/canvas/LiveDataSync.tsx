@@ -117,17 +117,17 @@ export default function LiveDataSync() {
     }
 
     // ── 2. Client nodes — map FL client progress to canvas ──
+    // Build a set of "running" client node IDs for Device/TrafficSource cascade
+    const runningClientNodeIds = new Set<string>();
+
     for (const node of nodes) {
       if (node.data.nodeType !== 'client') continue;
       const d = node.data as ClientNodeData;
 
-      // Match by clientId (numeric) or label (fallback name match)
-      const clientIdStr = d.clientId?.toString();
-      const progress = clientIdStr
-        ? flClientProgress[clientIdStr]
-        : Object.entries(flClientProgress).find(
-            ([, p]) => p.client_id === d.label,
-          )?.[1];
+      // Match by canvas node ID → derived client_id (node.id with hyphens → underscores)
+      const derivedClientId = node.id.replace(/-/g, '_');
+      const progress = flClientProgress[derivedClientId]
+        ?? Object.values(flClientProgress).find((p) => p.client_id === d.label);
 
       let newStatus: NodeStatus = d.status;
       if (isTraining && progress) {
@@ -139,8 +139,15 @@ export default function LiveDataSync() {
         } else if (s === 'waiting' || s === 'idle') {
           newStatus = 'active';
         }
-      } else if (!isTraining && d.status === 'running') {
+      } else if (isTraining && !progress) {
+        // Training is active but no WS progress yet — keep as running if already set
+        if (d.status === 'running') newStatus = 'running';
+      } else if (!isTraining && (d.status === 'running' || d.status === 'active')) {
         newStatus = 'idle';
+      }
+
+      if (newStatus === 'running' || newStatus === 'active') {
+        runningClientNodeIds.add(node.id);
       }
 
       // We pass FL training progress as extra data on the client node
@@ -186,15 +193,45 @@ export default function LiveDataSync() {
       updateNodeData(node.id, { status: newStatus } as Partial<CanvasNodeData>);
     }
 
-    // ── 4. Device nodes — map device statuses from WS ──
+    // ── 4. Device nodes — map device statuses from WS + FL training cascade ──
+    // Build a set of running device node IDs for traffic source cascade
+    const runningDeviceNodeIds = new Set<string>();
+
     for (const node of nodes) {
       if (node.data.nodeType !== 'device') continue;
       const d = node.data as DeviceNodeData;
 
-      if (d.deviceId && deviceStatuses[d.deviceId]) {
+      // Check if this device is owned by a running client (ownership edge: client → device)
+      const ownerClientEdge = edges.find(
+        (e) => e.target === node.id && e.type === 'ownership' && runningClientNodeIds.has(e.source),
+      );
+
+      if (ownerClientEdge && isTraining) {
+        updateNodeData(node.id, { status: 'active' } as Partial<CanvasNodeData>);
+        runningDeviceNodeIds.add(node.id);
+      } else if (d.deviceId && deviceStatuses[d.deviceId]) {
         const devStatus = deviceStatuses[d.deviceId];
         const newStatus = deviceStatusToNode(devStatus.status);
         updateNodeData(node.id, { status: newStatus } as Partial<CanvasNodeData>);
+      } else if (!isTraining && (d.status === 'active' || d.status === 'running')) {
+        updateNodeData(node.id, { status: 'idle' } as Partial<CanvasNodeData>);
+      }
+    }
+
+    // ── 4b. Traffic Source nodes — cascade from running devices ──
+    for (const node of nodes) {
+      if (node.data.nodeType !== 'traffic-source') continue;
+      const d = node.data as CanvasNodeData;
+
+      // Check if this traffic source feeds a running device (traffic-feed edge: source → device)
+      const feedsRunningDevice = edges.some(
+        (e) => e.source === node.id && e.type === 'traffic-feed' && runningDeviceNodeIds.has(e.target),
+      );
+
+      if (feedsRunningDevice && isTraining) {
+        updateNodeData(node.id, { status: 'active' } as Partial<CanvasNodeData>);
+      } else if (!isTraining && (d.status === 'active' || d.status === 'running')) {
+        updateNodeData(node.id, { status: 'idle' } as Partial<CanvasNodeData>);
       }
     }
 

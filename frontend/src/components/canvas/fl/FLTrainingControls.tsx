@@ -66,7 +66,7 @@ export default function FLTrainingControls() {
         canvas_node_ids: topologyResult.connectedClientNodeIds,
       };
       await flApi.start(config);
-      // Immediately reflect "running" on the specific canvas node that opened this drilldown.
+      // Immediately cascade "running" to ALL topology nodes
       if (drilldownServerId) {
         setActiveFlServerNodeId(drilldownServerId);
         updateNodeData(drilldownServerId, {
@@ -74,6 +74,15 @@ export default function FLTrainingControls() {
           currentRound: 0,
           totalRounds: numRounds,
         });
+      }
+      for (const id of topologyResult.connectedClientNodeIds) {
+        updateNodeData(id, { status: 'running' });
+      }
+      for (const id of topologyResult.deviceNodeIds) {
+        updateNodeData(id, { status: 'active' });
+      }
+      for (const id of topologyResult.trafficSourceNodeIds) {
+        updateNodeData(id, { status: 'active' });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start training');
@@ -88,6 +97,19 @@ export default function FLTrainingControls() {
     try {
       await flApi.stop();
       setActiveFlServerNodeId(null);
+      // Reset all topology nodes back to idle
+      if (drilldownServerId) {
+        updateNodeData(drilldownServerId, { status: 'idle', currentRound: 0 });
+      }
+      for (const id of topologyResult.connectedClientNodeIds) {
+        updateNodeData(id, { status: 'idle' });
+      }
+      for (const id of topologyResult.deviceNodeIds) {
+        updateNodeData(id, { status: 'idle' });
+      }
+      for (const id of topologyResult.trafficSourceNodeIds) {
+        updateNodeData(id, { status: 'idle' });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop training');
     } finally {

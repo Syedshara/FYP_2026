@@ -472,13 +472,34 @@ async def start_training(
     # Canvas-aware filtering: canvas_node_ids takes priority over client_ids
     if body.canvas_node_ids:
         canvas_id_set = set(body.canvas_node_ids)
+
+        # Auto-register any canvas nodes not yet in DB (eliminates race with background task)
+        for canvas_node_id in body.canvas_node_ids:
+            existing = await fl_service.get_fl_client_by_canvas_node_id(db, canvas_node_id)
+            if not existing:
+                derived_client_id = canvas_node_id.replace("-", "_")
+                existing_by_id = await fl_service.get_fl_client_by_client_id(db, derived_client_id)
+                if not existing_by_id:
+                    try:
+                        await fl_service.register_fl_client(
+                            db,
+                            client_id=derived_client_id,
+                            name=derived_client_id,
+                            canvas_node_id=canvas_node_id,
+                            data_source="cic-ids2017",
+                        )
+                        log.info("On-demand registered canvas client %s as FL client %s", canvas_node_id, derived_client_id)
+                    except Exception as exc:
+                        log.warning("On-demand registration failed for %s: %s", canvas_node_id, exc)
+
+        # Re-fetch all clients after potential auto-registration
+        clients = await fl_service.get_all_fl_clients(db)
         clients = [c for c in clients if c.canvas_node_id in canvas_id_set]
         if not clients:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     "No registered FL clients found for the provided canvas node IDs. "
-                    "Make sure to register Client nodes before starting training. "
                     "Canvas IDs: " + ", ".join(body.canvas_node_ids)
                 ),
             )
