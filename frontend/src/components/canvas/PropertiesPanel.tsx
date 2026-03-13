@@ -191,6 +191,13 @@ function TypeSpecificFields({
       return (
         <>
           <PropertySelect
+            label="Data Source"
+            value={node.dataSource ?? 'cic-ids2017'}
+            options={['cic-ids2017', 'synthetic']}
+            labels={['CIC-IDS2017 Dataset', 'Synthetic Traffic']}
+            onChange={(v) => onChange('dataSource', v)}
+          />
+          <PropertySelect
             label="Traffic Type"
             value={node.trafficType ?? 'benign'}
             options={['benign', 'mixed']}
@@ -343,11 +350,13 @@ function PropertySelect({
   label,
   value,
   options,
+  labels,
   onChange,
 }: {
   label: string;
   value: string;
   options: string[];
+  labels?: string[];
   onChange: (value: string) => void;
 }) {
   return (
@@ -359,9 +368,9 @@ function PropertySelect({
           onChange={(e) => onChange(e.target.value)}
           className="prop-input"
         >
-          {options.map((opt) => (
+          {options.map((opt, i) => (
             <option key={opt} value={opt}>
-              {opt.charAt(0).toUpperCase() + opt.slice(1).replace(/-/g, ' ')}
+              {labels?.[i] ?? opt.charAt(0).toUpperCase() + opt.slice(1).replace(/-/g, ' ')}
             </option>
           ))}
         </select>

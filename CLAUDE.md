@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus MCP
 
-This project is indexed by GitNexus as **FYP_2026** (1502 symbols, 3286 relationships, 114 execution flows).
+This project is indexed by GitNexus as **FYP_2026** (1509 symbols, 3300 relationships, 115 execution flows).
 
 ## Always Start Here
 

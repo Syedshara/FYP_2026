@@ -98,6 +98,7 @@ export interface TrafficSourceNodeData {
   trafficType?: string;       // benign, mixed
   rate?: number;              // packets per second
   protocol?: string;
+  dataSource?: 'cic-ids2017' | 'synthetic'; // training data source
 }
 
 export interface RateFilterNodeData {
