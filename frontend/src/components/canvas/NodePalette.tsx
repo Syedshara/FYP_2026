@@ -1,18 +1,15 @@
 /**
- * NodePalette — Left sidebar node picker.
+ * NodePalette — Left sidebar node picker (drag-to-canvas).
  *
- * Design: floating card panel with 12px left margin and 8px vertical margin,
- * so it never bleeds into the viewport edge, navbar, or footer.
- * No search bar — all categories always visible, drag-to-canvas.
+ * Every spacing value is an inline style — no Tailwind for layout.
  */
 
-import { type DragEvent, useCallback } from 'react';
+import { type DragEvent, useCallback, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { type LucideIcon } from 'lucide-react';
 import { PALETTE_ITEMS } from '@/config/nodeTypes';
 import type { PaletteCategory, PaletteItem } from '@/types/canvas';
 
-/* ── Category display order ── */
 const CATEGORY_ORDER: PaletteCategory[] = [
   'Entities',
   'Federated Learning',
@@ -21,94 +18,127 @@ const CATEGORY_ORDER: PaletteCategory[] = [
 ];
 
 function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return `${hex}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const c = hex.replace('#', '');
+  if (c.length !== 6) return hex;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/* Group ALL items by category, preserving order */
-function groupedItems() {
-  const map = new Map<PaletteCategory, PaletteItem[]>();
-  for (const item of PALETTE_ITEMS) {
-    const list = map.get(item.category) ?? [];
-    list.push(item);
-    map.set(item.category, list);
-  }
-  return CATEGORY_ORDER.filter((cat) => map.has(cat)).map((cat) => ({
-    category: cat,
-    items: map.get(cat)!,
-  }));
-}
+/* ── Styles as plain objects (no CSS classes for layout) ── */
 
-const GROUPED = groupedItems();
+const sidebarStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  width: 248,
+  marginLeft: 12,
+  marginTop: 8,
+  marginBottom: 8,
+  flexShrink: 0,
+  overflow: 'hidden',
+  borderRadius: 12,
+  background: 'var(--n8n-sidebar-bg)',
+  border: '1px solid var(--n8n-card-border)',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexShrink: 0,
+  height: 40,
+  paddingLeft: 16,
+  paddingRight: 12,
+  borderBottom: '1px solid var(--n8n-card-border)',
+};
+
+const headerTextStyle: React.CSSProperties = {
+  color: 'var(--n8n-text-muted)',
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.8px',
+};
+
+const scrollAreaStyle: React.CSSProperties = {
+  flex: 1,
+  overflowY: 'auto',
+  paddingBottom: 12,
+};
+
+const categoryLabelStyle: React.CSSProperties = {
+  color: 'var(--n8n-text-muted)',
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.8px',
+};
+
+const itemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  paddingTop: 8,
+  paddingBottom: 8,
+  paddingLeft: 16,
+  paddingRight: 12,
+  cursor: 'grab',
+  borderRadius: 6,
+  userSelect: 'none',
+};
+
+const labelStyle: React.CSSProperties = {
+  color: 'var(--n8n-text-primary)',
+  fontSize: 13,
+  fontWeight: 500,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+/* ── Component ── */
 
 export default function NodePalette() {
+  const grouped = useMemo(() => {
+    const map = new Map<PaletteCategory, PaletteItem[]>();
+    for (const item of PALETTE_ITEMS) {
+      const list = map.get(item.category) ?? [];
+      list.push(item);
+      map.set(item.category, list);
+    }
+    return CATEGORY_ORDER.filter((cat) => map.has(cat)).map((cat) => ({
+      category: cat,
+      items: map.get(cat)!,
+    }));
+  }, []);
+
   return (
-    <aside
-      className="flex flex-col w-[248px] ml-3 my-2 shrink-0 overflow-hidden rounded-xl"
-      style={{
-        background: 'var(--n8n-sidebar-bg)',
-        border: '1px solid var(--n8n-card-border)',
-      }}
-    >
-      {/* ── Panel header ── */}
-      <div
-        className="flex items-center flex-shrink-0"
-        style={{
-          borderBottom: '1px solid var(--n8n-card-border)',
-          height: '40px',
-          paddingLeft: '16px',
-          paddingRight: '12px',
-        }}
-      >
-        <span
-          style={{
-            color: 'var(--n8n-text-muted)',
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.8px',
-          }}
-        >
-          Nodes
-        </span>
+    <aside style={sidebarStyle}>
+      {/* Header */}
+      <div style={headerStyle}>
+        <span style={headerTextStyle}>Nodes</span>
       </div>
 
-      {/* ── Categorized node list (scrollable) ── */}
-      <div className="n8n-palette-list flex-1 overflow-y-auto pb-3">
-        {GROUPED.map(({ category, items }, index) => (
+      {/* Scrollable category list */}
+      <div className="n8n-palette-list" style={scrollAreaStyle}>
+        {grouped.map(({ category, items }, idx) => (
           <div key={category}>
             {/* Category label */}
             <div
               style={{
-                paddingLeft: '16px',
-                paddingRight: '12px',
-                paddingTop: index === 0 ? '16px' : '20px',
-                paddingBottom: '8px',
+                paddingLeft: 16,
+                paddingRight: 12,
+                paddingTop: idx === 0 ? 16 : 20,
+                paddingBottom: 8,
               }}
             >
-              <span
-                style={{
-                  color: 'var(--n8n-text-muted)',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.8px',
-                }}
-              >
-                {category}
-              </span>
+              <span style={categoryLabelStyle}>{category}</span>
             </div>
 
-            {/* Node items */}
-            <div className="flex flex-col gap-0.5">
-              {items.map((item) => (
-                <PaletteNodeItem key={item.type} item={item} />
-              ))}
-            </div>
+            {/* Node rows */}
+            {items.map((item) => (
+              <PaletteNodeItem key={item.type} item={item} />
+            ))}
           </div>
         ))}
       </div>
@@ -116,40 +146,31 @@ export default function NodePalette() {
   );
 }
 
-// ── Palette Node Item ──
+/* ── Single draggable node row ── */
 
 function PaletteNodeItem({ item }: { item: PaletteItem }) {
   const { type, label, icon, accent, description } = item;
-
   const Icon = LucideIcons[icon as keyof typeof LucideIcons] as LucideIcon | undefined;
 
   const onDragStart = useCallback(
-    (event: DragEvent) => {
-      event.dataTransfer.setData('application/reactflow-node-type', type as string);
-      event.dataTransfer.effectAllowed = 'move';
+    (e: DragEvent) => {
+      e.dataTransfer.setData('application/reactflow-node-type', type as string);
+      e.dataTransfer.effectAllowed = 'move';
     },
     [type],
   );
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      className="n8n-palette-item"
-      title={description}
-    >
+    <div draggable onDragStart={onDragStart} title={description} style={itemStyle}>
+      {/* Icon badge */}
       <div
         className="icon-badge icon-badge-md"
-        style={{ background: hexToRgba(accent, 0.1) }}
+        style={{ background: hexToRgba(accent, 0.1), flexShrink: 0 }}
       >
         {Icon && <Icon size={17} style={{ color: accent }} />}
       </div>
-      <span
-        className="n8n-palette-label text-[13px] font-medium truncate"
-        style={{ color: 'var(--n8n-text-primary)', transition: 'color 0.15s ease' }}
-      >
-        {label}
-      </span>
+      {/* Label */}
+      <span style={labelStyle}>{label}</span>
     </div>
   );
 }
