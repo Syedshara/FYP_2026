@@ -18,7 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.user import User
-from app.services import workspace_service
+from app.services import workspace_service, fl_service
+from app.core.exceptions import ConflictException
 from app.schemas.workspace import (
     WorkspaceBrief,
     WorkspaceOut,
@@ -99,6 +100,8 @@ async def save_workspace(
 ):
     """
     Full canvas save — atomically replaces nodes, edges, viewport, and metadata.
+
+    Side effect: auto-registers any canvas Client nodes as FL clients (idempotent).
     """
     try:
         ws = await workspace_service.save_workspace(db, workspace_id, data)
@@ -107,6 +110,46 @@ async def save_workspace(
         raise HTTPException(status_code=500, detail=f"Failed to save workspace: {exc}")
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Auto-register canvas Client nodes as FL clients (idempotent — skip if already exists)
+    if data.nodes:
+        for node in data.nodes:
+            node_type = node.get("type", "")
+            node_data = node.get("data", {})
+            if node_type != "client":
+                continue
+            canvas_node_id = node.get("id", "")
+            if not canvas_node_id:
+                continue
+            label = node_data.get("label", canvas_node_id)
+            # Derive a safe client_id from the canvas node id
+            client_id = canvas_node_id.replace("-", "_")
+            # Determine data_source from connected Traffic Source nodes (fallback to cic-ids2017)
+            data_source = "cic-ids2017"
+            # Check if this canvas_node_id is already registered
+            existing = await fl_service.get_fl_client_by_canvas_node_id(db, canvas_node_id)
+            if existing is None:
+                try:
+                    await fl_service.register_fl_client(
+                        db,
+                        client_id=client_id,
+                        name=label,
+                        canvas_node_id=canvas_node_id,
+                        data_source=data_source,
+                        create_container=True,
+                    )
+                    log.info(
+                        "Auto-registered canvas client node %s as FL client %s",
+                        canvas_node_id, client_id,
+                    )
+                except ConflictException:
+                    # client_id collision (different canvas node, same derived ID) — skip
+                    log.debug("FL client %s already registered — skipping", client_id)
+                except Exception as exc:
+                    log.warning(
+                        "Failed to auto-register canvas client %s: %s", canvas_node_id, exc
+                    )
+
     return _workspace_to_out(ws)
 
 

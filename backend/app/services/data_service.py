@@ -1,11 +1,9 @@
 """
 Client training data service — auto-generates training data for new FL clients.
 
-Strategy (Option B): Copies a random 30% subset of .npy chunks from an existing
-client (bank_a, bank_b, or bank_c) into the new client's data directory.
-
-This gives the new client realistic CIC-IDS2017 data with genuine attack patterns,
-but a different subset from the source — suitable for non-IID federated learning.
+Strategy: Copies a random 30% subset of .npy chunks from any existing client
+that already has data (CIC-IDS2017 preprocessed format).  For synthetic data,
+generates random sequences with realistic class imbalance.
 
 Data layout:
     /app/client_data/<client_id>/
@@ -23,7 +21,6 @@ import logging
 import os
 import random
 import shutil
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -33,8 +30,9 @@ log = logging.getLogger(__name__)
 # Inside the Docker container, client data is mounted here
 CLIENT_DATA_ROOT = "/app/client_data"
 
-# Source clients that always have real preprocessed data
-SOURCE_CLIENTS = ["bank_a", "bank_b", "bank_c"]
+# CIC-IDS2017 data dimensions
+SEQ_LEN = 10
+NUM_FEATURES = 78
 
 # What fraction of source chunks to copy (30%)
 SUBSET_FRACTION = 0.30
@@ -42,32 +40,65 @@ SUBSET_FRACTION = 0.30
 # Minimum rows to keep per chunk subset (avoid tiny files)
 MIN_ROWS_PER_CHUNK = 500
 
+# Synthetic chunk size and number of chunks when generating fake data
+SYNTHETIC_CHUNK_ROWS = 2000
+SYNTHETIC_NUM_CHUNKS = 3
 
-def _get_source_client() -> Optional[str]:
-    """Pick a random source client that has data."""
-    available = []
-    for cid in SOURCE_CLIENTS:
-        d = os.path.join(CLIENT_DATA_ROOT, cid)
+
+def _find_source_clients() -> list[str]:
+    """Return all client subdirs that have at least one X_seq*.npy file."""
+    if not os.path.isdir(CLIENT_DATA_ROOT):
+        return []
+    sources = []
+    for name in os.listdir(CLIENT_DATA_ROOT):
+        d = os.path.join(CLIENT_DATA_ROOT, name)
         if os.path.isdir(d):
             x_files = [f for f in os.listdir(d) if f.startswith("X_seq") and f.endswith(".npy")]
             if x_files:
-                available.append(cid)
-    if not available:
-        return None
-    return random.choice(available)
+                sources.append(name)
+    return sources
 
 
-def generate_client_data(client_id: str) -> dict:
+def _get_source_client(exclude: str = "") -> Optional[str]:
+    """Pick a random source client that has data, excluding `exclude`."""
+    available = [c for c in _find_source_clients() if c.lower() != exclude.lower()]
+    return random.choice(available) if available else None
+
+
+def _generate_synthetic_data(target_dir: str) -> dict:
+    """Create random synthetic traffic data in CIC-IDS2017 format."""
+    os.makedirs(target_dir, exist_ok=True)
+    total_samples = 0
+
+    for i in range(SYNTHETIC_NUM_CHUNKS):
+        n = SYNTHETIC_CHUNK_ROWS
+        # Random feature values (normalised to [0, 1])
+        x = np.random.rand(n, SEQ_LEN, NUM_FEATURES).astype(np.float32)
+        # Realistic class imbalance: ~80% benign (0), ~20% attack (1)
+        y = (np.random.rand(n) < 0.2).astype(np.int64)
+        np.save(os.path.join(target_dir, f"X_seq_chunk_{i}.npy"), x)
+        np.save(os.path.join(target_dir, f"y_seq_chunk_{i}.npy"), y)
+        total_samples += n
+
+    log.info("Generated %d synthetic chunks (%d samples) in %s",
+             SYNTHETIC_NUM_CHUNKS, total_samples, target_dir)
+    return {
+        "created": True,
+        "source": "synthetic",
+        "chunks": SYNTHETIC_NUM_CHUNKS,
+        "total_samples": total_samples,
+        "path": target_dir,
+    }
+
+
+def generate_client_data(client_id: str, data_source: str = "cic-ids2017") -> dict:
     """
-    Generate training data for a new client by copying a random subset
-    from an existing source client.
+    Generate training data for a new client.
 
-    Returns dict with:
-        created: bool — whether data was created
-        source: str — source client id
-        chunks: int — number of chunk files created
-        total_samples: int — total number of training samples
-        path: str — data directory path
+    data_source: 'cic-ids2017' — copy a random 30% subset from an existing client
+                 'synthetic'   — generate random sequences with realistic class imbalance
+
+    Returns dict with: created, source, chunks, total_samples, path.
     """
     target_dir = os.path.join(CLIENT_DATA_ROOT, client_id.lower())
 
@@ -85,30 +116,24 @@ def generate_client_data(client_id: str) -> dict:
                 "path": target_dir,
             }
 
-    # Find a source client
-    source_id = _get_source_client()
+    if data_source == "synthetic":
+        return _generate_synthetic_data(target_dir)
+
+    # CIC-IDS2017: copy subset from any available source client
+    source_id = _get_source_client(exclude=client_id)
     if source_id is None:
-        log.error("No source client data available for subsetting")
-        return {
-            "created": False,
-            "source": "none",
-            "chunks": 0,
-            "total_samples": 0,
-            "path": target_dir,
-        }
+        log.warning("No CIC-IDS2017 source data found — falling back to synthetic")
+        return _generate_synthetic_data(target_dir)
 
     source_dir = os.path.join(CLIENT_DATA_ROOT, source_id)
     x_files = sorted([f for f in os.listdir(source_dir) if f.startswith("X_seq") and f.endswith(".npy")])
     y_files = sorted([f for f in os.listdir(source_dir) if f.startswith("y_seq") and f.endswith(".npy")])
 
     if not x_files or len(x_files) != len(y_files):
-        log.error("Source client %s has mismatched data files", source_id)
-        return {"created": False, "source": source_id, "chunks": 0, "total_samples": 0, "path": target_dir}
+        log.error("Source client %s has mismatched data files — falling back to synthetic", source_id)
+        return _generate_synthetic_data(target_dir)
 
-    # Create target directory
     os.makedirs(target_dir, exist_ok=True)
-
-    # Strategy: for each chunk in source, take a random 30% of rows
     total_samples = 0
     chunks_created = 0
 
@@ -119,30 +144,23 @@ def generate_client_data(client_id: str) -> dict:
 
             n = len(x_src)
             subset_size = max(MIN_ROWS_PER_CHUNK, int(n * SUBSET_FRACTION))
-            subset_size = min(subset_size, n)  # Don't exceed source size
+            subset_size = min(subset_size, n)
 
-            # Random row indices (without replacement)
             indices = np.random.choice(n, size=subset_size, replace=False)
-            indices.sort()  # Keep temporal order
+            indices.sort()
 
-            x_subset = x_src[indices]
-            y_subset = y_src[indices]
-
-            # Save to target
-            np.save(os.path.join(target_dir, f"X_seq_chunk_{i}.npy"), x_subset)
-            np.save(os.path.join(target_dir, f"y_seq_chunk_{i}.npy"), y_subset)
+            np.save(os.path.join(target_dir, f"X_seq_chunk_{i}.npy"), x_src[indices])
+            np.save(os.path.join(target_dir, f"y_seq_chunk_{i}.npy"), y_src[indices])
 
             total_samples += subset_size
             chunks_created += 1
-
             log.info("  Chunk %d: %d/%d rows from %s/%s", i, subset_size, n, source_id, xf)
 
         except Exception as exc:
             log.error("Failed to process chunk %d from %s: %s", i, source_id, exc)
 
-    log.info("Generated data for client %s: %d chunks, %d samples (from %s)",
+    log.info("Generated CIC-IDS2017 data for client %s: %d chunks, %d samples (from %s)",
              client_id, chunks_created, total_samples, source_id)
-
     return {
         "created": True,
         "source": source_id,
@@ -156,13 +174,8 @@ def delete_client_data(client_id: str) -> bool:
     """
     Remove the training data directory for a client.
 
-    Safety: Only deletes from CLIENT_DATA_ROOT, refuses to delete source clients.
+    Safety: only deletes from CLIENT_DATA_ROOT subdirectory.
     """
-    # Safety check — never delete source client data
-    if client_id.lower() in SOURCE_CLIENTS:
-        log.warning("Refusing to delete source client data: %s", client_id)
-        return False
-
     target_dir = os.path.join(CLIENT_DATA_ROOT, client_id.lower())
     if not os.path.isdir(target_dir):
         log.info("No data directory to delete for client %s", client_id)

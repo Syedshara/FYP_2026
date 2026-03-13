@@ -106,6 +106,8 @@ class FLClientCreate(BaseModel):
     description: Optional[str] = None
     ip_address: Optional[str] = Field(default=None, max_length=45)
     data_path: str = Field(default="/app/data")
+    canvas_node_id: Optional[str] = Field(default=None, max_length=100)
+    data_source: str = Field(default="cic-ids2017", description="'cic-ids2017' or 'synthetic'")
 
 
 class FLClientUpdate(BaseModel):
@@ -240,6 +242,8 @@ async def create_client(
         data_path=body.data_path,
         description=body.description,
         ip_address=body.ip_address,
+        canvas_node_id=body.canvas_node_id,
+        data_source=body.data_source,
     )
 
 
@@ -416,13 +420,20 @@ async def get_client_container_status(
 class FLStartRequest(BaseModel):
     """Configuration for a new FL training session."""
     num_rounds: int = Field(default=5, ge=1, le=100)
-    min_clients: int = Field(default=2, ge=1)
-    use_he: bool = True
+    min_clients: int = Field(default=1, ge=1)
+    use_he: bool = False  # Default off — HE is computationally heavy on dev machines
     local_epochs: int = Field(default=3, ge=1)
     learning_rate: float = Field(default=0.001, gt=0.0)
+    # Canvas-aware: list of canvas node IDs of Client nodes connected to this FL Server
+    canvas_node_ids: Optional[List[str]] = Field(
+        default=None,
+        description="Canvas node IDs of Client nodes to include in training. "
+                    "If provided, only those clients are used.",
+    )
+    # Legacy: direct client_id list (lower priority than canvas_node_ids)
     client_ids: Optional[List[str]] = Field(
         default=None,
-        description="Specific client IDs to use for training. If None, all trainable clients are used.",
+        description="Specific client_id strings. Used if canvas_node_ids is not provided.",
     )
 
 
@@ -458,8 +469,20 @@ async def start_training(
     # Get all registered clients
     clients = await fl_service.get_all_fl_clients(db)
 
-    # Filter by user-selected client_ids if provided
-    if body.client_ids:
+    # Canvas-aware filtering: canvas_node_ids takes priority over client_ids
+    if body.canvas_node_ids:
+        canvas_id_set = set(body.canvas_node_ids)
+        clients = [c for c in clients if c.canvas_node_id in canvas_id_set]
+        if not clients:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "No registered FL clients found for the provided canvas node IDs. "
+                    "Make sure to register Client nodes before starting training. "
+                    "Canvas IDs: " + ", ".join(body.canvas_node_ids)
+                ),
+            )
+    elif body.client_ids:
         selected_set = set(cid.lower() for cid in body.client_ids)
         clients = [c for c in clients if c.client_id.lower() in selected_set]
         if len(clients) < body.min_clients:
@@ -497,11 +520,13 @@ async def start_training(
         )
 
     # ── Step 1: Start FL server FIRST so gRPC is ready ──
+    client_names = [c.client_id for c in trainable_clients]
     try:
         docker_service.start_fl_server(
             num_rounds=body.num_rounds,
             min_clients=min(body.min_clients, len(trainable_clients)),
             use_he=body.use_he,
+            client_names=client_names,
         )
         log.info("FL server started: rounds=%d, clients=%d", body.num_rounds, len(trainable_clients))
     except Exception as exc:

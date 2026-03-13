@@ -79,8 +79,11 @@ NUM_FEATURES = DEFAULT_CONFIG["NUM_FEATURES"]
 RECESS_INTERVAL: int = 5
 REFRESH_INTERVAL: int = 20
 
-# ── Well-known FL client names ────────────────────────────
-FL_CLIENT_NAMES: List[str] = ["Bank_A", "Bank_B", "Bank_C"]
+# ── Dynamic FL client names (set by CLIENTS env var) ─────
+# Comma-separated list of client_id values passed by the backend when starting training.
+# Falls back to discovering all pub keys in CLIENT_KEY_DIR if CLIENTS env is empty.
+_raw_clients = os.environ.get("CLIENTS", "").strip()
+FL_CLIENT_NAMES: List[str] = [n.strip() for n in _raw_clients.split(",") if n.strip()]
 
 # HTTP client for backend callbacks
 _http_client: Optional[httpx.Client] = None
@@ -199,8 +202,15 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             log.info("Creating CKKS context …")
             self.ckks_ctx = create_ckks_context()
 
-            # ── VSS ceremony: split secret key to clients ──
-            self._vss: dict = _run_vss_ceremony(self.ckks_ctx)
+            # Only run VSS ceremony if we have known client names
+            if FL_CLIENT_NAMES:
+                self._vss: dict = _run_vss_ceremony(self.ckks_ctx)
+            else:
+                log.warning(
+                    "CLIENTS env var is empty — skipping VSS ceremony. "
+                    "Set CLIENTS=client1,client2 when starting the FL server."
+                )
+                self._vss = {}
         else:
             self.ckks_ctx = None
             self._vss = {}
@@ -557,62 +567,73 @@ class FedAvgHE(fl.server.strategy.FedAvg):
     # ── HE FedAvg ────────────────────────────────────────
 
     def _aggregate_he(self, server_round, results):
-        import tenseal as ts
+        """
+        HE-based aggregation using CKKS. Falls back to plain FedAvg on any error
+        (TenSEAL failures are common on low-memory/low-power dev machines).
+        """
+        try:
+            import tenseal as ts
 
-        num_clients = len(results)
-        global_state = self.global_model.state_dict()
-        keys = list(global_state.keys())
+            num_clients = len(results)
+            global_state = self.global_model.state_dict()
+            keys = list(global_state.keys())
 
-        weights_results = [
-            (parameters_to_ndarrays(r.parameters), r.num_examples) for _, r in results
-        ]
-        total_examples = sum(n for _, n in weights_results)
+            weights_results = [
+                (parameters_to_ndarrays(r.parameters), r.num_examples) for _, r in results
+            ]
+            total_examples = sum(n for _, n in weights_results)
 
-        # Plain FedAvg for non-selected layers
-        new_ndarrays = []
-        for i, key in enumerate(keys):
-            if key not in SELECTED_LAYERS:
-                layer_sum = np.zeros_like(weights_results[0][0][i])
-                for layers, n in weights_results:
-                    layer_sum += layers[i] * (n / total_examples)
-                new_ndarrays.append(layer_sum)
-            else:
-                new_ndarrays.append(global_state[key].cpu().numpy())
-
-        # HE aggregation for selected layers
-        encrypted_deltas = []
-        shapes = {}
-        for layers, _n in weights_results:
-            client_enc = {}
+            # Plain FedAvg for non-selected layers
+            new_ndarrays = []
             for i, key in enumerate(keys):
-                if key in SELECTED_LAYERS:
-                    delta = layers[i] - global_state[key].cpu().numpy()
-                    delta = np.clip(delta, -10.0, 10.0).astype(np.float64)
-                    delta = np.nan_to_num(delta, nan=0.0, posinf=0.0, neginf=0.0)
-                    shapes[key] = delta.shape
-                    client_enc[key] = ts.ckks_vector(self.ckks_ctx, delta.flatten().tolist())
-            encrypted_deltas.append(client_enc)
+                if key not in SELECTED_LAYERS:
+                    layer_sum = np.zeros_like(weights_results[0][0][i])
+                    for layers, n in weights_results:
+                        layer_sum += layers[i] * (n / total_examples)
+                    new_ndarrays.append(layer_sum)
+                else:
+                    new_ndarrays.append(global_state[key].cpu().numpy())
 
-        enc_agg = encrypted_sum(encrypted_deltas)
+            # HE aggregation for selected layers
+            encrypted_deltas = []
+            shapes = {}
+            for layers, _n in weights_results:
+                client_enc = {}
+                for i, key in enumerate(keys):
+                    if key in SELECTED_LAYERS:
+                        delta = layers[i] - global_state[key].cpu().numpy()
+                        delta = np.clip(delta, -10.0, 10.0).astype(np.float64)
+                        delta = np.nan_to_num(delta, nan=0.0, posinf=0.0, neginf=0.0)
+                        shapes[key] = delta.shape
+                        client_enc[key] = ts.ckks_vector(self.ckks_ctx, delta.flatten().tolist())
+                encrypted_deltas.append(client_enc)
 
-        for key in enc_agg:
-            flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)
-            flat = np.nan_to_num(flat, nan=0.0, posinf=0.0, neginf=0.0)
-            shape = shapes[key]
-            num_el = int(np.prod(shape))
-            delta_avg = flat[:num_el].reshape(shape) / num_clients
-            idx = keys.index(key)
-            new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_avg
+            enc_agg = encrypted_sum(encrypted_deltas)
 
-        self._set_global_ndarrays(new_ndarrays)
-        return (
-            ndarrays_to_parameters(new_ndarrays),
-            {
-                "aggregation": "fedavg_he_ckks",
-                "he_poly_modulus": str(HE_POLY_MODULUS),
-                "num_encrypted_layers": str(len(SELECTED_LAYERS)),
-            },
-        )
+            for key in enc_agg:
+                flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)
+                flat = np.nan_to_num(flat, nan=0.0, posinf=0.0, neginf=0.0)
+                shape = shapes[key]
+                num_el = int(np.prod(shape))
+                delta_avg = flat[:num_el].reshape(shape) / num_clients
+                idx = keys.index(key)
+                new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_avg
+
+            self._set_global_ndarrays(new_ndarrays)
+            return (
+                ndarrays_to_parameters(new_ndarrays),
+                {
+                    "aggregation": "fedavg_he_ckks",
+                    "he_poly_modulus": str(HE_POLY_MODULUS),
+                    "num_encrypted_layers": str(len(SELECTED_LAYERS)),
+                },
+            )
+        except Exception as exc:
+            log.warning(
+                "HE aggregation failed (round %d): %s — falling back to plain FedAvg",
+                server_round, exc,
+            )
+            return self._aggregate_plain(server_round, results)
 
     # ── Checkpoint ───────────────────────────────────────
 

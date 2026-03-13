@@ -5,9 +5,10 @@
  * Layout: top bar → 3-column (left controls/clients | center chart+log | right security).
  *
  * Fetches FL clients + status on mount, then relies on WebSocket for live updates.
+ * Only shows clients whose canvas_node_id is connected to this FL Server via fl-communication edges.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ArrowLeft, Server, Loader2, Activity } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
@@ -25,9 +26,10 @@ export default function FLDrillDownView() {
   const setDrilldownServerId = useWorkspaceStore((s) => s.setDrilldownServerId);
   const drilldownServerId = useWorkspaceStore((s) => s.drilldownServerId);
   const nodes = useWorkspaceStore((s) => s.nodes);
+  const edges = useWorkspaceStore((s) => s.edges);
   const flGlobal = useLiveStore((s) => s.flGlobalProgress);
 
-  const [clients, setClients] = useState<FLClient[]>([]);
+  const [allClients, setAllClients] = useState<FLClient[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Find the FL Server node data
@@ -35,17 +37,35 @@ export default function FLDrillDownView() {
   const serverData = serverNode?.data as FLServerNodeData | undefined;
   const serverLabel = serverData?.label ?? 'FL Server';
 
+  // Compute canvas node IDs of Clients connected to this FL Server
+  const connectedClientNodeIds = useMemo(() => {
+    if (!drilldownServerId) return new Set<string>();
+    return new Set(
+      edges
+        .filter((e) => e.source === drilldownServerId && e.type === 'fl-communication')
+        .map((e) => e.target),
+    );
+  }, [drilldownServerId, edges]);
+
+  // Filter fetched clients to only those connected to this server
+  const clients = useMemo(() => {
+    if (connectedClientNodeIds.size === 0) return [];
+    return allClients.filter(
+      (c) => c.canvas_node_id !== null && connectedClientNodeIds.has(c.canvas_node_id),
+    );
+  }, [allClients, connectedClientNodeIds]);
+
   // Fetch FL clients on mount
   useEffect(() => {
     flApi.clients()
-      .then(setClients)
+      .then(setAllClients)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   // Also refresh client list when training starts/stops
   useEffect(() => {
-    flApi.clients().then(setClients).catch(() => {});
+    flApi.clients().then(setAllClients).catch(() => {});
   }, [flGlobal?.is_training]);
 
   const handleBack = useCallback(() => {

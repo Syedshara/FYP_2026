@@ -16,6 +16,9 @@ export interface FLStartConfig {
   use_he?: boolean;
   local_epochs?: number;
   learning_rate?: number;
+  /** Canvas node IDs of Client nodes connected to the FL Server — takes priority over client_ids */
+  canvas_node_ids?: string[];
+  /** Legacy: direct client_id strings */
   client_ids?: string[];
 }
 

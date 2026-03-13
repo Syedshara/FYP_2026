@@ -31,11 +31,13 @@ class FLRoundOut(BaseModel):
 # ── FL Client ──────────────────────────────────────────
 
 class FLClientCreate(BaseModel):
-    client_id: str = Field(..., min_length=1, max_length=50, description="Unique short ID, e.g. 'bank_a'")
-    name: str = Field(..., min_length=1, max_length=100, description="Display name, e.g. 'Bank A'")
+    client_id: str = Field(..., min_length=1, max_length=50, description="Unique short ID")
+    name: str = Field(..., min_length=1, max_length=100, description="Display name")
     description: Optional[str] = None
     ip_address: Optional[str] = Field(default=None, max_length=45)
     data_path: str = Field(default="/app/data", description="Path to client data directory")
+    canvas_node_id: Optional[str] = Field(default=None, max_length=100, description="Canvas node ID this client is bound to")
+    data_source: str = Field(default="cic-ids2017", description="Training data source: 'cic-ids2017' or 'synthetic'")
 
 
 class FLClientUpdate(BaseModel):
@@ -58,6 +60,8 @@ class FLClientOut(BaseModel):
     container_id: Optional[str] = None
     container_name: Optional[str] = None
     total_samples: int = 0
+    canvas_node_id: Optional[str] = None
+    data_source: str = "cic-ids2017"
     last_seen_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

@@ -110,6 +110,8 @@ export interface FLClient {
   container_id: string | null;
   container_name: string | null;
   total_samples: number;
+  canvas_node_id: string | null;
+  data_source: string;
   last_seen_at: string | null;
   created_at: string;
   updated_at: string | null;

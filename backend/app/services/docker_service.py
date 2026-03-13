@@ -258,13 +258,16 @@ def validate_client_data(client_id: str) -> bool:
 def start_fl_server(
     *,
     num_rounds: int = 5,
-    min_clients: int = 2,
-    use_he: bool = True,
+    min_clients: int = 1,
+    use_he: bool = False,
+    client_names: list[str] | None = None,
 ) -> ContainerInfo:
     """
     Create and start the FL server container.
 
     Removes any existing server container first to ensure clean state.
+    client_names: list of client_id strings to pass as the CLIENTS env var so
+    the FL server knows which clients to expect (VSS ceremony, trust scores).
     """
     dk = _get_docker()
     host_root = settings.HOST_PROJECT_ROOT
@@ -288,6 +291,8 @@ def start_fl_server(
         "FL_TLS_CA":   f"{container_cert_dir}/ca.crt",
         # Phase 2 — client Ed25519 public keys for gradient signature verification
         "CLIENT_KEY_DIR": f"{container_cert_dir}/client_keys/",
+        # Canvas-driven: comma-separated list of client_id values to train
+        "CLIENTS": ",".join(client_names) if client_names else "",
     }
 
     volumes = {

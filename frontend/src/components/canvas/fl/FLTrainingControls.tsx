@@ -3,13 +3,15 @@
  *
  * Shows in the left panel of the FL drill-down view.
  * Reads live global progress from liveStore; sends start/stop via flApi.
+ * Validates canvas topology before allowing training start.
  */
 
-import { useState } from 'react';
-import { Play, Square, Loader2, Lock } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Play, Square, Loader2, Lock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { flApi, type FLStartConfig } from '@/api/fl';
 import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { validateFLTopology } from '@/utils/topologyValidator';
 
 export default function FLTrainingControls() {
   const flGlobal = useLiveStore((s) => s.flGlobalProgress);
@@ -18,13 +20,29 @@ export default function FLTrainingControls() {
   const drilldownServerId = useWorkspaceStore((s) => s.drilldownServerId);
   const setActiveFlServerNodeId = useWorkspaceStore((s) => s.setActiveFlServerNodeId);
   const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
+  const nodes = useWorkspaceStore((s) => s.nodes);
+  const edges = useWorkspaceStore((s) => s.edges);
 
-  // Config state
+  // Validate topology on every render (cheap, synchronous)
+  const topologyResult = useMemo(() => {
+    if (!drilldownServerId) {
+      return {
+        valid: false,
+        errors: ['No FL Server selected.'],
+        connectedClientNodeIds: [],
+        incompleteClientNodeIds: [],
+      };
+    }
+    return validateFLTopology(drilldownServerId, nodes, edges);
+  }, [drilldownServerId, nodes, edges]);
+
+  // Config state — auto-set min_clients from connected topology
   const [numRounds, setNumRounds] = useState(5);
   const [localEpochs, setLocalEpochs] = useState(3);
   const [learningRate, setLearningRate] = useState(0.001);
-  const [minClients, setMinClients] = useState(2);
-  const [useHE, setUseHE] = useState(true);
+  const [useHE, setUseHE] = useState(false); // Default off — HE is computationally heavy
+
+  const autoMinClients = topologyResult.connectedClientNodeIds.length;
 
   // Action state
   const [isStarting, setIsStarting] = useState(false);
@@ -32,19 +50,23 @@ export default function FLTrainingControls() {
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = async () => {
+    if (!topologyResult.valid) {
+      setError('Fix topology errors before starting training.');
+      return;
+    }
     setError(null);
     setIsStarting(true);
     try {
       const config: FLStartConfig = {
         num_rounds: numRounds,
-        min_clients: minClients,
+        min_clients: autoMinClients > 0 ? autoMinClients : 1,
         use_he: useHE,
         local_epochs: localEpochs,
         learning_rate: learningRate,
+        canvas_node_ids: topologyResult.connectedClientNodeIds,
       };
       await flApi.start(config);
       // Immediately reflect "running" on the specific canvas node that opened this drilldown.
-      // Don't wait for the first WebSocket fl_progress message.
       if (drilldownServerId) {
         setActiveFlServerNodeId(drilldownServerId);
         updateNodeData(drilldownServerId, {
@@ -65,7 +87,6 @@ export default function FLTrainingControls() {
     setIsStopping(true);
     try {
       await flApi.stop();
-      // Clear active server tracking so no node stays "running" after stop
       setActiveFlServerNodeId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop training');
@@ -82,16 +103,67 @@ export default function FLTrainingControls() {
         <span className="fl-section-header-title">Training Config</span>
       </div>
 
+      {/* Topology validation status */}
+      {!isTraining && (
+        <div
+          className="flex flex-col gap-1.5 px-3 py-2 rounded-lg text-xs"
+          style={{
+            background: topologyResult.valid
+              ? 'rgba(28, 200, 138, 0.07)'
+              : 'rgba(208, 48, 80, 0.07)',
+            border: topologyResult.valid
+              ? '1px solid rgba(28, 200, 138, 0.2)'
+              : '1px solid rgba(208, 48, 80, 0.2)',
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            {topologyResult.valid ? (
+              <>
+                <CheckCircle2 size={12} style={{ color: 'var(--n8n-success)', flexShrink: 0 }} />
+                <span style={{ color: 'var(--n8n-success)' }}>
+                  Topology valid — {autoMinClients} client{autoMinClients !== 1 ? 's' : ''} ready
+                </span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle size={12} style={{ color: 'var(--n8n-danger)', flexShrink: 0 }} />
+                <span style={{ color: 'var(--n8n-danger)', fontWeight: 600 }}>
+                  Configuration incomplete
+                </span>
+              </>
+            )}
+          </div>
+          {!topologyResult.valid &&
+            topologyResult.errors.map((e, i) => (
+              <div key={i} style={{ color: 'var(--n8n-text-muted)', paddingLeft: 18 }}>
+                • {e}
+              </div>
+            ))}
+        </div>
+      )}
+
       {/* Config fields */}
       <div className="flex flex-col gap-2">
         <ConfigField label="Rounds" value={numRounds} onChange={setNumRounds} min={1} max={100} disabled={isTraining} />
         <ConfigField label="Local Epochs" value={localEpochs} onChange={setLocalEpochs} min={1} max={20} disabled={isTraining} />
         <ConfigField label="Learning Rate" value={learningRate} onChange={setLearningRate} min={0.0001} max={1} step={0.0001} disabled={isTraining} />
-        <ConfigField label="Min Clients" value={minClients} onChange={setMinClients} min={1} max={20} disabled={isTraining} />
+        <ConfigField
+          label="Min Clients"
+          value={autoMinClients > 0 ? autoMinClients : 1}
+          onChange={() => {}} // auto-controlled from topology
+          min={1}
+          max={20}
+          disabled={true}
+        />
 
         {/* HE toggle */}
         <div className="fl-toggle-row">
-          <span className="fl-config-label">Homomorphic Encryption</span>
+          <span className="fl-config-label">
+            Homomorphic Encryption
+            <span style={{ color: 'var(--n8n-text-muted)', fontSize: 10, marginLeft: 4 }}>
+              (slow)
+            </span>
+          </span>
           <button
             type="button"
             disabled={isTraining}
@@ -142,8 +214,9 @@ export default function FLTrainingControls() {
         <button
           type="button"
           onClick={handleStart}
-          disabled={isStarting}
+          disabled={isStarting || !topologyResult.valid}
           className="fl-action-btn fl-action-btn--start"
+          title={!topologyResult.valid ? topologyResult.errors[0] : undefined}
         >
           {isStarting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
           {isStarting ? 'Starting…' : 'Start Training'}
@@ -220,3 +293,4 @@ function ConfigField({
     </div>
   );
 }
+

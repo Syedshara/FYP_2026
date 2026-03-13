@@ -94,6 +94,10 @@ class FLClient(Base):
     container_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     container_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     total_samples: Mapped[int] = mapped_column(Integer, default=0)
+    # Canvas topology binding — links this FL client to its canvas node
+    canvas_node_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
+    # Data source used for training: 'cic-ids2017' or 'synthetic'
+    data_source: Mapped[str] = mapped_column(String(20), nullable=False, default="cic-ids2017")
     last_seen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

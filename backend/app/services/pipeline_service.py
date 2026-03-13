@@ -22,7 +22,7 @@ from app.services.simulation_service import SimState
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_CLIENTS = ["bank_a", "bank_b", "bank_c"]
+_DEFAULT_CLIENTS: list[str] = []  # No hardcoded bank clients — use canvas-configured clients
 
 
 # ── CRUD ─────────────────────────────────────────────────
