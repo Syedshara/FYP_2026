@@ -120,7 +120,7 @@ export default function NodePalette() {
         {grouped.map(({ category, items }, index) => (
           <div key={category}>
             {/* Category header */}
-            <div className={`px-1 pb-2 ${index === 0 ? 'pt-4' : 'pt-5'}`}>
+            <div className={`px-3 pb-2 ${index === 0 ? 'pt-4' : 'pt-5'}`}>
               <span
                 className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
                 style={{ color: 'var(--n8n-text-muted)', opacity: 0.8 }}

@@ -111,21 +111,29 @@ export default function CanvasTopBar() {
       </div>
 
       {/* Right: Theme toggle + User Menu */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-2">
         <ToolbarButton
           icon={theme === 'dark' ? Sun : Moon}
           tooltip={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           onClick={toggleTheme}
         />
 
-        <div className="w-px h-5" style={{ background: 'var(--n8n-card-border)' }} />
+        <div className="w-px h-5 mx-1" style={{ background: 'var(--n8n-card-border)' }} />
 
-        <div className="flex items-center gap-2">
-          <User size={16} style={{ color: 'var(--n8n-text-muted)' }} />
-          <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
+        {/* User pill badge */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+          style={{
+            background: 'var(--n8n-card-bg)',
+            border: '1px solid var(--n8n-card-border)',
+          }}
+        >
+          <User size={13} style={{ color: 'var(--n8n-text-muted)' }} />
+          <span className="text-[12px] font-medium" style={{ color: 'var(--n8n-text-primary)' }}>
             {user?.username ?? 'Unknown'}
           </span>
         </div>
+
         <ToolbarButton icon={LogOut} tooltip="Logout" onClick={logout} />
       </div>
     </header>
