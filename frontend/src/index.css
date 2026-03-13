@@ -1305,15 +1305,15 @@ select.prop-input option {
 }
 
 .fl-action-btn--start {
-  background: linear-gradient(180deg, rgba(24,160,88,0.9), rgba(24,160,88,0.75));
+  background: linear-gradient(180deg, rgba(255,109,90,0.9), rgba(255,109,90,0.75));
   color: #fff;
-  border-color: rgba(24, 160, 88, 0.5);
-  box-shadow: 0 10px 18px -14px rgba(24, 160, 88, 0.7);
+  border-color: rgba(255, 109, 90, 0.5);
+  box-shadow: 0 10px 18px -14px rgba(255, 109, 90, 0.7);
 }
 
 .fl-action-btn--start:hover:not(:disabled) {
-  background: linear-gradient(180deg, #18a058, rgba(24,160,88,0.85));
-  box-shadow: 0 14px 24px -16px rgba(24, 160, 88, 0.85);
+  background: linear-gradient(180deg, #ff6d5a, rgba(255,109,90,0.85));
+  box-shadow: 0 14px 24px -16px rgba(255, 109, 90, 0.85);
 }
 
 .fl-action-btn--stop {
