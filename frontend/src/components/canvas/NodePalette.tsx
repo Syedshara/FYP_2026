@@ -56,12 +56,22 @@ export default function NodePalette() {
     >
       {/* ── Panel header ── */}
       <div
-        className="flex items-center gap-2 px-4 h-[40px] flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--n8n-card-border)' }}
+        className="flex items-center flex-shrink-0"
+        style={{
+          borderBottom: '1px solid var(--n8n-card-border)',
+          height: '40px',
+          paddingLeft: '16px',
+          paddingRight: '12px',
+        }}
       >
         <span
-          className="text-[11px] font-semibold uppercase tracking-[0.1em]"
-          style={{ color: 'var(--n8n-text-muted)' }}
+          style={{
+            color: 'var(--n8n-text-muted)',
+            fontSize: '11px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.8px',
+          }}
         >
           Nodes
         </span>
@@ -72,10 +82,22 @@ export default function NodePalette() {
         {GROUPED.map(({ category, items }, index) => (
           <div key={category}>
             {/* Category label */}
-            <div className={`px-4 pb-2 ${index === 0 ? 'pt-4' : 'pt-5'}`}>
+            <div
+              style={{
+                paddingLeft: '16px',
+                paddingRight: '12px',
+                paddingTop: index === 0 ? '16px' : '20px',
+                paddingBottom: '8px',
+              }}
+            >
               <span
-                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: 'var(--n8n-text-muted)' }}
+                style={{
+                  color: 'var(--n8n-text-muted)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.8px',
+                }}
               >
                 {category}
               </span>
