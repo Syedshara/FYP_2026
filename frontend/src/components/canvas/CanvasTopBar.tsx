@@ -47,11 +47,14 @@ export default function CanvasTopBar() {
 
   return (
     <header
-      className="flex items-center justify-between px-4 h-[52px] shrink-0 select-none"
+      className="flex items-center justify-between shrink-0 select-none"
       style={{
         background: 'var(--n8n-topbar-bg)',
         borderBottom: '1px solid var(--n8n-card-border)',
         boxShadow: '0 1px 8px rgba(0,0,0,0.25)',
+        height: '52px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
       }}
     >
       {/* Left: Logo + Workspace Name + Save indicator */}

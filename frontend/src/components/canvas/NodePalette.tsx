@@ -89,7 +89,7 @@ export default function NodePalette() {
       </div>
 
       {/* ── Search area ── */}
-      <div className="px-3 pt-3 pb-3 flex-shrink-0">
+      <div className="px-4 pt-3 pb-3 flex-shrink-0">
         <div className="relative">
           <Search
             size={14}
@@ -140,7 +140,7 @@ export default function NodePalette() {
             </div>
 
             {/* Items */}
-            <div className="flex flex-col px-2">
+            <div className="flex flex-col">
               {items.map((item) => (
                 <PaletteNodeItem key={item.type} item={item} />
               ))}

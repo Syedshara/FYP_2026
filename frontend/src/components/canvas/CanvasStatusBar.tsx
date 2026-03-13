@@ -30,11 +30,14 @@ export default function CanvasStatusBar() {
 
   return (
     <footer
-      className="flex items-center justify-between px-4 h-[32px] border-t select-none shrink-0 text-[11px]"
+      className="flex items-center justify-between shrink-0 select-none text-[11px]"
       style={{
         background: 'var(--n8n-topbar-bg)',
-        borderColor: 'var(--n8n-card-border)',
+        borderTop: '1px solid var(--n8n-card-border)',
         color: 'var(--n8n-text-muted)',
+        height: '32px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
       }}
     >
       {/* Left: Connection Status */}
@@ -47,9 +50,11 @@ export default function CanvasStatusBar() {
       </div>
 
       {/* Center: Entity Counts */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <CountPill icon={Building2} count={clientCount} label="Clients" accent="#5b9bf5" />
+        <span style={{ color: 'var(--n8n-card-border)' }}>·</span>
         <CountPill icon={Cpu} count={deviceCount} label="Devices" accent="#18a058" />
+        <span style={{ color: 'var(--n8n-card-border)' }}>·</span>
         <CountPill icon={Activity} count={monitorCount} label="Monitors" accent="#38bdf8" />
       </div>
 
