@@ -182,10 +182,11 @@ async def register_fl_client(
     canvas_node_id: Optional[str] = None,
     data_source: str = "cic-ids2017",
     create_container: bool = True,
+    skip_data_generation: bool = False,
 ) -> FLClient:
     """
     Register a new FL client.
-    - Generates training data (CIC-IDS2017 subset or synthetic) based on data_source.
+    - Generates training data unless skip_data_generation=True (data generated at training start).
     - Auto-generates Ed25519 signing keys if not already present.
     - Creates a Docker container in IDLE mode if create_container=True.
     - Raises ConflictException if client_id already exists.
@@ -205,18 +206,22 @@ async def register_fl_client(
 
     container_id = None
     container_name = None
+    total_samples = 0
 
-    # Generate training data based on chosen source
-    data_info = data_service.generate_client_data(client_id, data_source=data_source)
-    total_samples = data_info.get("total_samples", 0)
-    if data_info.get("created"):
-        log.info(
-            "Generated %s training data for %s: %d chunks, %d samples (source: %s)",
-            data_source, client_id, data_info["chunks"], total_samples, data_info["source"],
-        )
-    elif not data_info.get("created") and data_info.get("source") == "existing":
-        existing_info = data_service.get_client_data_info(client_id)
-        total_samples = existing_info.get("total_samples", 0)
+    # Generate training data based on chosen source (skipped when data will be generated at training start)
+    if not skip_data_generation:
+        data_info = data_service.generate_client_data(client_id, data_source=data_source)
+        total_samples = data_info.get("total_samples", 0)
+        if data_info.get("created"):
+            log.info(
+                "Generated %s training data for %s: %d chunks, %d samples (source: %s)",
+                data_source, client_id, data_info["chunks"], total_samples, data_info["source"],
+            )
+        elif not data_info.get("created") and data_info.get("source") == "existing":
+            existing_info = data_service.get_client_data_info(client_id)
+            total_samples = existing_info.get("total_samples", 0)
+    else:
+        log.info("Skipping data generation for %s — will be generated at training start", client_id)
 
     if create_container:
         try:

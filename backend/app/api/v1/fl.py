@@ -28,7 +28,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_current_user
-from app.services import fl_service, device_service, docker_service
+from app.services import fl_service, device_service, docker_service, data_service
+from app.services import workspace_service
 from app.core.websocket import ws_manager, WSMessageType, build_ws_message
 
 log = logging.getLogger(__name__)
@@ -426,6 +427,7 @@ class FLStartRequest(BaseModel):
     use_he: bool = False  # Default off — HE is computationally heavy on dev machines
     local_epochs: int = Field(default=3, ge=1)
     learning_rate: float = Field(default=0.001, gt=0.0)
+    workspace_id: Optional[int] = Field(default=None, description="Workspace ID for topology lookup")
     # Canvas-aware: list of canvas node IDs of Client nodes connected to this FL Server
     canvas_node_ids: Optional[List[str]] = Field(
         default=None,
@@ -489,6 +491,7 @@ async def start_training(
                             name=derived_client_id,
                             canvas_node_id=canvas_node_id,
                             data_source="cic-ids2017",
+                            skip_data_generation=True,
                         )
                         log.info("On-demand registered canvas client %s as FL client %s", canvas_node_id, derived_client_id)
                     except Exception as exc:
@@ -520,6 +523,57 @@ async def start_training(
             detail=f"Need at least {body.min_clients} clients, but only {len(clients)} registered",
         )
 
+    # ── Generate training data based on Traffic Source topology ──
+    # Look up workspace to find each client's Traffic Source config
+    traffic_config: dict[str, tuple[str, str]] = {}  # canvas_node_id → (data_source, traffic_type)
+    if body.workspace_id:
+        ws = await workspace_service.get_workspace(db, body.workspace_id)
+        if ws:
+            node_map = {n.node_key: n for n in ws.nodes}
+            edge_list = ws.edges
+            for client in clients:
+                cnid = client.canvas_node_id
+                if not cnid:
+                    continue
+                # Traverse: Client → (ownership) → Device → (traffic-feed) ← Traffic Source
+                for edge in edge_list:
+                    if edge.source_key == cnid and edge.edge_type == "ownership":
+                        device_key = edge.target_key
+                        for e2 in edge_list:
+                            if e2.target_key == device_key and e2.edge_type == "traffic-feed":
+                                ts_node = node_map.get(e2.source_key)
+                                if ts_node and ts_node.node_type == "traffic-source":
+                                    ts_data = ts_node.data or {}
+                                    ds = ts_data.get("dataSource", "cic-ids2017")
+                                    tt = ts_data.get("trafficType", "mixed")
+                                    traffic_config[cnid] = (ds, tt)
+                                    break
+                        if cnid in traffic_config:
+                            break
+
+    # Broadcast data preparation phase
+    await ws_manager.broadcast(build_ws_message(WSMessageType.FL_PROGRESS, {
+        "phase": "data_preparation",
+        "message": f"Preparing training data for {len(clients)} client(s)...",
+    }))
+
+    # Generate/regenerate training data for each client based on Traffic Source config
+    for client in clients:
+        ds, tt = traffic_config.get(client.canvas_node_id or "", ("cic-ids2017", "mixed"))
+        log.info("Generating data for %s: source=%s, type=%s", client.client_id, ds, tt)
+        data_info = data_service.generate_client_data(
+            client.client_id,
+            data_source=ds,
+            traffic_type=tt,
+            force=True,  # Always regenerate fresh from Traffic Source config
+        )
+        if data_info.get("created"):
+            total = data_info.get("total_samples", 0)
+            await fl_service.update_fl_client(
+                db, client.id, total_samples=total, data_source=ds,
+            )
+            log.info("  → %d samples generated for %s", total, client.client_id)
+
     # Pre-validate: only include clients whose data directory has .npy files
     trainable_clients = []
     for client in clients:
@@ -528,8 +582,8 @@ async def start_training(
             trainable_clients.append(client)
         else:
             log.warning(
-                "Client %s has no training data (data/clients/%s) — skipping",
-                client.client_id, client.client_id.lower(),
+                "Client %s has no training data after generation — skipping",
+                client.client_id,
             )
 
     if len(trainable_clients) < body.min_clients:
@@ -537,8 +591,7 @@ async def start_training(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 f"Need at least {body.min_clients} clients with training data, "
-                f"but only {len(trainable_clients)} have data. "
-                f"Ensure data/clients/<client_id>/ has X_seq_chunk_*.npy files."
+                f"but only {len(trainable_clients)} have data."
             ),
         )
 

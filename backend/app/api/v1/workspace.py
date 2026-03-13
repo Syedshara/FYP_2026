@@ -152,6 +152,7 @@ async def _auto_register_and_cleanup(
                     canvas_node_id=canvas_node_id,
                     data_source="cic-ids2017",
                     create_container=True,
+                    skip_data_generation=True,
                 )
                 log.info("Auto-registered canvas client %s as FL client %s", canvas_node_id, client_id)
             except ConflictException:

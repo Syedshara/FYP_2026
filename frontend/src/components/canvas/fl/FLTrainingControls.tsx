@@ -22,6 +22,7 @@ export default function FLTrainingControls() {
   const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
   const nodes = useWorkspaceStore((s) => s.nodes);
   const edges = useWorkspaceStore((s) => s.edges);
+  const workspaceId = useWorkspaceStore((s) => s.workspaceId);
 
   // Validate topology on every render (cheap, synchronous)
   const topologyResult = useMemo(() => {
@@ -63,6 +64,7 @@ export default function FLTrainingControls() {
         use_he: useHE,
         local_epochs: localEpochs,
         learning_rate: learningRate,
+        workspace_id: workspaceId ?? undefined,
         canvas_node_ids: topologyResult.connectedClientNodeIds,
       };
       await flApi.start(config);

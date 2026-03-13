@@ -54,6 +54,7 @@ services:
     volumes:
       - ./backend:/app                   # Hot-reload source code
       - ./model:/app/models              # Model .pt + .pkl files
+      - ./datasets:/app/datasets:ro      # CIC-IDS2017 CSV files (read-only)
       - ./data/clients:/app/client_data:rw  # Read-write: backend generates data for new clients
       - ./data/scenarios:/app/scenarios:ro   # Scenario packs for simulation
       - /var/run/docker.sock:/var/run/docker.sock   # Docker SDK
