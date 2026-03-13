@@ -75,14 +75,24 @@ export default function NodePalette() {
         borderColor: 'var(--n8n-card-border)',
       }}
     >
-      {/* ── Search area ── */}
+      {/* ── Panel header ── */}
       <div
-        className="px-4 pt-5 pb-4"
+        className="flex items-center gap-2 px-4 h-[44px] flex-shrink-0"
         style={{ borderBottom: '1px solid var(--n8n-card-border)' }}
       >
+        <span
+          className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+          style={{ color: 'var(--n8n-text-muted)' }}
+        >
+          Nodes
+        </span>
+      </div>
+
+      {/* ── Search area ── */}
+      <div className="px-3 pt-3 pb-3 flex-shrink-0">
         <div className="relative">
           <Search
-            size={15}
+            size={14}
             className="absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none"
             style={{ color: 'var(--n8n-text-muted)' }}
           />
@@ -100,14 +110,14 @@ export default function NodePalette() {
               onClick={() => setSearch('')}
               aria-label="Clear search"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           )}
         </div>
       </div>
 
       {/* ── Categorized node list ── */}
-      <div className="n8n-palette-list flex-1 overflow-y-auto px-3 pb-5">
+      <div className="n8n-palette-list flex-1 overflow-y-auto pb-4">
         {grouped.length === 0 && (
           <p
             className="text-[12px] text-center py-8"
@@ -120,17 +130,17 @@ export default function NodePalette() {
         {grouped.map(({ category, items }, index) => (
           <div key={category}>
             {/* Category header */}
-            <div className={`px-3 pb-2 ${index === 0 ? 'pt-4' : 'pt-5'}`}>
+            <div className={`px-4 pb-1.5 ${index === 0 ? 'pt-3' : 'pt-4'}`}>
               <span
-                className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: 'var(--n8n-text-muted)', opacity: 0.8 }}
+                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--n8n-text-muted)' }}
               >
                 {category}
               </span>
             </div>
 
             {/* Items */}
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col px-2">
               {items.map((item) => (
                 <PaletteNodeItem key={item.type} item={item} />
               ))}

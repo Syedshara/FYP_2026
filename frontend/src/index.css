@@ -14,8 +14,8 @@
 
   /* ── Dark palette (default) ── */
   --n8n-canvas-bg:        #1a1a1a;
-  --n8n-sidebar-bg:       #17181d;
-  --n8n-topbar-bg:        #1a1a1a;
+  --n8n-sidebar-bg:       #1e2028;
+  --n8n-topbar-bg:        #1e2028;
   --n8n-card-bg:          #202228;
   --n8n-card-border:      #32353d;
   --n8n-dot-color:        rgba(255, 255, 255, 0.09);
@@ -680,18 +680,18 @@ select.input option {
 .n8n-palette-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 10px 9px 16px;
+  gap: 10px;
+  padding: 7px 10px;
   border-radius: 8px;
   cursor: grab;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.12s ease;
   background: transparent;
   user-select: none;
 }
 .n8n-palette-item:active { cursor: grabbing; }
 .n8n-palette-item:hover {
-  background: var(--n8n-card-bg);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 .n8n-palette-item:hover .n8n-palette-label {
   color: var(--n8n-text-primary);
@@ -700,7 +700,7 @@ select.input option {
 /* ── Palette search input ── */
 .n8n-palette-search {
   width: 100%;
-  background: var(--n8n-card-bg);
+  background: var(--n8n-canvas-bg);
   border: 1px solid var(--n8n-card-border);
   border-radius: 8px;
   padding: 9px 34px 9px 36px;
@@ -767,7 +767,7 @@ select.input option {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .toolbar-btn:hover {
-  background: var(--n8n-card-bg);
+  background: rgba(255, 255, 255, 0.07);
   color: var(--n8n-text-primary);
 }
 .toolbar-btn:focus-visible {
@@ -779,7 +779,7 @@ select.input option {
   color: var(--n8n-accent);
 }
 .toolbar-btn[data-active="true"]:hover {
-  background: var(--n8n-accent-light);
+  background: rgba(255, 109, 90, 0.18);
   color: var(--n8n-accent);
 }
 

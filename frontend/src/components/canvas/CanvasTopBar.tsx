@@ -47,25 +47,33 @@ export default function CanvasTopBar() {
 
   return (
     <header
-      className="flex items-center justify-between px-5 h-[52px] border-b select-none shrink-0"
+      className="flex items-center justify-between px-4 h-[52px] shrink-0 select-none"
       style={{
         background: 'var(--n8n-topbar-bg)',
-        borderColor: 'var(--n8n-card-border)',
+        borderBottom: '1px solid var(--n8n-card-border)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.25)',
       }}
     >
-      {/* Left: Logo + Name + Save indicator */}
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-2">
-          <Shield size={20} style={{ color: 'var(--n8n-accent)' }} />
-          <span
-            className="text-sm font-semibold tracking-tight"
-            style={{ color: 'var(--n8n-text-primary)' }}
-          >
-            {workspaceName}
-          </span>
+      {/* Left: Logo + Workspace Name + Save indicator */}
+      <div className="flex items-center gap-3 min-w-0">
+        {/* Brand mark */}
+        <div
+          className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
+          style={{ background: 'var(--n8n-accent-light)', border: '1px solid rgba(255,109,90,0.25)' }}
+        >
+          <Shield size={14} style={{ color: 'var(--n8n-accent)' }} />
         </div>
 
-        <div className="w-px h-5" style={{ background: 'var(--n8n-card-border)' }} />
+        {/* Workspace name */}
+        <span
+          className="text-sm font-semibold tracking-tight truncate max-w-[180px]"
+          style={{ color: 'var(--n8n-text-primary)' }}
+        >
+          {workspaceName}
+        </span>
+
+        {/* Vertical divider */}
+        <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--n8n-card-border)' }} />
 
         {/* Save button / indicator */}
         <button
@@ -73,7 +81,7 @@ export default function CanvasTopBar() {
           onClick={() => saveWorkspace()}
           disabled={isSaving || !isDirty}
           title={isSaving ? 'Saving...' : isDirty ? 'Save (Ctrl+S)' : 'All changes saved'}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors flex-shrink-0"
           style={{
             background: isDirty && !isSaving ? 'var(--n8n-accent-light)' : 'transparent',
             color: isDirty && !isSaving
@@ -82,25 +90,25 @@ export default function CanvasTopBar() {
                 ? 'var(--n8n-text-muted)'
                 : 'var(--n8n-success)',
             cursor: isDirty && !isSaving ? 'pointer' : 'default',
-            opacity: !isDirty && !isSaving ? 0.7 : 1,
+            opacity: !isDirty && !isSaving ? 0.65 : 1,
           }}
         >
           {isSaving ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Loader2 size={13} className="animate-spin" />
           ) : isDirty ? (
-            <Save size={14} />
+            <Save size={13} />
           ) : (
-            <Check size={14} />
+            <Check size={13} />
           )}
-          <span>{isSaving ? 'Saving' : isDirty ? 'Save' : 'Saved'}</span>
+          <span>{isSaving ? 'Saving…' : isDirty ? 'Save' : 'Saved'}</span>
         </button>
       </div>
 
       {/* Center: Zoom Controls */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <ToolbarButton icon={ZoomOut} tooltip="Zoom out" onClick={() => zoomOut()} />
         <ToolbarButton icon={ZoomIn} tooltip="Zoom in" onClick={() => zoomIn()} />
-        <div className="w-px h-5 mx-1" style={{ background: 'var(--n8n-card-border)' }} />
+        <div className="w-px h-4 mx-1.5 flex-shrink-0" style={{ background: 'var(--n8n-card-border)' }} />
         <ToolbarButton icon={Maximize2} tooltip="Fit view" onClick={handleFitView} />
         <ToolbarButton
           icon={Map}
@@ -110,21 +118,21 @@ export default function CanvasTopBar() {
         />
       </div>
 
-      {/* Right: Theme toggle + User Menu */}
-      <div className="flex items-center gap-2">
+      {/* Right: Theme toggle + User + Logout */}
+      <div className="flex items-center gap-1.5">
         <ToolbarButton
           icon={theme === 'dark' ? Sun : Moon}
           tooltip={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           onClick={toggleTheme}
         />
 
-        <div className="w-px h-5 mx-1" style={{ background: 'var(--n8n-card-border)' }} />
+        <div className="w-px h-4 mx-1.5 flex-shrink-0" style={{ background: 'var(--n8n-card-border)' }} />
 
         {/* User pill badge */}
         <div
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg flex-shrink-0"
           style={{
-            background: 'var(--n8n-card-bg)',
+            background: 'rgba(255,255,255,0.05)',
             border: '1px solid var(--n8n-card-border)',
           }}
         >
