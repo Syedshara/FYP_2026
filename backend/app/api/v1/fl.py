@@ -530,7 +530,9 @@ async def start_training(
             detail="FL server container failed to reach running state within 15s",
         )
 
-    # ── Step 2: Switch client containers to TRAIN mode ──
+    # Give the Flower gRPC server a moment to bind its port after the container
+    # reports "running" — the process is up but the listener may not be ready yet.
+    await asyncio.sleep(2)
     # Persistent containers are never destroyed — update_client_container_mode
     # stops the current container and restarts it with MODE=TRAIN.
     active_client_ids = []

@@ -56,18 +56,25 @@ else
         -subj "/CN=IoT-IDS-CA/O=IoT IDS Platform/C=MY" 2>/dev/null
     echo "   [+] CA certificate created"
 
-    # ── 2. FL Server certificate (signed by CA) ───────────────────────────
+    # ── 2. FL Server certificate (signed by CA, with SAN for Docker hostnames) ──
     openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
         -out "$CERTS_DIR/server.key" 2>/dev/null
     openssl req -new -key "$CERTS_DIR/server.key" \
         -out "$CERTS_DIR/server.csr" \
-        -subj "/CN=fl_server/O=IoT IDS Platform/C=MY" 2>/dev/null
+        -subj "/CN=iot_ids_fl_server/O=IoT IDS Platform/C=MY" \
+        -addext "subjectAltName=DNS:iot_ids_fl_server,DNS:fl_server,DNS:localhost,IP:127.0.0.1" 2>/dev/null
+    # Create ext file for SAN (needed for older openssl that ignores -addext on x509 -req)
+    cat > "$CERTS_DIR/server_ext.cnf" << 'EXTEOF'
+[v3_req]
+subjectAltName = DNS:iot_ids_fl_server,DNS:fl_server,DNS:localhost,IP:127.0.0.1
+EXTEOF
     openssl x509 -req -days 3650 \
         -in "$CERTS_DIR/server.csr" \
         -CA "$CERTS_DIR/ca.crt" -CAkey "$CERTS_DIR/ca.key" -CAcreateserial \
-        -out "$CERTS_DIR/server.crt" 2>/dev/null
-    rm -f "$CERTS_DIR/server.csr"
-    echo "   [+] FL server certificate created"
+        -out "$CERTS_DIR/server.crt" \
+        -extfile "$CERTS_DIR/server_ext.cnf" -extensions v3_req 2>/dev/null
+    rm -f "$CERTS_DIR/server.csr" "$CERTS_DIR/server_ext.cnf"
+    echo "   [+] FL server certificate created (SANs: iot_ids_fl_server, fl_server, localhost)"
 
     # ── 3. FL Client mTLS certificates + Ed25519 signing keys ────────────
     for CLIENT_NAME in Bank_A Bank_B Bank_C; do

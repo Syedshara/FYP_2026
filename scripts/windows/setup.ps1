@@ -73,18 +73,26 @@ if (Test-Path $certsDir) {
         -subj "/CN=IoT-IDS-CA/O=IoT IDS Platform/C=MY" 2>$null
     Write-Host "   [+] CA certificate created" -ForegroundColor Gray
 
-    # ── 2. FL Server certificate (signed by CA) ───────────────────────────
+    # ── 2. FL Server certificate (signed by CA, with SAN for Docker hostnames) ──
     openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 `
         -out "$certsDir\server.key" 2>$null
     openssl req -new -key "$certsDir\server.key" `
         -out "$certsDir\server.csr" `
-        -subj "/CN=fl_server/O=IoT IDS Platform/C=MY" 2>$null
+        -subj "/CN=iot_ids_fl_server/O=IoT IDS Platform/C=MY" `
+        -addext "subjectAltName=DNS:iot_ids_fl_server,DNS:fl_server,DNS:localhost,IP:127.0.0.1" 2>$null
+    # Write SAN extension config file (needed for -extfile on x509 -req)
+    @"
+[v3_req]
+subjectAltName = DNS:iot_ids_fl_server,DNS:fl_server,DNS:localhost,IP:127.0.0.1
+"@ | Set-Content "$certsDir\server_ext.cnf"
     openssl x509 -req -days 3650 `
         -in "$certsDir\server.csr" `
         -CA "$certsDir\ca.crt" -CAkey "$certsDir\ca.key" -CAcreateserial `
-        -out "$certsDir\server.crt" 2>$null
+        -out "$certsDir\server.crt" `
+        -extfile "$certsDir\server_ext.cnf" -extensions v3_req 2>$null
     Remove-Item "$certsDir\server.csr" -ErrorAction SilentlyContinue
-    Write-Host "   [+] FL server certificate created" -ForegroundColor Gray
+    Remove-Item "$certsDir\server_ext.cnf" -ErrorAction SilentlyContinue
+    Write-Host "   [+] FL server certificate created (SANs: iot_ids_fl_server, fl_server, localhost)" -ForegroundColor Gray
 
     # ── 3. FL Client mTLS certificates + Ed25519 signing keys ────────────
     foreach ($clientName in @("Bank_A", "Bank_B", "Bank_C")) {
