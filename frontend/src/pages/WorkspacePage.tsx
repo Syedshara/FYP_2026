@@ -276,6 +276,48 @@ export default function WorkspacePage() {
 
       {/* Bottom status bar */}
       <CanvasStatusBar />
+
+      {/* Connection error toast */}
+      <ConnectionToast />
+    </div>
+  );
+}
+
+/* ── Connection error toast (auto-dismiss) ── */
+
+function ConnectionToast() {
+  const error = useWorkspaceStore((s) => s.connectionError);
+  const clear = useWorkspaceStore((s) => s.clearConnectionError);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(clear, 2500);
+    return () => clearTimeout(timer);
+  }, [error, clear]);
+
+  if (!error) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 48,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'var(--n8n-card-bg)',
+        border: '1px solid var(--n8n-danger)',
+        borderRadius: 8,
+        padding: '8px 16px',
+        fontSize: 12,
+        fontWeight: 500,
+        color: 'var(--n8n-danger)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+        zIndex: 100,
+        animation: 'toast-in 0.2s ease-out',
+        pointerEvents: 'none',
+      }}
+    >
+      {error}
     </div>
   );
 }

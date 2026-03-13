@@ -84,6 +84,10 @@ interface WorkspaceState {
   isLoading: boolean;
   lastError: string | null;
 
+  // Connection feedback
+  connectionError: string | null;
+  clearConnectionError: () => void;
+
   // Backend persistence actions
   loadWorkspace: (id: number) => Promise<void>;
   createWorkspace: (name?: string) => Promise<number>;
@@ -122,11 +126,16 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     const targetNode = get().nodes.find((n) => n.id === connection.target);
     if (!sourceNode || !targetNode) return;
 
-    const edgeType = inferEdgeType(
-      sourceNode.data.nodeType,
-      targetNode.data.nodeType,
-    );
-    if (!edgeType) return;
+    const sourceType = sourceNode.data.nodeType;
+    const targetType = targetNode.data.nodeType;
+
+    const edgeType = inferEdgeType(sourceType, targetType);
+    if (!edgeType) {
+      const srcLabel = NODE_TYPE_CONFIGS[sourceType]?.label ?? sourceType;
+      const tgtLabel = NODE_TYPE_CONFIGS[targetType]?.label ?? targetType;
+      set({ connectionError: `Cannot connect ${srcLabel} → ${tgtLabel}` });
+      return;
+    }
 
     const { source, target } = connection;
     if (!source || !target) return;
@@ -248,6 +257,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   isSaving: false,
   isLoading: false,
   lastError: null,
+
+  // Connection feedback
+  connectionError: null,
+  clearConnectionError: () => set({ connectionError: null }),
 
   // ── Backend persistence actions ──
 

@@ -377,6 +377,11 @@ select.input option {
   50%      { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(255, 109, 90, 0.75), 0 18px 34px -24px rgba(255, 109, 90, 0.95), var(--n8n-node-shadow-hover); }
 }
 
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* Status badge pulse animations (n8n-style) */
 @keyframes status-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
