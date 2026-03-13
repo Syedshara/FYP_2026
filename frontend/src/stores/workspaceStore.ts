@@ -125,7 +125,6 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   },
 
   onConnect: (connection: Connection) => {
-    // Determine edge type based on source/target node types
     const sourceNode = get().nodes.find((n) => n.id === connection.source);
     const targetNode = get().nodes.find((n) => n.id === connection.target);
     if (!sourceNode || !targetNode) return;
@@ -133,7 +132,20 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     const sourceType = sourceNode.data.nodeType;
     const targetType = targetNode.data.nodeType;
 
-    const edgeType = inferEdgeType(sourceType, targetType);
+    let edgeType = inferEdgeType(sourceType, targetType);
+    let finalSource = connection.source!;
+    let finalTarget = connection.target!;
+
+    // Auto-normalise direction: if user dragged backwards, flip source/target
+    if (!edgeType) {
+      const reversed = inferEdgeType(targetType, sourceType);
+      if (reversed) {
+        edgeType = reversed;
+        finalSource = connection.target!;
+        finalTarget = connection.source!;
+      }
+    }
+
     if (!edgeType) {
       const srcLabel = NODE_TYPE_CONFIGS[sourceType]?.label ?? sourceType;
       const tgtLabel = NODE_TYPE_CONFIGS[targetType]?.label ?? targetType;
@@ -141,14 +153,11 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       return;
     }
 
-    const { source, target } = connection;
-    if (!source || !target) return;
-
     const newEdge: Edge = {
       ...connection,
-      source,
-      target,
-      id: generateEdgeId(source, target),
+      source: finalSource,
+      target: finalTarget,
+      id: generateEdgeId(finalSource, finalTarget),
       type: edgeType,
     };
 
