@@ -81,10 +81,10 @@ export default function FLTrainingControls() {
         updateNodeData(id, { status: 'running' });
       }
       for (const id of topologyResult.deviceNodeIds) {
-        updateNodeData(id, { status: 'active' });
+        updateNodeData(id, { status: 'running' });
       }
       for (const id of topologyResult.trafficSourceNodeIds) {
-        updateNodeData(id, { status: 'active' });
+        updateNodeData(id, { status: 'running' });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start training');

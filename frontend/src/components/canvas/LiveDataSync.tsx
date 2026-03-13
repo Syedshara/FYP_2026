@@ -208,7 +208,7 @@ export default function LiveDataSync() {
       );
 
       if (ownerClientEdge && isTraining) {
-        updateNodeData(node.id, { status: 'active' } as Partial<CanvasNodeData>);
+        updateNodeData(node.id, { status: 'running' } as Partial<CanvasNodeData>);
         runningDeviceNodeIds.add(node.id);
       } else if (d.deviceId && deviceStatuses[d.deviceId]) {
         const devStatus = deviceStatuses[d.deviceId];
@@ -230,7 +230,7 @@ export default function LiveDataSync() {
       );
 
       if (feedsRunningDevice && isTraining) {
-        updateNodeData(node.id, { status: 'active' } as Partial<CanvasNodeData>);
+        updateNodeData(node.id, { status: 'running' } as Partial<CanvasNodeData>);
       } else if (!isTraining && (d.status === 'active' || d.status === 'running')) {
         updateNodeData(node.id, { status: 'idle' } as Partial<CanvasNodeData>);
       }

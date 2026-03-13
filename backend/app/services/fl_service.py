@@ -130,41 +130,89 @@ def _generate_client_keys(client_id: str) -> None:
       <certs_dir>/<cert_name>_ed25519.pem          — private key (PEM)
       <certs_dir>/client_keys/<cert_name>.pub.pem  — public key (PEM)
 
+    Also generates mTLS RSA certificate (.crt/.key) signed by the project CA
+    if one doesn't already exist. This allows dynamically-created canvas clients
+    to authenticate with the FL server over mTLS.
+
     Silently skips if keys already exist or if the cryptography library is unavailable.
     """
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives.serialization import (
-            Encoding, PrivateFormat, PublicFormat, NoEncryption,
+            Encoding, PrivateFormat, PublicFormat, NoEncryption, load_pem_private_key,
         )
+        from cryptography.hazmat.primitives.hashes import SHA256
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        import datetime as dt
 
-        certs_dir = os.path.join(settings.HOST_ROOT, "certs") if hasattr(settings, "HOST_ROOT") else "/app/certs"
-        # Resolve from the backend's perspective (host path)
-        host_root = os.environ.get("HOST_ROOT", os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-        ))
-        certs_dir = os.path.join(host_root, "certs")
+        # Certs dir: use /app/certs inside the backend container (mounted from ./certs on host)
+        # This path is shared with FL client/server containers via their own ./certs mount
+        certs_dir = "/app/certs"
         cert_name = docker_service._cert_name(client_id)
 
+        # ── 1. Ed25519 signing keys ──
         priv_path = os.path.join(certs_dir, f"{cert_name}_ed25519.pem")
         pub_path  = os.path.join(certs_dir, "client_keys", f"{cert_name}.pub.pem")
 
-        if os.path.isfile(priv_path) and os.path.isfile(pub_path):
-            log.info("Ed25519 keys already exist for client %s — skipping", client_id)
-            return
-
         os.makedirs(os.path.dirname(pub_path), exist_ok=True)
 
-        key = Ed25519PrivateKey.generate()
-        priv_pem = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
-        pub_pem  = key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+        if not (os.path.isfile(priv_path) and os.path.isfile(pub_path)):
+            key = Ed25519PrivateKey.generate()
+            priv_pem = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+            pub_pem  = key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
 
-        with open(priv_path, "wb") as f:
-            f.write(priv_pem)
-        with open(pub_path, "wb") as f:
-            f.write(pub_pem)
+            with open(priv_path, "wb") as f:
+                f.write(priv_pem)
+            with open(pub_path, "wb") as f:
+                f.write(pub_pem)
+            log.info("Generated Ed25519 keys for client %s → %s", client_id, cert_name)
+        else:
+            log.info("Ed25519 keys already exist for client %s — skipping", client_id)
 
-        log.info("Generated Ed25519 keys for client %s → %s", client_id, cert_name)
+        # ── 2. mTLS RSA certificate signed by project CA ──
+        mtls_key_path = os.path.join(certs_dir, f"{cert_name}.key")
+        mtls_crt_path = os.path.join(certs_dir, f"{cert_name}.crt")
+        ca_crt_path = os.path.join(certs_dir, "ca.crt")
+        ca_key_path = os.path.join(certs_dir, "ca.key")
+
+        if os.path.isfile(mtls_crt_path) and os.path.isfile(mtls_key_path):
+            log.info("mTLS cert already exists for client %s — skipping", client_id)
+        elif os.path.isfile(ca_crt_path) and os.path.isfile(ca_key_path):
+            # Generate RSA key
+            client_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+            with open(mtls_key_path, "wb") as f:
+                f.write(client_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
+
+            # Load CA
+            with open(ca_crt_path, "rb") as f:
+                ca_cert = x509.load_pem_x509_certificate(f.read())
+            with open(ca_key_path, "rb") as f:
+                ca_key = load_pem_private_key(f.read(), password=None)
+
+            # Create CSR-equivalent subject and sign
+            subject = x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, cert_name),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "IoT IDS Platform"),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "MY"),
+            ])
+            cert = (
+                x509.CertificateBuilder()
+                .subject_name(subject)
+                .issuer_name(ca_cert.subject)
+                .public_key(client_key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(dt.datetime.now(dt.timezone.utc))
+                .not_valid_after(dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=3650))
+                .sign(ca_key, SHA256())
+            )
+            with open(mtls_crt_path, "wb") as f:
+                f.write(cert.public_bytes(Encoding.PEM))
+
+            log.info("Generated mTLS cert for client %s → %s.crt/.key", client_id, cert_name)
+        else:
+            log.warning("CA cert/key not found at %s — cannot generate mTLS cert for %s", certs_dir, client_id)
 
     except ImportError:
         log.warning("cryptography library not available — skipping Ed25519 keygen for %s", client_id)
