@@ -88,6 +88,10 @@ interface WorkspaceState {
   connectionError: string | null;
   clearConnectionError: () => void;
 
+  // FL training — track which canvas node is the active FL server
+  activeFlServerNodeId: string | null;
+  setActiveFlServerNodeId: (id: string | null) => void;
+
   // Backend persistence actions
   loadWorkspace: (id: number) => Promise<void>;
   createWorkspace: (name?: string) => Promise<number>;
@@ -262,7 +266,9 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   connectionError: null,
   clearConnectionError: () => set({ connectionError: null }),
 
-  // ── Backend persistence actions ──
+  // FL training — active server node
+  activeFlServerNodeId: null,
+  setActiveFlServerNodeId: (id) => set({ activeFlServerNodeId: id }),
 
   loadWorkspace: async (id: number) => {
     set({ isLoading: true, lastError: null });

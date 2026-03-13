@@ -9,10 +9,15 @@ import { useState } from 'react';
 import { Play, Square, Loader2, Lock } from 'lucide-react';
 import { flApi, type FLStartConfig } from '@/api/fl';
 import { useLiveStore } from '@/stores/liveStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export default function FLTrainingControls() {
   const flGlobal = useLiveStore((s) => s.flGlobalProgress);
   const isTraining = flGlobal?.is_training ?? false;
+
+  const drilldownServerId = useWorkspaceStore((s) => s.drilldownServerId);
+  const setActiveFlServerNodeId = useWorkspaceStore((s) => s.setActiveFlServerNodeId);
+  const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
 
   // Config state
   const [numRounds, setNumRounds] = useState(5);
@@ -38,6 +43,16 @@ export default function FLTrainingControls() {
         learning_rate: learningRate,
       };
       await flApi.start(config);
+      // Immediately reflect "running" on the specific canvas node that opened this drilldown.
+      // Don't wait for the first WebSocket fl_progress message.
+      if (drilldownServerId) {
+        setActiveFlServerNodeId(drilldownServerId);
+        updateNodeData(drilldownServerId, {
+          status: 'running',
+          currentRound: 0,
+          totalRounds: numRounds,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start training');
     } finally {
@@ -50,6 +65,8 @@ export default function FLTrainingControls() {
     setIsStopping(true);
     try {
       await flApi.stop();
+      // Clear active server tracking so no node stays "running" after stop
+      setActiveFlServerNodeId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop training');
     } finally {

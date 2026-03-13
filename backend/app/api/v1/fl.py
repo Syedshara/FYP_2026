@@ -511,8 +511,24 @@ async def start_training(
             detail=f"Failed to start FL server: {exc}",
         )
 
-    # Wait for the FL server gRPC to be ready (server needs ~2-3s to initialise)
-    await asyncio.sleep(5)
+    # Wait for the FL server gRPC to be ready — poll up to 15s instead of a blind sleep
+    server_ready = False
+    for _ in range(15):
+        await asyncio.sleep(1)
+        info = docker_service.get_container_status(docker_service.FL_SERVER_CONTAINER)
+        if info and info.status == "running":
+            server_ready = True
+            break
+        if info and info.status in ("exited", "dead"):
+            log.error("FL server container exited prematurely (status=%s)", info.status)
+            break
+
+    if not server_ready:
+        docker_service.stop_fl_server()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="FL server container failed to reach running state within 15s",
+        )
 
     # ── Step 2: Switch client containers to TRAIN mode ──
     # Persistent containers are never destroyed — update_client_container_mode

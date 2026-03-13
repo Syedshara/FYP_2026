@@ -20,6 +20,22 @@ from app.config import settings
 
 log = logging.getLogger(__name__)
 
+
+def _cert_name(client_id: str) -> str:
+    """
+    Convert a client_id to the cert filename prefix used by setup.sh / setup.ps1.
+
+    setup.sh generates certs as   Bank_A.crt / Bank_A.key / Bank_A_ed25519.pem
+    The convention is: each underscore-separated word is Title-cased.
+
+    Examples:
+        "bank_a"  → "Bank_A"
+        "Bank_A"  → "Bank_A"   (already correct — idempotent)
+        "bank_b"  → "Bank_B"
+    """
+    return "_".join(part.capitalize() for part in client_id.split("_"))
+
+
 # ── Constants ────────────────────────────────────────────
 FL_CLIENT_IMAGE = "iot-ids-fl-client:latest"
 FL_SERVER_IMAGE = "iot-ids-fl-server:latest"
@@ -100,12 +116,12 @@ def create_client_container(
         "DATA_PATH": data_path,
         "BACKEND_URL": "http://iot_ids_backend:8000",
         "MODE": mode.upper(),
-        # mTLS client identity
-        "FL_CLIENT_CERT": f"{container_cert_dir}/{client_id}.crt",
-        "FL_CLIENT_KEY":  f"{container_cert_dir}/{client_id}.key",
+        # mTLS client identity — cert files are named Bank_A.crt (Title_Case from setup.sh)
+        "FL_CLIENT_CERT": f"{container_cert_dir}/{_cert_name(client_id)}.crt",
+        "FL_CLIENT_KEY":  f"{container_cert_dir}/{_cert_name(client_id)}.key",
         "FL_CA_CERT":     f"{container_cert_dir}/ca.crt",
         # Ed25519 gradient signing key
-        "CLIENT_SIGNING_KEY": f"{container_cert_dir}/{client_id}_ed25519.pem",
+        "CLIENT_SIGNING_KEY": f"{container_cert_dir}/{_cert_name(client_id)}_ed25519.pem",
     }
 
     volumes = {

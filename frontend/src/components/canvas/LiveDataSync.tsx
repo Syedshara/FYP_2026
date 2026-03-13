@@ -47,6 +47,7 @@ function deviceStatusToNode(status: string): NodeStatus {
 export default function LiveDataSync() {
   const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
   const updateEdgeData = useWorkspaceStore((s) => s.updateEdgeData);
+  const activeFlServerNodeId = useWorkspaceStore((s) => s.activeFlServerNodeId);
   const prevSyncRef = useRef<string>('');
 
   // Subscribe to all the live state we need
@@ -76,12 +77,17 @@ export default function LiveDataSync() {
 
     const isTraining = flGlobal?.is_training === true;
 
-    // ── 1. FL Server nodes ──
+    // ── 1. FL Server nodes — only update the node that initiated training ──
     for (const node of nodes) {
       if (node.data.nodeType !== 'fl-server') continue;
       const d = node.data as FLServerNodeData;
 
-      const newStatus: NodeStatus = isTraining ? 'running' : d.status === 'running' ? 'idle' : d.status;
+      // Only mark the specific node that started training as "running".
+      // Other fl-server nodes on the canvas remain unchanged.
+      const isActiveServer = node.id === activeFlServerNodeId;
+      const newStatus: NodeStatus = (isTraining && isActiveServer) ? 'running'
+        : d.status === 'running' ? 'idle'
+        : d.status;
       const updates: Partial<FLServerNodeData> = {
         status: newStatus,
       };
