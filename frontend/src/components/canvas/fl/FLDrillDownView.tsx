@@ -71,6 +71,8 @@ export default function FLDrillDownView() {
   const handleBack = useCallback(() => {
     setViewMode('canvas');
     setDrilldownServerId(null);
+    // Clear stale FL progress so a new drilldown starts fresh
+    useLiveStore.getState().clearFLProgress();
   }, [setViewMode, setDrilldownServerId]);
 
   // Keyboard: Escape to go back

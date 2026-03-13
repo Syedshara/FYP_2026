@@ -90,6 +90,8 @@ class FLClientOut(BaseModel):
     container_id: Optional[str] = None
     container_name: Optional[str] = None
     total_samples: int = 0
+    canvas_node_id: Optional[str] = None
+    data_source: str = "cic-ids2017"
     last_seen_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
