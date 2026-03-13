@@ -696,47 +696,6 @@ select.input option {
   color: var(--n8n-text-primary);
 }
 
-/* ── Palette search input ── */
-.n8n-palette-search {
-  width: 100%;
-  background: var(--n8n-canvas-bg);
-  border: 1px solid var(--n8n-card-border);
-  border-radius: 8px;
-  padding: 9px 34px 9px 36px;
-  font-size: 13px;
-  color: var(--n8n-text-primary);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  font-family: var(--n8n-font);
-}
-.n8n-palette-search::placeholder { color: var(--n8n-text-muted); }
-.n8n-palette-search:focus {
-  border-color: var(--n8n-accent);
-  box-shadow: 0 0 0 2px var(--n8n-accent-light);
-}
-
-/* ── Clear button inside search ── */
-.n8n-palette-clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  padding: 2px;
-  cursor: pointer;
-  color: var(--n8n-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.n8n-palette-clear:hover {
-  color: var(--n8n-text-primary);
-  background: var(--n8n-card-bg);
-}
-
 /* ── Palette scrollable area ── */
 .n8n-palette-list {
   scrollbar-width: thin;

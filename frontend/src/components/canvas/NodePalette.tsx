@@ -1,19 +1,14 @@
 /**
- * NodePalette — n8n-style left sidebar node picker.
+ * NodePalette — Left sidebar node picker.
  *
- * Design goals (matching n8n's node creator panel):
- *  - Search bar at top (no header label — search IS the entry point)
- *  - Subtle separator below search
- *  - Category section headers (muted uppercase labels with generous spacing)
- *  - Clean rows: colored-bg rounded-square icon + label (no inline descriptions)
- *  - CSS-only hover states (all styles in index.css, zero embedded <style>)
- *  - Generous horizontal padding throughout — nothing touches the edges
- *  - Drag to add nodes onto the canvas
+ * Design: floating card panel with 12px left margin and 8px vertical margin,
+ * so it never bleeds into the viewport edge, navbar, or footer.
+ * No search bar — all categories always visible, drag-to-canvas.
  */
 
-import { type DragEvent, useCallback, useMemo, useState } from 'react';
+import { type DragEvent, useCallback } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Search, X, type LucideIcon } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 import { PALETTE_ITEMS } from '@/config/nodeTypes';
 import type { PaletteCategory, PaletteItem } from '@/types/canvas';
 
@@ -25,10 +20,6 @@ const CATEGORY_ORDER: PaletteCategory[] = [
   'Utilities',
 ];
 
-/**
- * Convert a hex color like "#ff6d5a" to an rgba() with the given alpha.
- * Falls back gracefully if the input isn't a valid 6-char hex.
- */
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
   if (clean.length !== 6) return `${hex}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
@@ -38,46 +29,34 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/* Group ALL items by category, preserving order */
+function groupedItems() {
+  const map = new Map<PaletteCategory, PaletteItem[]>();
+  for (const item of PALETTE_ITEMS) {
+    const list = map.get(item.category) ?? [];
+    list.push(item);
+    map.set(item.category, list);
+  }
+  return CATEGORY_ORDER.filter((cat) => map.has(cat)).map((cat) => ({
+    category: cat,
+    items: map.get(cat)!,
+  }));
+}
+
+const GROUPED = groupedItems();
+
 export default function NodePalette() {
-  const [search, setSearch] = useState('');
-
-  /* Filter items by search query (match label, description, or category) */
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return PALETTE_ITEMS;
-    return PALETTE_ITEMS.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q),
-    );
-  }, [search]);
-
-  /* Group filtered items by category, preserving order */
-  const grouped = useMemo(() => {
-    const map = new Map<PaletteCategory, PaletteItem[]>();
-    for (const item of filteredItems) {
-      const list = map.get(item.category) ?? [];
-      list.push(item);
-      map.set(item.category, list);
-    }
-    return CATEGORY_ORDER.filter((cat) => map.has(cat)).map((cat) => ({
-      category: cat,
-      items: map.get(cat)!,
-    }));
-  }, [filteredItems]);
-
   return (
     <aside
-      className="flex flex-col w-[260px] border-r shrink-0 overflow-hidden"
+      className="flex flex-col w-[248px] ml-3 my-2 shrink-0 overflow-hidden rounded-xl"
       style={{
         background: 'var(--n8n-sidebar-bg)',
-        borderColor: 'var(--n8n-card-border)',
+        border: '1px solid var(--n8n-card-border)',
       }}
     >
       {/* ── Panel header ── */}
       <div
-        className="flex items-center gap-2 px-4 h-[44px] flex-shrink-0"
+        className="flex items-center gap-2 px-4 h-[40px] flex-shrink-0"
         style={{ borderBottom: '1px solid var(--n8n-card-border)' }}
       >
         <span
@@ -88,49 +67,12 @@ export default function NodePalette() {
         </span>
       </div>
 
-      {/* ── Search area ── */}
-      <div className="px-4 pt-3 pb-3 flex-shrink-0">
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: 'var(--n8n-text-muted)' }}
-          />
-          <input
-            type="text"
-            className="n8n-palette-search"
-            placeholder="Search nodes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button
-              type="button"
-              className="n8n-palette-clear"
-              onClick={() => setSearch('')}
-              aria-label="Clear search"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Categorized node list ── */}
-      <div className="n8n-palette-list flex-1 overflow-y-auto pb-4">
-        {grouped.length === 0 && (
-          <p
-            className="text-[12px] text-center py-8"
-            style={{ color: 'var(--n8n-text-muted)' }}
-          >
-            No matching nodes
-          </p>
-        )}
-
-        {grouped.map(({ category, items }, index) => (
+      {/* ── Categorized node list (scrollable) ── */}
+      <div className="n8n-palette-list flex-1 overflow-y-auto pb-3">
+        {GROUPED.map(({ category, items }, index) => (
           <div key={category}>
-            {/* Category header */}
-            <div className={`px-4 pb-1.5 ${index === 0 ? 'pt-3' : 'pt-4'}`}>
+            {/* Category label */}
+            <div className={`px-4 pb-2 ${index === 0 ? 'pt-4' : 'pt-5'}`}>
               <span
                 className="text-[10px] font-semibold uppercase tracking-[0.12em]"
                 style={{ color: 'var(--n8n-text-muted)' }}
@@ -139,8 +81,8 @@ export default function NodePalette() {
               </span>
             </div>
 
-            {/* Items */}
-            <div className="flex flex-col">
+            {/* Node items */}
+            <div className="flex flex-col gap-0.5">
               {items.map((item) => (
                 <PaletteNodeItem key={item.type} item={item} />
               ))}
@@ -174,15 +116,12 @@ function PaletteNodeItem({ item }: { item: PaletteItem }) {
       className="n8n-palette-item"
       title={description}
     >
-      {/* Icon — rounded square, colored background via rgba() */}
       <div
         className="icon-badge icon-badge-md"
         style={{ background: hexToRgba(accent, 0.1) }}
       >
         {Icon && <Icon size={17} style={{ color: accent }} />}
       </div>
-
-      {/* Label */}
       <span
         className="n8n-palette-label text-[13px] font-medium truncate"
         style={{ color: 'var(--n8n-text-primary)', transition: 'color 0.15s ease' }}
