@@ -119,20 +119,26 @@ async def save_workspace(
         for node in (data.nodes or [])
         if node.node_type == "client" and node.node_key
     ]
-    if client_nodes:
-        background_tasks.add_task(_auto_register_clients, client_nodes)
+    # Collect all current canvas node IDs to detect orphans
+    current_canvas_node_ids = {node.node_key for node in (data.nodes or []) if node.node_key}
+    background_tasks.add_task(_auto_register_and_cleanup, client_nodes, current_canvas_node_ids)
 
     return _workspace_to_out(ws)
 
 
-async def _auto_register_clients(client_nodes: list[tuple[str, str]]) -> None:
+async def _auto_register_and_cleanup(
+    client_nodes: list[tuple[str, str]],
+    current_canvas_node_ids: set[str],
+) -> None:
     """
-    Background task: idempotently register canvas Client nodes as FL clients.
-    Uses a fresh DB session since this runs outside the request context.
+    Background task:
+    1. Idempotently register canvas Client nodes as FL clients.
+    2. Remove orphaned FL clients whose canvas_node_id no longer exists on canvas.
     """
     from app.database import async_session
 
     async with async_session() as db:
+        # Register new client nodes
         for canvas_node_id, label in client_nodes:
             client_id = canvas_node_id.replace("-", "_")
             try:
@@ -152,6 +158,21 @@ async def _auto_register_clients(client_nodes: list[tuple[str, str]]) -> None:
                 log.debug("FL client %s already exists — skipping", client_id)
             except Exception as exc:
                 log.warning("Failed to auto-register canvas client %s: %s", canvas_node_id, exc)
+
+        # Clean up orphaned FL clients (canvas_node_id set but no longer on canvas)
+        try:
+            all_clients = await fl_service.get_all_fl_clients(db)
+            for client in all_clients:
+                if client.canvas_node_id and client.canvas_node_id not in current_canvas_node_ids:
+                    try:
+                        if client.container_id:
+                            docker_service.remove_container(client.container_id)
+                    except Exception:
+                        pass
+                    await fl_service.delete_fl_client(db, client.id)
+                    log.info("Removed orphaned FL client %s (canvas node %s deleted)", client.client_id, client.canvas_node_id)
+        except Exception as exc:
+            log.warning("Failed to clean up orphaned FL clients: %s", exc)
 
 
 @router.delete("/{workspace_id}")

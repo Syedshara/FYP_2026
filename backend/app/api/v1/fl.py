@@ -542,6 +542,11 @@ async def start_training(
             ),
         )
 
+    # ── Step 0: Clear previous training session data for clean slate ──
+    deleted = await fl_service.delete_fl_round_data(db)
+    if deleted:
+        log.info("Cleared %d old round/metric records before new training session", deleted)
+
     # ── Step 1: Start FL server FIRST so gRPC is ready ──
     client_names = [c.client_id for c in trainable_clients]
     try:

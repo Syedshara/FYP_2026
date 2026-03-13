@@ -67,6 +67,7 @@ export default function LiveDataSync() {
       fl: flGlobal?.is_training,
       flRound: flGlobal?.current_round,
       flClients: Object.keys(flClientProgress).length,
+      activeServer: activeFlServerNodeId,
       attacks: Object.keys(attackRunStatuses).length,
       devices: Object.keys(deviceStatuses).length,
       preds: latestPredictions.length,
@@ -75,7 +76,7 @@ export default function LiveDataSync() {
     if (fingerprint === prevSyncRef.current) return;
     prevSyncRef.current = fingerprint;
 
-    const isTraining = flGlobal?.is_training === true;
+    const isTraining = flGlobal?.is_training === true || activeFlServerNodeId != null;
 
     // ── 1. FL Server nodes — only update the node that initiated training ──
     for (const node of nodes) {
