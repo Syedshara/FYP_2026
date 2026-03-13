@@ -8,6 +8,76 @@ COMPOSE_FILE="$PROJECT_ROOT/docker-compose.dev.yml"
 FRONTEND_PID_FILE="$PROJECT_ROOT/.frontend.pid"
 FRONTEND_LOG_FILE="$PROJECT_ROOT/logs/frontend.log"
 
+# Ensure the br_netfilter kernel module is loaded and sysctl values are set.
+# Docker 29.x on kernel 6.x requires this for bridge networking to work.
+# Without it, veth pairs may be created but not attached to the bridge,
+# causing "No route to host" between containers on the same network.
+ensure_kernel_networking() {
+    if ! lsmod | grep -q "^br_netfilter"; then
+        if sudo modprobe br_netfilter 2>/dev/null; then
+            echo "[OK] Loaded br_netfilter kernel module"
+        else
+            echo "[!] Cannot load br_netfilter — Docker bridge networking may fail" >&2
+            return 0
+        fi
+    fi
+
+    if [ -f /proc/sys/net/bridge/bridge-nf-call-iptables ]; then
+        sudo sysctl -q net.bridge.bridge-nf-call-iptables=1 2>/dev/null || true
+        sudo sysctl -q net.bridge.bridge-nf-call-ip6tables=1 2>/dev/null || true
+    fi
+
+    # Persist across reboots (idempotent — only writes if file is missing)
+    if [ ! -f /etc/modules-load.d/docker-bridge.conf ]; then
+        echo "br_netfilter" | sudo tee /etc/modules-load.d/docker-bridge.conf >/dev/null 2>&1 || true
+    fi
+    if [ ! -f /etc/sysctl.d/99-docker-bridge.conf ]; then
+        printf 'net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\n' \
+            | sudo tee /etc/sysctl.d/99-docker-bridge.conf >/dev/null 2>&1 || true
+    fi
+}
+
+# Detect and repair veth interfaces that failed to attach to the compose bridge.
+#
+# Docker 29.x bug: when a container is restarted with `docker restart` (not
+# `docker compose restart`), it sometimes creates a new veth pair without
+# adding it to the bridge. The container shows as healthy but is unreachable
+# from other containers on the same network.
+#
+# Detection: any veth with no "master <bridge>" and whose peer lives in a
+# container network namespace (indicated by "link-netnsid" in ip-link output).
+# Repair: attach the orphan to the correct bridge for iot_ids_network.
+verify_docker_networking() {
+    local network_name="iot_ids_network"
+
+    local net_id
+    net_id=$(docker network inspect "$network_name" --format '{{.Id}}' 2>/dev/null | cut -c1-12) || return 0
+    local bridge="br-${net_id}"
+
+    if ! ip link show "$bridge" &>/dev/null; then return 0; fi
+
+    local fixed=0
+    while IFS= read -r iface; do
+        [ -z "$iface" ] && continue
+
+        # Skip if already attached to any bridge
+        ip link show "$iface" 2>/dev/null | grep -q "master" && continue
+
+        # Only repair veths whose peer is inside a container network namespace.
+        # Veths with "link-netnsid" in their ip-link output have a peer in a
+        # different (container) namespace; host-only veths do not have this field.
+        ip link show "$iface" 2>/dev/null | grep -q "link-netnsid" || continue
+
+        if sudo ip link set "$iface" master "$bridge" 2>/dev/null; then
+            printf "   [FIX] Attached orphan veth %s to bridge %s\n" "$iface" "$bridge"
+            fixed=$((fixed + 1))
+        fi
+    done < <(ip link show type veth 2>/dev/null | grep "^[0-9]" | awk '{print $2}' | cut -d@ -f1)
+
+    [ $fixed -gt 0 ] && printf "[OK] Repaired %d orphan veth(s) — bridge networking restored\n" "$fixed"
+    return 0
+}
+
 compose() {
     if docker-compose version >/dev/null 2>&1; then
         docker-compose "$@"

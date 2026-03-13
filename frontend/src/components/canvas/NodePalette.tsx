@@ -13,9 +13,9 @@
 
 import { type DragEvent, useCallback, useMemo, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Search, X } from 'lucide-react';
+import { Search, X, type LucideIcon } from 'lucide-react';
 import { PALETTE_ITEMS } from '@/config/nodeTypes';
-import type { CanvasNodeType, PaletteCategory, PaletteItem } from '@/types/canvas';
+import type { PaletteCategory, PaletteItem } from '@/types/canvas';
 
 /* ── Category display order ── */
 const CATEGORY_ORDER: PaletteCategory[] = [
@@ -147,9 +147,7 @@ export default function NodePalette() {
 function PaletteNodeItem({ item }: { item: PaletteItem }) {
   const { type, label, icon, accent, description } = item;
 
-  const Icon = (
-    LucideIcons as Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>>
-  )[icon];
+  const Icon = LucideIcons[icon as keyof typeof LucideIcons] as LucideIcon | undefined;
 
   const onDragStart = useCallback(
     (event: DragEvent) => {

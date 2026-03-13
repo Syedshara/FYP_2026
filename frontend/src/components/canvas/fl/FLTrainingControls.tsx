@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { Play, Square, Loader2, Settings } from 'lucide-react';
+import { Play, Square, Loader2, Lock } from 'lucide-react';
 import { flApi, type FLStartConfig } from '@/api/fl';
 import { useLiveStore } from '@/stores/liveStore';
 
@@ -58,45 +58,47 @@ export default function FLTrainingControls() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="fl-panel-section">
       {/* Section header */}
-      <div className="flex items-center gap-2">
-        <Settings size={14} style={{ color: 'var(--n8n-text-muted)' }} />
-        <span
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--n8n-text-muted)' }}
-        >
-          Training Config
-        </span>
+      <div className="fl-section-header">
+        <Lock size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
+        <span className="fl-section-header-title">Training Config</span>
       </div>
 
       {/* Config fields */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <ConfigField label="Rounds" value={numRounds} onChange={setNumRounds} min={1} max={100} disabled={isTraining} />
         <ConfigField label="Local Epochs" value={localEpochs} onChange={setLocalEpochs} min={1} max={20} disabled={isTraining} />
         <ConfigField label="Learning Rate" value={learningRate} onChange={setLearningRate} min={0.0001} max={1} step={0.0001} disabled={isTraining} />
         <ConfigField label="Min Clients" value={minClients} onChange={setMinClients} min={1} max={20} disabled={isTraining} />
 
         {/* HE toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
-            Homomorphic Encryption
-          </span>
+        <div className="fl-toggle-row">
+          <span className="fl-config-label">Homomorphic Encryption</span>
           <button
             type="button"
             disabled={isTraining}
             onClick={() => setUseHE(!useHE)}
-            className="relative w-9 h-5 rounded-full transition-colors"
+            className="relative rounded-full transition-colors"
             style={{
+              width: 36,
+              height: 20,
+              flexShrink: 0,
               background: useHE ? 'var(--n8n-accent)' : 'var(--n8n-card-border)',
               opacity: isTraining ? 0.5 : 1,
               cursor: isTraining ? 'not-allowed' : 'pointer',
+              border: 'none',
+              padding: 0,
             }}
+            aria-pressed={useHE}
           >
             <div
-              className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+              className="absolute top-0.5 rounded-full transition-all duration-200"
               style={{
+                width: 16,
+                height: 16,
                 background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
                 left: useHE ? '18px' : '2px',
               }}
             />
@@ -118,70 +120,48 @@ export default function FLTrainingControls() {
         </div>
       )}
 
-      {/* Action buttons */}
-      <div className="flex flex-col gap-2 pt-1">
-        {!isTraining ? (
-          <button
-            type="button"
-            onClick={handleStart}
-            disabled={isStarting}
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: 'var(--n8n-success)',
-              color: '#fff',
-              opacity: isStarting ? 0.7 : 1,
-              cursor: isStarting ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {isStarting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            {isStarting ? 'Starting...' : 'Start Training'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleStop}
-            disabled={isStopping}
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: 'var(--n8n-danger)',
-              color: '#fff',
-              opacity: isStopping ? 0.7 : 1,
-              cursor: isStopping ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {isStopping ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
-            {isStopping ? 'Stopping...' : 'Stop Training'}
-          </button>
-        )}
-      </div>
+      {/* Action button */}
+      {!isTraining ? (
+        <button
+          type="button"
+          onClick={handleStart}
+          disabled={isStarting}
+          className="fl-action-btn fl-action-btn--start"
+        >
+          {isStarting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+          {isStarting ? 'Starting…' : 'Start Training'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleStop}
+          disabled={isStopping}
+          className="fl-action-btn fl-action-btn--stop"
+        >
+          {isStopping ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
+          {isStopping ? 'Stopping…' : 'Stop Training'}
+        </button>
+      )}
 
       {/* Live progress summary */}
       {isTraining && flGlobal && (
         <div
-          className="flex flex-col gap-1 px-3 py-2 rounded-lg text-xs"
+          className="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg"
           style={{
-            background: 'rgba(255, 109, 90, 0.08)',
-            border: '1px solid rgba(255, 109, 90, 0.2)',
+            background: 'rgba(255, 109, 90, 0.07)',
+            border: '1px solid rgba(255, 109, 90, 0.18)',
           }}
         >
-          <div className="flex justify-between" style={{ color: 'var(--n8n-text-primary)' }}>
-            <span>Round</span>
-            <span className="font-mono">
-              {flGlobal.current_round}/{flGlobal.total_rounds}
-            </span>
-          </div>
-          {flGlobal.global_accuracy != null && (
-            <div className="flex justify-between" style={{ color: 'var(--n8n-text-primary)' }}>
-              <span>Accuracy</span>
-              <span className="font-mono">{(flGlobal.global_accuracy * 100).toFixed(1)}%</span>
+          {[
+            { label: 'Round', value: `${flGlobal.current_round}/${flGlobal.total_rounds}` },
+            ...(flGlobal.global_accuracy != null ? [{ label: 'Accuracy', value: `${(flGlobal.global_accuracy * 100).toFixed(1)}%` }] : []),
+            ...(flGlobal.global_loss != null ? [{ label: 'Loss', value: flGlobal.global_loss.toFixed(4) }] : []),
+          ].map((m) => (
+            <div key={m.label} className="flex justify-between items-center" style={{ fontSize: 11 }}>
+              <span style={{ color: 'var(--n8n-text-muted)' }}>{m.label}</span>
+              <span className="font-mono" style={{ color: 'var(--n8n-text-primary)', fontWeight: 700 }}>{m.value}</span>
             </div>
-          )}
-          {flGlobal.global_loss != null && (
-            <div className="flex justify-between" style={{ color: 'var(--n8n-text-primary)' }}>
-              <span>Loss</span>
-              <span className="font-mono">{flGlobal.global_loss.toFixed(4)}</span>
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>
@@ -208,10 +188,8 @@ function ConfigField({
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
-        {label}
-      </span>
+    <div className="fl-config-field">
+      <span className="fl-config-label">{label}</span>
       <input
         type="number"
         value={value}
@@ -220,15 +198,7 @@ function ConfigField({
         max={max}
         step={step}
         disabled={disabled}
-        className="w-20 px-2 py-1 text-xs text-right rounded-md outline-none"
-        style={{
-          background: 'var(--n8n-canvas-bg)',
-          border: '1px solid var(--n8n-card-border)',
-          color: 'var(--n8n-text-primary)',
-          fontFamily: 'var(--n8n-font)',
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? 'not-allowed' : 'text',
-        }}
+        className="fl-config-input"
       />
     </div>
   );

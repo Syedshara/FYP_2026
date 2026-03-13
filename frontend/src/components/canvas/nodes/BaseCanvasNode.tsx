@@ -11,7 +11,8 @@
  * Handles appear on hover (via CSS class .n8n-node)
  */
 
-import { memo, type ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
+import { Check, Pause, Play, X, type LucideIcon } from 'lucide-react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import * as LucideIcons from 'lucide-react';
 import { NODE_TYPE_CONFIGS } from '@/config/nodeTypes';
@@ -26,28 +27,28 @@ const SHAPE_RADIUS: Record<NodeShape, string> = {
 };
 
 // ── Status → glow / border color ──
-function getStatusStyles(status: NodeStatus, accent: string) {
+function getStatusStyles(status: NodeStatus, accent: string, accentLight: string): CSSProperties {
   switch (status) {
     case 'running':
       return {
         borderColor: accent,
-        boxShadow: `0 0 12px ${accent}40`,
-        animation: 'node-running 2s ease-in-out infinite',
+        boxShadow: `0 0 0 1px ${accent}66, 0 14px 28px -18px ${accent}99, var(--n8n-node-shadow-hover)`,
+        animation: 'node-running 2.2s ease-in-out infinite',
       };
     case 'active':
       return {
         borderColor: accent,
-        boxShadow: `0 0 8px ${accent}30`,
+        boxShadow: `0 0 0 1px ${accent}40, 0 10px 22px -18px ${accent}90, var(--n8n-node-shadow)`,
       };
     case 'success':
       return {
         borderColor: '#18a058',
-        boxShadow: '0 0 8px rgba(24, 160, 88, 0.3)',
+        boxShadow: '0 0 0 1px rgba(24, 160, 88, 0.3), 0 14px 26px -20px rgba(24, 160, 88, 0.8), var(--n8n-node-shadow)',
       };
     case 'error':
       return {
         borderColor: '#d03050',
-        boxShadow: '0 0 8px rgba(208, 48, 80, 0.3)',
+        boxShadow: '0 0 0 1px rgba(208, 48, 80, 0.3), 0 14px 26px -20px rgba(208, 48, 80, 0.85), var(--n8n-node-shadow)',
       };
     case 'disabled':
       return {
@@ -57,6 +58,7 @@ function getStatusStyles(status: NodeStatus, accent: string) {
     default: // idle
       return {
         borderColor: 'var(--n8n-node-border)',
+        boxShadow: `inset 0 1px 0 ${accentLight}, var(--n8n-node-shadow)`,
       };
   }
 }
@@ -65,32 +67,51 @@ function getStatusStyles(status: NodeStatus, accent: string) {
 function StatusBadge({ status }: { status: NodeStatus }) {
   if (status === 'idle') return null;
 
-  const colorMap: Record<NodeStatus, string> = {
-    idle: '',
-    active: '#18a058',
+  const colorMap: Record<Exclude<NodeStatus, 'idle'>, string> = {
+    active: '#3b8fe8',
     running: '#ff6d5a',
     success: '#18a058',
     error: '#d03050',
     disabled: '#888888',
   };
 
-  const animationMap: Record<string, string | undefined> = {
-    running: 'status-pulse 2s ease-in-out infinite',
-    error: 'status-pulse-error 3s ease-in-out infinite',
+  const backgroundMap: Record<Exclude<NodeStatus, 'idle'>, string> = {
+    active: 'rgba(59, 143, 232, 0.14)',
+    running: 'rgba(255, 109, 90, 0.14)',
+    success: 'rgba(24, 160, 88, 0.16)',
+    error: 'rgba(208, 48, 80, 0.16)',
+    disabled: 'rgba(136, 136, 136, 0.14)',
   };
+
+  const IconMap: Partial<Record<NodeStatus, React.ComponentType<{ size?: number; className?: string }>>> = {
+    active: Play,
+    success: Check,
+    error: X,
+    disabled: Pause,
+  };
+
+  const Icon = IconMap[status];
 
   return (
     <div
-      className="absolute -top-1 -right-1 flex items-center justify-center"
+      className={`n8n-node-status-badge n8n-node-status-badge--${status}`}
+      aria-label={`Node status: ${status}`}
       style={{
-        width: 12,
-        height: 12,
-        borderRadius: '50%',
-        background: colorMap[status],
-        border: '2px solid var(--n8n-node-bg)',
-        animation: animationMap[status],
+        color: colorMap[status],
+        background: backgroundMap[status],
       }}
-    />
+    >
+      {status === 'running' ? (
+        <>
+          <span className="n8n-node-status-ring" />
+          <span className="n8n-node-status-dot" />
+        </>
+      ) : Icon ? (
+        <Icon size={10} className="n8n-node-status-icon" />
+      ) : (
+        <span className="n8n-node-status-dot" />
+      )}
+    </div>
   );
 }
 
@@ -104,16 +125,24 @@ function BaseCanvasNode({ data, selected, children }: BaseCanvasNodeProps) {
   const shape = config.shape;
   const accent = config.accent;
   const borderRadius = SHAPE_RADIUS[shape];
-  const statusStyles = getStatusStyles(data.status, accent);
+  const statusStyles = getStatusStyles(data.status, accent, config.accentLight);
 
-  const Icon = (LucideIcons as Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>>)[config.icon];
+  const Icon = LucideIcons[config.icon as keyof typeof LucideIcons] as LucideIcon | undefined;
 
   const isWide = shape === 'wide';
   const isPill = shape === 'pill';
+  const shellShadow = selected
+    ? `0 0 0 1px ${accent}90, 0 0 0 4px ${config.accentLight}, var(--n8n-node-shadow-hover)`
+    : statusStyles.boxShadow ?? 'var(--n8n-node-shadow)';
+  const iconStyle: CSSProperties = {
+    background: config.accentLight,
+    border: `1px solid ${config.accent}33`,
+    color: accent,
+  };
 
   return (
     <div
-      className="relative n8n-node"
+      className={`relative n8n-node ${selected ? 'selected' : ''}`}
       style={{
         width: config.width,
         height: config.height,
@@ -145,14 +174,14 @@ function BaseCanvasNode({ data, selected, children }: BaseCanvasNodeProps) {
 
       {/* ── Node body ── */}
       <div
-        className="w-full h-full flex transition-all duration-150"
+        className="w-full h-full flex n8n-node-shell"
+        data-status={data.status}
+        data-shape={shape}
         style={{
           borderRadius,
           background: 'var(--n8n-node-bg)',
           border: `1px solid ${statusStyles.borderColor ?? 'var(--n8n-node-border)'}`,
-          boxShadow: selected
-            ? `0 0 0 2px ${accent}60, var(--n8n-node-shadow-hover)`
-            : statusStyles.boxShadow ?? 'var(--n8n-node-shadow)',
+          boxShadow: shellShadow,
           opacity: statusStyles.opacity ?? 1,
           cursor: 'pointer',
           overflow: 'hidden',
@@ -161,60 +190,44 @@ function BaseCanvasNode({ data, selected, children }: BaseCanvasNodeProps) {
       >
         {/* ── Content area ── */}
         {isWide ? (
-          // Wide layout: icon left, text + children right
-          <div className="flex items-center gap-3 px-4 py-3 flex-1 min-w-0">
-            <div
-              className="flex items-center justify-center shrink-0"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '8px',
-                background: `${accent}18`,
-              }}
-            >
-              {Icon && <Icon size={18} style={{ color: accent }} />}
+          <div className="canvas-node-content canvas-node-content--wide">
+            <div className="canvas-node-header">
+              <div className="canvas-node-icon" style={iconStyle}>
+                {Icon && <Icon size={18} style={{ color: accent }} />}
+              </div>
+              <div className="canvas-node-copy">
+                <span className="canvas-node-title">{data.label}</span>
+                {data.subtitle && (
+                  <span className="canvas-node-subtitle">
+                    {data.subtitle}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex flex-col min-w-0 flex-1 gap-1">
-              <span
-                className="text-xs font-semibold truncate"
-                style={{ color: 'var(--n8n-text-primary)' }}
-              >
-                {data.label}
-              </span>
-              {data.subtitle && (
-                <span className="text-[10px] truncate" style={{ color: 'var(--n8n-text-muted)' }}>
-                  {data.subtitle}
-                </span>
-              )}
-              {children}
-            </div>
+            {children && <div className="canvas-node-extra">{children}</div>}
           </div>
         ) : isPill ? (
-          // Pill layout: centered icon only
-          <div className="flex items-center justify-center w-full h-full">
-            {Icon && <Icon size={22} style={{ color: accent }} />}
+          <div className="canvas-node-pill-content">
+            <div className="canvas-node-icon canvas-node-icon--pill" style={iconStyle}>
+              {Icon && <Icon size={22} style={{ color: accent }} />}
+            </div>
           </div>
         ) : (
-          // Default / trigger layout: icon circle + label + children
-          <div className="flex flex-col items-center justify-center flex-1 gap-1 p-3">
-            <div
-              className="flex items-center justify-center shrink-0"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '8px',
-                background: `${accent}18`,
-              }}
-            >
-              {Icon && <Icon size={16} style={{ color: accent }} />}
+          <div className="canvas-node-content">
+            <div className="canvas-node-header">
+              <div className="canvas-node-icon" style={iconStyle}>
+                {Icon && <Icon size={16} style={{ color: accent }} />}
+              </div>
+              <div className="canvas-node-copy">
+                <span className="canvas-node-title">{data.label}</span>
+                {data.subtitle && (
+                  <span className="canvas-node-subtitle">
+                    {data.subtitle}
+                  </span>
+                )}
+              </div>
             </div>
-            <span
-              className="text-[11px] font-semibold text-center truncate w-full"
-              style={{ color: 'var(--n8n-text-primary)' }}
-            >
-              {data.label}
-            </span>
-            {children}
+            {children && <div className="canvas-node-extra">{children}</div>}
           </div>
         )}
       </div>
@@ -225,8 +238,8 @@ function BaseCanvasNode({ data, selected, children }: BaseCanvasNodeProps) {
       {/* ── Pill label (below node) ── */}
       {isPill && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 text-[9px] font-medium whitespace-nowrap mt-2"
-          style={{ color: 'var(--n8n-text-muted)', top: '100%' }}
+          className="canvas-node-pill-label"
+          style={{ color: 'var(--n8n-text-muted)' }}
         >
           {data.label}
         </div>

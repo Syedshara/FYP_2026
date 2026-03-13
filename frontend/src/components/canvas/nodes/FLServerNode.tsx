@@ -19,35 +19,33 @@ function FLServerNode(props: NodeProps<FLServerNodeData>) {
 
   return (
     <BaseCanvasNode {...props}>
-      {/* Round progress */}
-      <div className="flex items-center gap-2 mt-1">
-        <div
-          className="flex-1 h-[3px] rounded-full overflow-hidden"
-          style={{ background: 'var(--n8n-card-border)' }}
-        >
-          <div
-            className="h-full rounded-full transition-all duration-300"
-            style={{
-              width: `${pct}%`,
-              background: data.status === 'running' ? '#ff6d5a' : '#18a058',
-            }}
-          />
+      <div className="w-full flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span className="canvas-node-kpi shrink-0">Rounds</span>
+          <div className="canvas-node-progress flex-1">
+            <div
+              className="canvas-node-progress-fill"
+              style={{
+                width: `${pct}%`,
+                background: data.status === 'running' ? '#ff6d5a' : '#18a058',
+              }}
+            />
+          </div>
+          <span className="canvas-node-counter">
+            {round}/{total}
+          </span>
         </div>
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--n8n-text-muted)' }}>
-          {round}/{total}
-        </span>
-      </div>
 
-      {/* Security feature mini-badges */}
-      {data.securityFeatures && (
-        <div className="flex gap-1 mt-1.5">
-          {data.securityFeatures.vss && <FeatureDot label="VSS" color="#a78bfa" />}
-          {data.securityFeatures.mtls && <FeatureDot label="mTLS" color="#38bdf8" />}
-          {data.securityFeatures.gradientSigning && <FeatureDot label="Sign" color="#18a058" />}
-          {data.securityFeatures.roundNonces && <FeatureDot label="RN" color="#f0a020" />}
-          {data.securityFeatures.recess && <FeatureDot label="RCS" color="#d03050" />}
-        </div>
-      )}
+        {data.securityFeatures && (
+          <div className="flex flex-wrap gap-1.5">
+            {data.securityFeatures.vss && <FeatureDot label="VSS" color="#a78bfa" />}
+            {data.securityFeatures.mtls && <FeatureDot label="mTLS" color="#38bdf8" />}
+            {data.securityFeatures.gradientSigning && <FeatureDot label="Sign" color="#18a058" />}
+            {data.securityFeatures.roundNonces && <FeatureDot label="RN" color="#f0a020" />}
+            {data.securityFeatures.recess && <FeatureDot label="RCS" color="#d03050" />}
+          </div>
+        )}
+      </div>
     </BaseCanvasNode>
   );
 }
@@ -55,11 +53,12 @@ function FLServerNode(props: NodeProps<FLServerNodeData>) {
 function FeatureDot({ label, color }: { label: string; color: string }) {
   return (
     <span
-      className="text-[8px] font-semibold px-1.5 rounded"
+      className="canvas-node-chip"
       style={{
-        background: `${color}20`,
+        background: `${color}1a`,
         color,
-        lineHeight: '16px',
+        borderColor: `${color}33`,
+        fontSize: 9,
       }}
     >
       {label}

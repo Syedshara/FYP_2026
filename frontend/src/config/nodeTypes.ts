@@ -7,7 +7,7 @@
  * Dimensions updated to match n8n's larger, wider node proportions.
  */
 
-import type { NodeTypeConfig, CanvasNodeType, PaletteItem } from '@/types/canvas';
+import type { CanvasNodeData, NodeTypeConfig, CanvasNodeType, PaletteItem } from '@/types/canvas';
 
 // ── Node Type Configs ──
 
@@ -20,8 +20,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(91, 155, 245, 0.12)',
     icon: 'Building2',
     description: 'Organization entity (bank, hospital, factory)',
-    width: 150,
-    height: 88,
+    width: 176,
+    height: 104,
   },
   device: {
     type: 'device',
@@ -31,8 +31,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(24, 160, 88, 0.12)',
     icon: 'Cpu',
     description: 'IoT sensor, actuator, or gateway',
-    width: 150,
-    height: 88,
+    width: 176,
+    height: 104,
   },
   'fl-server': {
     type: 'fl-server',
@@ -42,8 +42,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(255, 109, 90, 0.12)',
     icon: 'BrainCircuit',
     description: 'Federated learning aggregation server',
-    width: 280,
-    height: 100,
+    width: 320,
+    height: 116,
   },
   attack: {
     type: 'attack',
@@ -53,8 +53,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(208, 48, 80, 0.12)',
     icon: 'Zap',
     description: 'Real attack generator (Scapy)',
-    width: 150,
-    height: 88,
+    width: 176,
+    height: 104,
   },
   'traffic-source': {
     type: 'traffic-source',
@@ -64,8 +64,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(167, 139, 250, 0.12)',
     icon: 'Radio',
     description: 'Synthetic benign traffic generator',
-    width: 150,
-    height: 88,
+    width: 176,
+    height: 104,
   },
   'rate-filter': {
     type: 'rate-filter',
@@ -75,8 +75,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(136, 136, 136, 0.12)',
     icon: 'Filter',
     description: 'Throttle / shape traffic',
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
   },
   monitor: {
     type: 'monitor',
@@ -86,8 +86,8 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     accentLight: 'rgba(56, 189, 248, 0.12)',
     icon: 'Activity',
     description: 'Live analytics collector',
-    width: 150,
-    height: 88,
+    width: 176,
+    height: 104,
   },
 };
 
@@ -109,7 +109,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
 
 // ── Default node data factories ──
 
-export function createDefaultNodeData(type: CanvasNodeType): Record<string, unknown> {
+export function createDefaultNodeData(type: CanvasNodeType): CanvasNodeData {
   const config = NODE_TYPE_CONFIGS[type];
   const base = {
     nodeType: type,

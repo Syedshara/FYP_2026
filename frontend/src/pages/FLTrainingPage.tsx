@@ -151,14 +151,6 @@ const shellStyles = {
   },
 };
 
-/* ── Pipeline Steps ───────────────────────────── */
-const PIPELINE_STEPS = [
-  { key: 'distribute', label: 'Sending Weights', color: '#A855F7' },
-  { key: 'training', label: 'Local Training', color: '#6366F1' },
-  { key: 'encrypting', label: 'Encrypting', color: '#EF4444' },
-  { key: 'aggregating', label: 'Aggregating', color: '#F59E0B' },
-];
-
 /* ── CKKS Config ──────────────────────────────── */
 const CKKS_CONFIG = [
   { param: 'Library', value: 'TenSEAL' },
@@ -504,7 +496,6 @@ export default function FLTrainingPage() {
   const flClientProgress = useLiveStore((s) => s.flClientProgress);
   const liveRoundResults = useLiveStore((s) => s.flRoundResults);
   const flClientRoundHistory = useLiveStore((s) => s.flClientRoundHistory);
-  const clearFLProgress = useLiveStore((s) => s.clearFLProgress);
   const flaggedEvents = useFlaggedEvents();
 
   // ── Loss history per client (for mini sparklines) ──
@@ -666,7 +657,7 @@ export default function FLTrainingPage() {
     } finally {
       setStarting(false);
     }
-  }, [clearFLProgress, fetchData, clients]);
+  }, [fetchData, clients]);
 
   // ── Stop training ──
   const handleStop = useCallback(async () => {

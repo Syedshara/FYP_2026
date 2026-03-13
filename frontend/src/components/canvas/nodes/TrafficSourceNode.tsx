@@ -15,7 +15,14 @@ function TrafficSourceNode(props: NodeProps<TrafficSourceNodeData>) {
   return (
     <BaseCanvasNode {...props}>
       {data.rate != null && (
-        <span className="text-[10px]" style={{ color: '#a78bfa' }}>
+        <span
+          className="canvas-node-chip"
+          style={{
+            color: '#a78bfa',
+            background: 'rgba(167, 139, 250, 0.12)',
+            borderColor: 'rgba(167, 139, 250, 0.26)',
+          }}
+        >
           {data.rate} pps
         </span>
       )}

@@ -13,6 +13,10 @@ echo "[*] Checking Docker..."
 ensure_docker_running
 echo "[OK] Docker is running"
 
+echo
+echo "[*] Checking kernel networking prerequisites..."
+ensure_kernel_networking
+
 echo "[*] Checking Node.js..."
 ensure_node_installed
 echo "[OK] Node.js $(node --version) installed"
@@ -111,6 +115,10 @@ compose -f "$COMPOSE_FILE" up -d --wait postgres redis
 echo "[OK] Database services started and healthy"
 
 echo
+echo "[*] Verifying container network connectivity..."
+verify_docker_networking
+
+echo
 echo "[*] Running database migrations..."
 compose -f "$COMPOSE_FILE" run --rm backend alembic upgrade head
 echo "[OK] Database migrations completed"
@@ -119,6 +127,10 @@ echo
 echo "[*] Starting backend services..."
 compose -f "$COMPOSE_FILE" up -d backend
 echo "[OK] Backend services started"
+
+echo
+echo "[*] Verifying container network connectivity..."
+verify_docker_networking
 
 echo
 echo "[*] Waiting for backend to be ready..."

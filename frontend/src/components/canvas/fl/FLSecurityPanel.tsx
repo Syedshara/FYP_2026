@@ -30,48 +30,31 @@ export default function FLSecurityPanel({ securityFeatures }: Props) {
   const flaggedEvents = useFlaggedEvents();
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Security Features */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <Shield size={14} style={{ color: 'var(--n8n-text-muted)' }} />
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--n8n-text-muted)' }}
-          >
-            Security
-          </span>
+      <div className="fl-panel-section">
+        <div className="fl-section-header">
+          <Shield size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
+          <span className="fl-section-header-title">Security</span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {SECURITY_ITEMS.map((item) => {
             const active = securityFeatures?.[item.key] ?? false;
             return (
-              <div
-                key={item.key}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                style={{
-                  background: 'var(--n8n-canvas-bg)',
-                  border: '1px solid var(--n8n-card-border)',
-                }}
-              >
+              <div key={item.key} className="fl-security-item" title={item.description}>
                 {active ? (
-                  <ShieldCheck size={14} style={{ color: 'var(--n8n-success)' }} />
+                  <ShieldCheck size={14} style={{ color: 'var(--n8n-success)', flexShrink: 0 }} />
                 ) : (
-                  <ShieldAlert size={14} style={{ color: 'var(--n8n-text-muted)' }} />
+                  <ShieldAlert size={14} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
                 )}
-                <div className="flex-1 min-w-0">
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: active ? 'var(--n8n-text-primary)' : 'var(--n8n-text-muted)' }}
-                  >
-                    {item.label}
-                  </span>
-                </div>
                 <span
-                  className="text-[10px] uppercase font-semibold"
-                  style={{ color: active ? 'var(--n8n-success)' : 'var(--n8n-text-muted)' }}
+                  className="flex-1 min-w-0 text-xs font-medium truncate"
+                  style={{ color: active ? 'var(--n8n-text-primary)' : 'var(--n8n-text-muted)' }}
                 >
+                  {item.label}
+                </span>
+                <span className={`fl-status-badge ${active ? 'fl-status-badge--on' : 'fl-status-badge--off'}`}>
                   {active ? 'ON' : 'OFF'}
                 </span>
               </div>
@@ -81,22 +64,18 @@ export default function FLSecurityPanel({ securityFeatures }: Props) {
       </div>
 
       {/* Trust Scores */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={14} style={{ color: 'var(--n8n-text-muted)' }} />
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--n8n-text-muted)' }}
-          >
-            Trust Scores
-          </span>
+      <div className="fl-panel-section">
+        <div className="fl-section-header">
+          <ShieldCheck size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
+          <span className="fl-section-header-title">Trust Scores</span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {Object.entries(trustScores).length === 0 ? (
-            <p className="text-xs text-center py-2" style={{ color: 'var(--n8n-text-muted)' }}>
-              No trust data yet
-            </p>
+            <div className="fl-empty-state">
+              <ShieldCheck size={20} className="fl-empty-state-icon" />
+              <p className="fl-empty-state-text">No trust data yet</p>
+            </div>
           ) : (
             Object.entries(trustScores).map(([clientId, score]) => (
               <TrustScoreBar key={clientId} clientId={clientId} score={score} />
@@ -107,30 +86,28 @@ export default function FLSecurityPanel({ securityFeatures }: Props) {
 
       {/* Flagged Events */}
       {flaggedEvents.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={14} style={{ color: 'var(--n8n-danger)' }} />
-            <span
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: 'var(--n8n-danger)' }}
-            >
+        <div className="fl-panel-section">
+          <div className="fl-section-header">
+            <AlertTriangle size={13} style={{ color: 'var(--n8n-danger)', flexShrink: 0 }} />
+            <span className="fl-section-header-title" style={{ color: 'var(--n8n-danger)' }}>
               Flagged ({flaggedEvents.length})
             </span>
           </div>
 
-          <div className="flex flex-col gap-1.5 max-h-[150px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: 150 }}>
             {flaggedEvents.slice(0, 10).map((evt, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between px-3 py-1.5 rounded-md text-[10px]"
+                className="flex items-center justify-between px-3 py-1.5 rounded-md"
                 style={{
+                  fontSize: 11,
                   background: 'rgba(208, 48, 80, 0.08)',
                   border: '1px solid rgba(208, 48, 80, 0.2)',
                 }}
               >
                 <span style={{ color: 'var(--n8n-text-primary)' }}>{evt.clientId}</span>
                 <span style={{ color: 'var(--n8n-text-muted)' }}>R{evt.round}</span>
-                <span className="font-mono" style={{ color: 'var(--n8n-danger)' }}>
+                <span className="font-mono" style={{ color: 'var(--n8n-danger)', fontWeight: 700 }}>
                   {evt.abnormality.toFixed(3)}
                 </span>
               </div>
@@ -149,24 +126,14 @@ function TrustScoreBar({ clientId, score }: { clientId: string; score: number })
   const color = score >= 0.8 ? 'var(--n8n-success)' : score >= 0.5 ? 'var(--n8n-warning)' : 'var(--n8n-danger)';
 
   return (
-    <div
-      className="flex flex-col gap-1 px-3 py-1.5 rounded-md"
-      style={{
-        background: 'var(--n8n-canvas-bg)',
-        border: '1px solid var(--n8n-card-border)',
-      }}
-    >
+    <div className="fl-trust-bar">
       <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: 'var(--n8n-text-primary)' }}>
-          {clientId}
-        </span>
-        <span className="text-xs font-mono" style={{ color }}>
-          {score.toFixed(2)}
-        </span>
+        <span className="text-xs truncate" style={{ color: 'var(--n8n-text-primary)' }}>{clientId}</span>
+        <span className="text-xs font-mono font-semibold" style={{ color }}>{score.toFixed(2)}</span>
       </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--n8n-card-border)' }}>
+      <div className="fl-trust-bar-track">
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="fl-trust-bar-fill"
           style={{ width: `${pct}%`, background: color }}
         />
       </div>

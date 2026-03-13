@@ -15,7 +15,14 @@ function DeviceNode(props: NodeProps<DeviceNodeData>) {
   return (
     <BaseCanvasNode {...props}>
       {data.protocol && (
-        <span className="text-[10px]" style={{ color: '#18a058' }}>
+        <span
+          className="canvas-node-chip"
+          style={{
+            color: '#18a058',
+            background: 'rgba(24, 160, 88, 0.12)',
+            borderColor: 'rgba(24, 160, 88, 0.22)',
+          }}
+        >
           {data.protocol}
         </span>
       )}

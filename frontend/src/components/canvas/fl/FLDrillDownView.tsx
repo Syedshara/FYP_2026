@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { ArrowLeft, Server, Loader2 } from 'lucide-react';
+import { ArrowLeft, Server, Loader2, Activity } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
 import { flApi } from '@/api/fl';
@@ -37,7 +37,6 @@ export default function FLDrillDownView() {
 
   // Fetch FL clients on mount
   useEffect(() => {
-    setLoading(true);
     flApi.clients()
       .then(setClients)
       .catch(() => {})
@@ -72,71 +71,66 @@ export default function FLDrillDownView() {
     >
       {/* ── Top Bar ── */}
       <header
-        className="flex items-center justify-between px-4 h-[52px] border-b shrink-0 select-none"
+        className="flex items-center justify-between shrink-0 select-none"
         style={{
           background: 'var(--n8n-topbar-bg)',
-          borderColor: 'var(--n8n-card-border)',
+          borderBottom: '1px solid var(--n8n-card-border)',
+          padding: '0 16px',
+          height: 52,
+          minHeight: 52,
         }}
       >
-        {/* Left: Back button + server name */}
+        {/* Left: Back button + breadcrumb */}
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors"
-            style={{
-              color: 'var(--n8n-text-muted)',
-              background: 'transparent',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--n8n-card-bg)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
+          <button type="button" onClick={handleBack} className="fl-back-btn">
             <ArrowLeft size={14} />
             <span>Back to Canvas</span>
           </button>
 
-          <div className="w-px h-5" style={{ background: 'var(--n8n-card-border)' }} />
+          <div style={{ width: 1, height: 20, background: 'var(--n8n-card-border)', flexShrink: 0 }} />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div
-              className="flex items-center justify-center w-7 h-7 rounded-lg"
-              style={{ background: 'rgba(255, 109, 90, 0.12)' }}
+              className="flex items-center justify-center rounded-lg"
+              style={{ width: 28, height: 28, background: 'rgba(255, 109, 90, 0.12)', flexShrink: 0 }}
             >
-              <Server size={14} style={{ color: 'var(--n8n-accent)' }} />
+              <Server size={13} style={{ color: 'var(--n8n-accent)' }} />
             </div>
-            <div>
+            <div className="flex items-center gap-2">
               <span className="text-sm font-semibold" style={{ color: 'var(--n8n-text-primary)' }}>
                 {serverLabel}
               </span>
-              <span className="text-xs ml-2" style={{ color: 'var(--n8n-text-muted)' }}>
+              <span style={{ width: 1, height: 14, background: 'var(--n8n-card-border)' }} />
+              <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
                 FL Training View
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right: Training status indicator */}
+        {/* Right: Training status badge */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full"
+          <div
+            className={`fl-status-badge ${isTraining ? 'fl-status-badge--training' : 'fl-status-badge--idle'}`}
+          >
+            <span
+              className="fl-status-dot"
               style={{
                 background: isTraining ? 'var(--n8n-accent)' : 'var(--n8n-text-muted)',
-                boxShadow: isTraining ? '0 0 8px rgba(255, 109, 90, 0.5)' : 'none',
-                animation: isTraining ? 'pulse 2s ease-in-out infinite' : 'none',
+                animation: isTraining ? 'pulse-dot 2s ease-in-out infinite' : 'none',
               }}
             />
-            <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
-              {isTraining
-                ? `Training — Round ${flGlobal?.current_round ?? 0}/${flGlobal?.total_rounds ?? 0}`
-                : 'Idle'}
-            </span>
+            {isTraining
+              ? `Training — Round ${flGlobal?.current_round ?? 0}/${flGlobal?.total_rounds ?? 0}`
+              : 'Idle'}
           </div>
-          {isTraining && (
-            <span className="text-xs font-mono" style={{ color: 'var(--n8n-success)' }}>
-              {flGlobal?.global_accuracy != null
-                ? `${(flGlobal.global_accuracy * 100).toFixed(1)}%`
-                : '—'}
+
+          {isTraining && flGlobal?.global_accuracy != null && (
+            <span
+              className="text-xs font-mono font-bold"
+              style={{ color: 'var(--n8n-success)' }}
+            >
+              {(flGlobal.global_accuracy * 100).toFixed(1)}%
             </span>
           )}
         </div>
@@ -151,20 +145,24 @@ export default function FLDrillDownView() {
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* LEFT PANEL: Controls + Client List */}
           <aside
-            className="w-[280px] shrink-0 flex flex-col gap-6 px-4 py-4 overflow-y-auto border-r"
+            className="shrink-0 flex flex-col gap-4 overflow-y-auto"
             style={{
+              width: 296,
               background: 'var(--n8n-card-bg)',
-              borderColor: 'var(--n8n-card-border)',
+              borderRight: '1px solid var(--n8n-card-border)',
+              padding: '16px 14px',
             }}
           >
             <FLTrainingControls />
-            <div className="w-full h-px" style={{ background: 'var(--n8n-card-border)' }} />
             <FLClientProgressList clients={clients} />
           </aside>
 
           {/* CENTER: Chart + Round Log */}
-          <main className="flex-1 flex flex-col gap-6 px-6 py-4 overflow-y-auto min-w-0">
-            {/* Radial visualization placeholder */}
+          <main
+            className="flex-1 flex flex-col gap-5 overflow-y-auto min-w-0"
+            style={{ padding: '16px 20px' }}
+          >
+            {/* Radial visualization */}
             <FLRadialVisualization
               clients={clients}
               serverLabel={serverLabel}
@@ -176,10 +174,13 @@ export default function FLDrillDownView() {
 
           {/* RIGHT PANEL: Security */}
           <aside
-            className="w-[260px] shrink-0 flex flex-col px-4 py-4 overflow-y-auto border-l"
+            className="shrink-0 flex flex-col overflow-y-auto"
             style={{
+              width: 272,
               background: 'var(--n8n-card-bg)',
-              borderColor: 'var(--n8n-card-border)',
+              borderLeft: '1px solid var(--n8n-card-border)',
+              padding: '16px 14px',
+              gap: 4,
             }}
           >
             <FLSecurityPanel securityFeatures={serverData?.securityFeatures} />
@@ -223,16 +224,15 @@ function FLRadialVisualization({
 
   if (clients.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center h-[220px] rounded-xl"
-        style={{
-          background: 'var(--n8n-canvas-bg)',
-          border: '1px solid var(--n8n-card-border)',
-        }}
-      >
-        <span className="text-xs" style={{ color: 'var(--n8n-text-muted)' }}>
-          No clients — add FL clients to begin
-        </span>
+      <div className="fl-vis-card">
+        <div className="fl-vis-card-header">
+          <Activity size={13} style={{ color: 'var(--n8n-text-muted)' }} />
+          <span className="fl-section-header-title">Topology</span>
+        </div>
+        <div className="fl-empty-state" style={{ minHeight: 160 }}>
+          <Activity size={24} className="fl-empty-state-icon" />
+          <p className="fl-empty-state-text">No clients — add FL clients to begin</p>
+        </div>
       </div>
     );
   }
@@ -244,14 +244,21 @@ function FLRadialVisualization({
   const viewHeight = 220;
 
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: 'var(--n8n-canvas-bg)',
-        border: '1px solid var(--n8n-card-border)',
-      }}
-    >
-      <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="w-full h-auto" style={{ maxHeight: 220 }}>
+    <div className="fl-vis-card">
+      <div className="fl-vis-card-header">
+        <Activity size={13} style={{ color: 'var(--n8n-text-muted)' }} />
+        <span className="fl-section-header-title">Topology</span>
+        {isTraining && (
+          <span className="fl-status-badge fl-status-badge--training" style={{ marginLeft: 'auto' }}>
+            <span
+              className="fl-status-dot"
+              style={{ background: 'var(--n8n-accent)', animation: 'pulse-dot 2s ease-in-out infinite' }}
+            />
+            Live
+          </span>
+        )}
+      </div>
+      <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="w-full h-auto" style={{ maxHeight: 220, display: 'block' }}>
         <defs>
           {/* Animated dash for active connections */}
           <linearGradient id="fl-conn-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -332,7 +339,7 @@ function FLRadialVisualization({
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#ececec"
-            fontSize="10"
+            fontSize="11"
             fontFamily="JetBrains Mono, monospace"
             fontWeight="600"
           >
@@ -385,13 +392,13 @@ function FLRadialVisualization({
               )}
               <text
                 x={x}
-                y={y - 3}
+                y={y - 4}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill="#ececec"
-                fontSize="8"
+                fontSize="9"
                 fontFamily="JetBrains Mono, monospace"
-                fontWeight="500"
+                fontWeight="600"
               >
                 {client.name.length > 8 ? client.name.slice(0, 8) + '…' : client.name}
               </text>
@@ -401,8 +408,9 @@ function FLRadialVisualization({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill={color}
-                fontSize="7"
+                fontSize="8"
                 fontFamily="JetBrains Mono, monospace"
+                fontWeight="500"
               >
                 {status}
               </text>

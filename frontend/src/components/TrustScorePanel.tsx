@@ -156,7 +156,6 @@ function CompactStrip({ trustScores }: { trustScores: Record<string, number> }) 
 // ── Main export ────────────────────────────────────────────────────────────────
 export function TrustScorePanel({
   trustScores,
-  flaggedEvents: _flaggedEvents,
   compact = false,
 }: TrustScorePanelProps) {
   if (compact) {

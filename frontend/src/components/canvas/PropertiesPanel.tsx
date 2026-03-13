@@ -7,24 +7,11 @@
  */
 
 import React from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { ChevronDown, X, Trash2, type LucideIcon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useWorkspaceStore, useSelectedNode } from '@/stores/workspaceStore';
 import { NODE_TYPE_CONFIGS } from '@/config/nodeTypes';
 import type { CanvasNodeData } from '@/types/canvas';
-
-/**
- * Convert a hex color like "#ff6d5a" to an rgba() with the given alpha.
- * Falls back gracefully if the input isn't a valid 6-char hex.
- */
-function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return `${hex}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 export default function PropertiesPanel() {
   const propertiesPanelOpen = useWorkspaceStore((s) => s.propertiesPanelOpen);
@@ -36,7 +23,7 @@ export default function PropertiesPanel() {
   if (!propertiesPanelOpen || !selectedNode) return null;
 
   const config = NODE_TYPE_CONFIGS[selectedNode.data.nodeType];
-  const Icon = (LucideIcons as Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>>)[config.icon];
+  const Icon = LucideIcons[config.icon as keyof typeof LucideIcons] as LucideIcon | undefined;
 
   const handleFieldChange = (field: string, value: string | number | boolean) => {
     updateNodeData(selectedNode.id, { [field]: value } as Partial<CanvasNodeData>);
@@ -48,21 +35,13 @@ export default function PropertiesPanel() {
 
   return (
     <aside
-      className="flex flex-col w-[260px] border-l shrink-0 overflow-y-auto"
-      style={{
-        background: 'var(--n8n-sidebar-bg)',
-        borderColor: 'var(--n8n-card-border)',
-      }}
+      className="properties-panel"
     >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: 'var(--n8n-card-border)' }}
-      >
+      <div className="properties-panel-header">
         <div className="flex items-center gap-2">
           <div
             className="icon-badge icon-badge-sm"
-            style={{ background: hexToRgba(config.accent, 0.12) }}
+            style={{ background: config.accentLight }}
           >
             {Icon && <Icon size={14} style={{ color: config.accent }} />}
           </div>
@@ -85,44 +64,55 @@ export default function PropertiesPanel() {
         </button>
       </div>
 
-      {/* Fields */}
-      <div className="flex flex-col gap-4 px-4 pt-4 pb-4">
-        {/* Common fields */}
-        <PropertyField
-          label="Label"
-          value={selectedNode.data.label}
-          onChange={(v) => handleFieldChange('label', v)}
-        />
-        <PropertyField
-          label="Subtitle"
-          value={selectedNode.data.subtitle ?? ''}
-          onChange={(v) => handleFieldChange('subtitle', v)}
-        />
+      <div className="properties-panel-body">
+        <PropertiesSection title="General">
+          <PropertyField
+            label="Label"
+            value={selectedNode.data.label}
+            onChange={(v) => handleFieldChange('label', v)}
+          />
+          <PropertyField
+            label="Subtitle"
+            value={selectedNode.data.subtitle ?? ''}
+            onChange={(v) => handleFieldChange('subtitle', v)}
+          />
+          <PropertySelect
+            label="Status"
+            value={selectedNode.data.status}
+            options={['idle', 'active', 'running', 'error', 'disabled', 'success']}
+            onChange={(v) => handleFieldChange('status', v)}
+          />
+        </PropertiesSection>
 
-        {/* Status */}
-        <PropertySelect
-          label="Status"
-          value={selectedNode.data.status}
-          options={['idle', 'active', 'running', 'error', 'disabled', 'success']}
-          onChange={(v) => handleFieldChange('status', v)}
-        />
-
-        {/* Type-specific fields */}
         <div className="panel-divider" />
-        <TypeSpecificFields node={selectedNode.data} onChange={handleFieldChange} />
+
+        <PropertiesSection title="Node Settings">
+          <TypeSpecificFields node={selectedNode.data} onChange={handleFieldChange} />
+        </PropertiesSection>
       </div>
 
-      {/* Delete button */}
-      <div
-        className="mt-auto px-4 pb-4 pt-3 border-t"
-        style={{ borderColor: 'var(--n8n-card-border)' }}
-      >
+      <div className="properties-panel-footer">
         <button type="button" onClick={handleDelete} className="delete-btn">
           <Trash2 size={13} />
           Delete Node
         </button>
       </div>
     </aside>
+  );
+}
+
+function PropertiesSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="properties-panel-section">
+      <div className="properties-panel-section-title">{title}</div>
+      {children}
+    </section>
   );
 }
 
@@ -336,7 +326,7 @@ function PropertyField({
   type?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="properties-field">
       <label className="form-label">{label}</label>
       <input
         type={type}
@@ -361,19 +351,22 @@ function PropertySelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="properties-field">
       <label className="form-label">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="prop-input"
-      >
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt.charAt(0).toUpperCase() + opt.slice(1).replace(/-/g, ' ')}
-          </option>
-        ))}
-      </select>
+      <div className="panel-select-wrapper">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="prop-input"
+        >
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt.charAt(0).toUpperCase() + opt.slice(1).replace(/-/g, ' ')}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={14} className="panel-select-icon" />
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@
  *   latestPredictions → triggers device→client edge animation
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -199,6 +199,15 @@ export default function TrafficTopology({ clients, devices }: TrafficTopologyPro
   const clientStatuses   = useLiveStore((s) => s.clientStatuses);
   const deviceStatuses   = useLiveStore((s) => s.deviceStatuses);
   const latestPredictions = useLiveStore((s) => s.latestPredictions);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   // ── Derive live status for each client ──────────────────────────────────
   const getClientStatus = useCallback((client: FLClient): string => {
@@ -213,7 +222,7 @@ export default function TrafficTopology({ clients, devices }: TrafficTopologyPro
 
   // ── Detect which device→client edges are active (recent prediction) ──────
   const activeDeviceIds = useMemo(() => {
-    const cutoff = Date.now() - 4000; // active if prediction in last 4s
+    const cutoff = currentTime - 4000; // active if prediction in last 4s
     const ids = new Set<string>();
     for (const p of latestPredictions) {
       if (new Date(p.timestamp).getTime() >= cutoff) {
@@ -221,7 +230,7 @@ export default function TrafficTopology({ clients, devices }: TrafficTopologyPro
       }
     }
     return ids;
-  }, [latestPredictions]);
+  }, [currentTime, latestPredictions]);
 
   // ── Detect which client→server edges are active (sending weights) ────────
   const sendingClients = useMemo(() => {

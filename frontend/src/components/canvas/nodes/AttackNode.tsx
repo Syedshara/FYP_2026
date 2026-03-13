@@ -15,7 +15,14 @@ function AttackNode(props: NodeProps<AttackNodeData>) {
   return (
     <BaseCanvasNode {...props}>
       {data.attackCategory && (
-        <span className="text-[10px]" style={{ color: '#d03050' }}>
+        <span
+          className="canvas-node-chip"
+          style={{
+            color: '#d03050',
+            background: 'rgba(208, 48, 80, 0.12)',
+            borderColor: 'rgba(208, 48, 80, 0.24)',
+          }}
+        >
           {data.attackCategory}
         </span>
       )}

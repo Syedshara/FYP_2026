@@ -122,7 +122,7 @@ export default function FLAccuracyChart() {
                   color: '#ececec',
                 }}
                 labelFormatter={(label) => `Round ${label}`}
-                formatter={(value: number | null) => [value != null ? value.toFixed(4) : '—']}
+                formatter={(value) => (typeof value === 'number' ? value.toFixed(4) : '—')}
               />
               <Legend
                 wrapperStyle={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}

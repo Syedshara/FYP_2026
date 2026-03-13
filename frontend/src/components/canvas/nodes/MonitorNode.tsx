@@ -27,27 +27,18 @@ function MetricBar({
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
-    <div className="flex flex-col gap-[1px] w-full">
-      <div className="flex justify-between" style={{ fontSize: 9, color: 'var(--n8n-text-muted)' }}>
+    <div className="flex flex-col gap-1 w-full">
+      <div className="flex justify-between gap-2 canvas-node-kpi" style={{ color: 'var(--n8n-text-muted)' }}>
         <span>{label}</span>
         <span style={{ color }}>{value}{suffix}</span>
       </div>
-      <div
-        style={{
-          width: '100%',
-          height: 3,
-          borderRadius: 2,
-          background: 'var(--n8n-card-border)',
-          overflow: 'hidden',
-        }}
-      >
+
+      <div className="canvas-node-progress">
         <div
+          className="canvas-node-progress-fill"
           style={{
             width: `${pct}%`,
-            height: '100%',
-            borderRadius: 2,
             background: color,
-            transition: 'width 0.3s ease',
           }}
         />
       </div>
@@ -64,7 +55,7 @@ function MonitorNode(props: NodeProps<MonitorNodeData>) {
   return (
     <BaseCanvasNode {...props}>
       {hasMetrics ? (
-        <div className="flex flex-col gap-1 w-full">
+        <div className="flex flex-col gap-2 w-full">
           <MetricBar
             label="ATK"
             value={m.attackRate ?? 0}
@@ -88,7 +79,7 @@ function MonitorNode(props: NodeProps<MonitorNodeData>) {
           />
         </div>
       ) : (
-        <span className="text-[9px]" style={{ color: 'var(--n8n-text-muted)' }}>
+        <span className="canvas-node-kpi" style={{ color: 'var(--n8n-text-muted)' }}>
           No data
         </span>
       )}

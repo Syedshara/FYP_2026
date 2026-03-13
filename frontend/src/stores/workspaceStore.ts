@@ -128,9 +128,14 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     );
     if (!edgeType) return;
 
+    const { source, target } = connection;
+    if (!source || !target) return;
+
     const newEdge: Edge = {
       ...connection,
-      id: generateEdgeId(connection.source!, connection.target!),
+      source,
+      target,
+      id: generateEdgeId(source, target),
       type: edgeType,
     };
 
@@ -153,7 +158,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   addNode: (type, position) => {
     const id = generateNodeId();
     const config = NODE_TYPE_CONFIGS[type];
-    const data = createDefaultNodeData(type) as CanvasNodeData;
+    const data = createDefaultNodeData(type);
 
     const newNode: Node<CanvasNodeData> = {
       id,

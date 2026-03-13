@@ -33,7 +33,7 @@ const FLAGGED_STYLE: CSSProperties = {
 };
 
 export function DetectionRoundBadge({
-  round: _round,
+  round,
   isDetectionRound,
   flaggedClients = [],
 }: DetectionRoundBadgeProps) {
@@ -44,7 +44,10 @@ export function DetectionRoundBadge({
   const hasFlagged = flaggedClients.length > 0;
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      title={`Detection round ${round}`}
+    >
       <span style={RECESS_STYLE}>RECESS</span>
       {hasFlagged && (
         <span style={FLAGGED_STYLE}>

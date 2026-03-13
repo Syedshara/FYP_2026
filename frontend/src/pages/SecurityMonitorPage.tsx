@@ -131,6 +131,7 @@ const S = {
 
   emptyCell: (colSpan: number): React.CSSProperties => ({
     padding: 32,
+    minWidth: `${colSpan * 64}px`,
     textAlign: 'center' as const,
     color: 'var(--n8n-text-muted)',
     fontSize: 12,

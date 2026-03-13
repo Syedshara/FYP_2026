@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { List } from 'lucide-react';
+import { List, History } from 'lucide-react';
 import { useLiveStore } from '@/stores/liveStore';
 import { flApi } from '@/api/fl';
 import type { FLRound } from '@/types';
@@ -45,32 +45,27 @@ export default function FLRoundLog() {
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <List size={14} style={{ color: 'var(--n8n-text-muted)' }} />
-        <span
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--n8n-text-muted)' }}
-        >
-          Round History ({allRounds.length})
-        </span>
+      <div className="fl-section-header">
+        <List size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
+        <span className="fl-section-header-title">Round History ({allRounds.length})</span>
       </div>
 
       {/* Rounds list */}
       {allRounds.length === 0 ? (
-        <p className="text-xs text-center py-4" style={{ color: 'var(--n8n-text-muted)' }}>
-          No rounds completed
-        </p>
+        <div className="fl-empty-state">
+          <History size={24} className="fl-empty-state-icon" />
+          <p className="fl-empty-state-text">No rounds completed yet</p>
+        </div>
       ) : (
         <div
-          className="flex flex-col gap-0 rounded-lg overflow-hidden max-h-[200px] overflow-y-auto"
-          style={{
-            border: '1px solid var(--n8n-card-border)',
-          }}
+          className="rounded-xl overflow-hidden"
+          style={{ border: '1px solid var(--n8n-card-border)', maxHeight: 220, overflowY: 'auto' }}
         >
-          {/* Header row */}
+          {/* Table header row */}
           <div
-            className="grid grid-cols-4 gap-2 px-3 py-1.5 text-[10px] font-semibold uppercase"
+            className="grid gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider"
             style={{
+              gridTemplateColumns: '48px 1fr 88px 66px',
               background: 'var(--n8n-card-bg)',
               color: 'var(--n8n-text-muted)',
               borderBottom: '1px solid var(--n8n-card-border)',
@@ -88,19 +83,17 @@ export default function FLRoundLog() {
           {allRounds.map((r) => (
             <div
               key={r.round_number}
-              className="grid grid-cols-4 gap-2 px-3 py-1.5 text-xs font-mono"
+              className="fl-round-row"
               style={{
-                background: r.isLive ? 'rgba(255, 109, 90, 0.05)' : 'var(--n8n-canvas-bg)',
-                borderBottom: '1px solid var(--n8n-card-border)',
-                color: 'var(--n8n-text-primary)',
+                background: r.isLive ? 'rgba(255, 109, 90, 0.04)' : 'var(--n8n-canvas-bg)',
               }}
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5" style={{ color: 'var(--n8n-accent)', fontWeight: 700 }}>
                 R{r.round_number}
                 {r.isLive && (
                   <span
                     className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--n8n-accent)' }}
+                    style={{ background: 'var(--n8n-accent)', flexShrink: 0, animation: 'pulse-dot 2s ease-in-out infinite' }}
                   />
                 )}
               </span>

@@ -14,9 +14,17 @@ ensure_docker_running
 echo "[OK] Docker is running"
 
 echo
+echo "[*] Checking kernel networking prerequisites..."
+ensure_kernel_networking
+
+echo
 echo "[*] Starting backend services..."
 compose -f "$COMPOSE_FILE" up -d
 echo "[OK] Backend services started"
+
+echo
+echo "[*] Verifying container network connectivity..."
+verify_docker_networking
 
 echo
 echo "[*] Waiting for backend to be ready..."

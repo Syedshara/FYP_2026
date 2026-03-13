@@ -102,7 +102,7 @@ interface FormProps {
   onChange: (config: Record<string, unknown>, label: string) => void;
 }
 
-function ScenarioSourceForm({ nodeId: _nodeId, config, label, onChange }: FormProps) {
+function ScenarioSourceForm({ config, label, onChange }: FormProps) {
   const scenario  = (config.scenario  as string  | undefined) ?? 'mixed_traffic';
   const flowRate  = (config.flow_rate as number  | undefined) ?? 5;
   const loop      = (config.loop      as boolean | undefined) ?? true;
@@ -161,7 +161,7 @@ function ScenarioSourceForm({ nodeId: _nodeId, config, label, onChange }: FormPr
   );
 }
 
-function AttackInjectForm({ nodeId: _nodeId, config, label, onChange }: FormProps) {
+function AttackInjectForm({ config, label, onChange }: FormProps) {
   const attackType  = (config.attack_type  as string | undefined) ?? 'ddos';
   const intensity   = (config.intensity    as number | undefined) ?? 0.5;
   const durationSec = (config.duration_sec as number | undefined) ?? 60;
@@ -214,7 +214,7 @@ function AttackInjectForm({ nodeId: _nodeId, config, label, onChange }: FormProp
   );
 }
 
-function RateFilterForm({ nodeId: _nodeId, config, label, onChange }: FormProps) {
+function RateFilterForm({ config, label, onChange }: FormProps) {
   const maxFlows  = (config.max_flows_per_sec as number | undefined) ?? 10;
   const sampleRate = (config.sample_rate      as number | undefined) ?? 1.0;
 
@@ -260,7 +260,7 @@ function RateFilterForm({ nodeId: _nodeId, config, label, onChange }: FormProps)
 
 const ALL_CLIENTS = ['bank_a', 'bank_b', 'bank_c'] as const;
 
-function MonitorSinkForm({ nodeId: _nodeId, config, label, onChange }: FormProps) {
+function MonitorSinkForm({ config, label, onChange }: FormProps) {
   const clients = (config.clients as string[] | undefined) ?? [...ALL_CLIENTS];
 
   const toggle = (client: string) => {

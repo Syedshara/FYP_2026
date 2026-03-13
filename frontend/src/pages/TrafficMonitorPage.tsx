@@ -69,6 +69,7 @@ const S = {
     gap: 6,
     position: 'relative',
     overflow: 'hidden',
+    boxShadow: `0 10px 24px -22px ${accentColor}80`,
   }),
 
   kpiAccentBar: (color: string): React.CSSProperties => ({

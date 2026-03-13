@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import type { CSSProperties } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 
