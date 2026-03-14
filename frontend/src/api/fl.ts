@@ -52,7 +52,9 @@ export interface DetectionRound {
 }
 
 export interface CertificateMetadata {
-  clientId: string;
+  clientId: string;       // cert filename stem — stable unique key
+  displayName: string;    // human label: client name / "FL Server" / "IoT-IDS-CA"
+  role: string;           // "FL Client" | "FL Server" | "Root CA"
   issuer: string;
   notBefore: string;
   notAfter: string;

@@ -20,6 +20,8 @@ import {
   CheckCircle2,
   XCircle,
   FileKey2,
+  Shield,
+  Server,
 } from 'lucide-react';
 import { useSecurityEvents } from '@/stores/liveStore';
 import type { SecurityEvent, SecurityEventKind } from '@/stores/liveStore';
@@ -333,17 +335,34 @@ function CertificatesTab() {
 
 // ── Certificate Card ───────────────────────────────────
 
+/** Role badge colors and icons */
+const ROLE_META: Record<string, { color: string; bg: string; Icon: typeof FileKey2 }> = {
+  'FL Client': { color: 'var(--n8n-accent)',   bg: 'rgba(255,109,90,0.12)',  Icon: FileKey2   },
+  'FL Server': { color: '#38bdf8',             bg: 'rgba(56,189,248,0.12)', Icon: Server     },
+  'Root CA':   { color: '#f59e0b',             bg: 'rgba(245,158,11,0.12)', Icon: Shield     },
+};
+
 function CertificateCard({ cert }: { cert: CertificateMetadata }) {
   const isExpired = new Date(cert.notAfter) < new Date();
-  const statusColor = isExpired ? 'var(--n8n-danger)' : 'var(--n8n-success)';
+  const roleMeta = ROLE_META[cert.role] ?? ROLE_META['FL Client'];
+  const RoleIcon = roleMeta.Icon;
 
   return (
     <div className="fl-cert-card">
+      {/* Card header: icon + display name + valid badge */}
       <div className="flex items-center gap-2 mb-2">
-        <FileKey2 size={14} style={{ color: statusColor, flexShrink: 0 }} />
+        <RoleIcon size={14} style={{ color: roleMeta.color, flexShrink: 0 }} />
         <span className="text-xs font-semibold" style={{ color: 'var(--n8n-text-primary)' }}>
-          {cert.clientId}
+          {cert.displayName}
         </span>
+        {/* Role badge */}
+        <span
+          className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+          style={{ color: roleMeta.color, background: roleMeta.bg, flexShrink: 0 }}
+        >
+          {cert.role}
+        </span>
+        {/* Valid/Expired status — pushed to the right */}
         <span
           className={`fl-status-badge ${isExpired ? 'fl-status-badge--error' : 'fl-status-badge--on'}`}
           style={{ marginLeft: 'auto' }}
@@ -353,24 +372,61 @@ function CertificateCard({ cert }: { cert: CertificateMetadata }) {
       </div>
 
       <div className="fl-cert-grid">
-        <CertField label="Issuer" value={cert.issuer} />
-        <CertField label="Valid From" value={new Date(cert.notBefore).toLocaleDateString()} />
-        <CertField label="Valid Until" value={new Date(cert.notAfter).toLocaleDateString()} />
+        <CertField
+          label="Signed by"
+          value={cert.issuer}
+          tooltip="The Certificate Authority that verified and issued this identity"
+        />
+        <CertField label="Valid From"  value={new Date(cert.notBefore).toLocaleDateString()} />
+        <CertField label="Valid Until" value={new Date(cert.notAfter).toLocaleDateString()}
+          valueColor={isExpired ? 'var(--n8n-danger)' : undefined}
+        />
         <CertField label="Fingerprint" value={cert.fingerprint.substring(0, 24) + '...'} mono />
+      </div>
+
+      {/* Technical cert filename — subtle reference line */}
+      <div className="mt-2 pt-1.5" style={{ borderTop: '1px solid var(--n8n-card-border)' }}>
+        <span className="text-[9px] font-mono" style={{ color: 'var(--n8n-text-muted)', opacity: 0.6 }}>
+          {cert.clientId}.crt
+        </span>
       </div>
     </div>
   );
 }
 
-function CertField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function CertField({
+  label,
+  value,
+  mono,
+  tooltip,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  tooltip?: string;
+  valueColor?: string;
+}) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n8n-text-muted)' }}>
+      <span
+        className="text-[9px] font-semibold uppercase tracking-wider flex items-center gap-1"
+        style={{ color: 'var(--n8n-text-muted)' }}
+        title={tooltip}
+      >
         {label}
+        {tooltip && (
+          <span
+            className="inline-flex items-center justify-center w-3 h-3 rounded-full text-[8px] font-bold cursor-help"
+            style={{ background: 'var(--n8n-card-border)', color: 'var(--n8n-text-muted)' }}
+          >
+            ?
+          </span>
+        )}
       </span>
       <span
         className={`text-[11px] ${mono ? 'font-mono' : ''}`}
-        style={{ color: 'var(--n8n-text-primary)', wordBreak: 'break-all' }}
+        style={{ color: valueColor ?? 'var(--n8n-text-primary)', wordBreak: 'break-all' }}
       >
         {value}
       </span>
