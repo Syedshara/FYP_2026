@@ -411,6 +411,14 @@ class AttackRunStatusIn(BaseModel):
     results: Optional[dict] = None
 
 
+class SecurityEventIn(BaseModel):
+    """Security pipeline event from FL server/client."""
+    kind: str   # nonce_issued | nonce_verified | signature_verified | ...
+    round: int
+    client_id: Optional[str] = None
+    detail: Optional[str] = None
+
+
 @router.post("/attack-run-status", status_code=200)
 async def attack_run_status(
     body: AttackRunStatusIn,
@@ -456,3 +464,41 @@ async def attack_run_status(
 
     log.info("Attack run %d status: %s (packets=%s)", run.id, run.status, run.packets_sent)
     return {"ok": True}
+
+
+# ── Security event reporting ─────────────────────────────
+
+@router.post("/fl/security-event", status_code=200)
+async def fl_security_event(body: SecurityEventIn):
+    """
+    Receive a security pipeline event from FL server or client.
+    Broadcasts immediately to all connected frontends via WebSocket.
+    """
+    await ws_manager.broadcast(build_ws_message(WSMessageType.SECURITY_EVENT, {
+        "kind": body.kind,
+        "round": body.round,
+        "client_id": body.client_id,
+        "detail": body.detail,
+    }))
+    log.debug(
+        "Security event: kind=%s round=%d client=%s",
+        body.kind, body.round, body.client_id,
+    )
+    return {"ok": True}
+
+
+@router.post("/fl/security-events-batch", status_code=200)
+async def fl_security_events_batch(events: List[SecurityEventIn]):
+    """
+    Receive multiple security events in one call (reduces HTTP overhead
+    during busy rounds).
+    """
+    for body in events:
+        await ws_manager.broadcast(build_ws_message(WSMessageType.SECURITY_EVENT, {
+            "kind": body.kind,
+            "round": body.round,
+            "client_id": body.client_id,
+            "detail": body.detail,
+        }))
+    log.debug("Security events batch: %d events", len(events))
+    return {"ok": True, "count": len(events)}

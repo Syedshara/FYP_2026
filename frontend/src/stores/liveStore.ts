@@ -90,6 +90,33 @@ const MAX_PREDICTIONS = 50;
 const MAX_DEVICE_HISTORY = 200;   // per-device prediction history for Monitor charts
 const MAX_FLAGGED_EVENTS = 100;
 const MAX_ATTACK_RESULTS = 50;
+const MAX_SECURITY_EVENTS = 200;
+
+// ── Security pipeline events (Phase 3) ──
+
+export type SecurityEventKind =
+  | 'nonce_issued'
+  | 'nonce_verified'
+  | 'signature_verified'
+  | 'signature_failed'
+  | 'he_encrypt'
+  | 'he_decrypt'
+  | 'he_aggregate'
+  | 'vss_ceremony'
+  | 'vss_share_dist'
+  | 'mtls_handshake'
+  | 'recess_detect'
+  | 'recess_flag'
+  | 'round_start'
+  | 'round_complete';
+
+export interface SecurityEvent {
+  kind: SecurityEventKind;
+  round: number;
+  clientId?: string;
+  detail?: string;
+  timestamp: string;
+}
 
 // ── Store ──────────────────────────────────────────────
 
@@ -150,6 +177,11 @@ interface LiveState {
   // ── Attack completed results (ring buffer for history) ──
   attackResults: AttackRunLiveStatus[];
   addAttackResult: (result: AttackRunLiveStatus) => void;
+
+  // ── Security pipeline events (SECURITY_EVENT) ──
+  securityEvents: SecurityEvent[];
+  addSecurityEvent: (evt: SecurityEvent) => void;
+  clearSecurityEvents: () => void;
 }
 
 export const useLiveStore = create<LiveState>()((set) => ({
@@ -229,7 +261,7 @@ export const useLiveStore = create<LiveState>()((set) => ({
   setWsConnected: (v) => set({ wsConnected: v }),
 
   // ── Trust Scores ──
-  trustScores: { Bank_A: 1.0, Bank_B: 1.0, Bank_C: 1.0 },
+  trustScores: {},
   setTrustScores: (payload) =>
     set({ trustScores: payload.scores }),
 
@@ -259,6 +291,15 @@ export const useLiveStore = create<LiveState>()((set) => ({
     set((state) => ({
       attackResults: [result, ...state.attackResults].slice(0, MAX_ATTACK_RESULTS),
     })),
+
+  // ── Security Pipeline Events ──
+  securityEvents: [],
+  addSecurityEvent: (evt) =>
+    set((state) => ({
+      securityEvents: [...state.securityEvents, evt].slice(-MAX_SECURITY_EVENTS),
+    })),
+  clearSecurityEvents: () =>
+    set({ securityEvents: [] }),
 }));
 
 // ── Selectors ──────────────────────────────────────────
@@ -272,6 +313,7 @@ export const useTrustScores = () => useLiveStore((s) => s.trustScores);
 export const useFlaggedEvents = () => useLiveStore((s) => s.flaggedEvents);
 export const useAttackRunStatuses = () => useLiveStore((s) => s.attackRunStatuses);
 export const useAttackResults = () => useLiveStore((s) => s.attackResults);
+export const useSecurityEvents = () => useLiveStore((s) => s.securityEvents);
 export const useDevicePredictions = (deviceId: string | undefined) =>
   useLiveStore((s) =>
     deviceId ? (s.devicePredictionHistory[deviceId] ?? EMPTY_PREDICTIONS) : EMPTY_PREDICTIONS,

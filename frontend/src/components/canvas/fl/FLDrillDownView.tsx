@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { ArrowLeft, Server, Loader2, Activity } from 'lucide-react';
+import { ArrowLeft, Server, Loader2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
 import { flApi } from '@/api/fl';
@@ -18,6 +18,7 @@ import type { FLServerNodeData } from '@/types/canvas';
 import FLTrainingControls from './FLTrainingControls';
 import FLClientProgressList from './FLClientProgressList';
 import FLSecurityPanel from './FLSecurityPanel';
+import FLOutputPanel from './FLOutputPanel';
 import FLAccuracyChart from './FLAccuracyChart';
 import FLRoundLog from './FLRoundLog';
 
@@ -71,8 +72,11 @@ export default function FLDrillDownView() {
   const handleBack = useCallback(() => {
     setViewMode('canvas');
     setDrilldownServerId(null);
-    // Clear stale FL progress so a new drilldown starts fresh
+    // Clear all stale FL data so a new drilldown starts fresh
     useLiveStore.getState().clearFLProgress();
+    useLiveStore.getState().clearFLRoundResults();
+    useLiveStore.getState().clearFLClientRoundHistory();
+    useLiveStore.getState().clearSecurityEvents();
   }, [setViewMode, setDrilldownServerId]);
 
   // Keyboard: Escape to go back
@@ -184,28 +188,31 @@ export default function FLDrillDownView() {
             className="flex-1 flex flex-col gap-5 overflow-y-auto min-w-0"
             style={{ padding: '16px 20px' }}
           >
-            {/* Radial visualization */}
-            <FLRadialVisualization
-              clients={clients}
-              serverLabel={serverLabel}
-              isTraining={isTraining}
-            />
             <FLAccuracyChart />
             <FLRoundLog />
           </main>
 
-          {/* RIGHT PANEL: Security */}
+          {/* RIGHT PANEL: Security + Output Timeline */}
           <aside
-            className="shrink-0 flex flex-col overflow-y-auto"
+            className="shrink-0 flex flex-col overflow-hidden"
             style={{
-              width: 272,
+              width: 296,
               background: 'var(--n8n-card-bg)',
               borderLeft: '1px solid var(--n8n-card-border)',
-              padding: '16px 14px',
-              gap: 4,
             }}
           >
-            <FLSecurityPanel securityFeatures={serverData?.securityFeatures} />
+            {/* Top: Security indicators + trust scores (scrollable, collapsible) */}
+            <div
+              className="shrink-0 overflow-y-auto"
+              style={{ padding: '16px 14px', maxHeight: '40%', borderBottom: '1px solid var(--n8n-card-border)' }}
+            >
+              <FLSecurityPanel securityFeatures={serverData?.securityFeatures} />
+            </div>
+
+            {/* Bottom: Live security event timeline + certificates */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <FLOutputPanel />
+            </div>
           </aside>
         </div>
       )}
@@ -220,8 +227,15 @@ export default function FLDrillDownView() {
         }}
       >
         <span>{clients.length} clients registered</span>
-        <span>
-          {isTraining ? 'Training in progress' : 'Ready'} •{' '}
+        <span className="flex items-center gap-2">
+          <span
+            className="fl-status-dot"
+            style={{
+              background: isTraining ? 'var(--n8n-accent)' : 'var(--n8n-success)',
+              animation: isTraining ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+            }}
+          />
+          {isTraining ? 'Training' : 'Ready'} •{' '}
           {flGlobal?.total_rounds ?? 0} rounds configured
         </span>
         <span>Press Esc to return</span>
@@ -230,216 +244,3 @@ export default function FLDrillDownView() {
   );
 }
 
-// ── Radial FL Visualization ──
-// Shows FL Server in center with client nodes around it, animated connections during training.
-
-function FLRadialVisualization({
-  clients,
-  serverLabel,
-  isTraining,
-}: {
-  clients: FLClient[];
-  serverLabel: string;
-  isTraining: boolean;
-}) {
-  const progressMap = useLiveStore((s) => s.flClientProgress);
-
-  if (clients.length === 0) {
-    return (
-      <div className="fl-vis-card">
-        <div className="fl-vis-card-header">
-          <Activity size={13} style={{ color: 'var(--n8n-text-muted)' }} />
-          <span className="fl-section-header-title">Topology</span>
-        </div>
-        <div className="fl-empty-state" style={{ minHeight: 160 }}>
-          <Activity size={24} className="fl-empty-state-icon" />
-          <p className="fl-empty-state-text">No clients — add FL clients to begin</p>
-        </div>
-      </div>
-    );
-  }
-
-  const cx = 250;
-  const cy = 120;
-  const radius = 85;
-  const viewWidth = 500;
-  const viewHeight = 240;
-
-  return (
-    <div className="fl-vis-card">
-      <div className="fl-vis-card-header">
-        <Activity size={13} style={{ color: 'var(--n8n-text-muted)' }} />
-        <span className="fl-section-header-title">Topology</span>
-        {isTraining && (
-          <span className="fl-status-badge fl-status-badge--training" style={{ marginLeft: 'auto' }}>
-            <span
-              className="fl-status-dot"
-              style={{ background: 'var(--n8n-accent)', animation: 'pulse-dot 2s ease-in-out infinite' }}
-            />
-            Live
-          </span>
-        )}
-      </div>
-      <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="w-full h-auto" style={{ maxHeight: 240, display: 'block' }}>
-        <defs>
-          {/* Animated dash for active connections */}
-          <linearGradient id="fl-conn-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ff6d5a" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#ff6d5a" stopOpacity="1" />
-            <stop offset="100%" stopColor="#ff6d5a" stopOpacity="0.2" />
-          </linearGradient>
-        </defs>
-
-        {/* Connection lines */}
-        {clients.map((client, i) => {
-          const angle = (2 * Math.PI * i) / clients.length - Math.PI / 2;
-          const x = cx + radius * Math.cos(angle);
-          const y = cy + radius * Math.sin(angle);
-          const clientProgress = progressMap[client.client_id];
-          const isActive = clientProgress?.status === 'training' || clientProgress?.status === 'encrypting' || clientProgress?.status === 'sending';
-
-          return (
-            <line
-              key={`line-${client.id}`}
-              x1={cx}
-              y1={cy}
-              x2={x}
-              y2={y}
-              stroke={isActive ? '#ff6d5a' : '#3c3c3c'}
-              strokeWidth={isActive ? 2 : 1}
-              strokeDasharray={isActive ? '6 4' : isTraining ? '4 6' : 'none'}
-              strokeOpacity={isActive ? 1 : 0.4}
-            >
-              {isActive && (
-                <animate
-                  attributeName="stroke-dashoffset"
-                  from="20"
-                  to="0"
-                  dur="1s"
-                  repeatCount="indefinite"
-                />
-              )}
-            </line>
-          );
-        })}
-
-        {/* Server node (center) */}
-        <g>
-          <rect
-            x={cx - 40}
-            y={cy - 20}
-            width={80}
-            height={40}
-            rx={8}
-            fill="#2b2b2b"
-            stroke={isTraining ? '#ff6d5a' : '#3c3c3c'}
-            strokeWidth={isTraining ? 2 : 1}
-          />
-          {isTraining && (
-            <rect
-              x={cx - 40}
-              y={cy - 20}
-              width={80}
-              height={40}
-              rx={8}
-              fill="none"
-              stroke="#ff6d5a"
-              strokeWidth={2}
-              strokeOpacity={0.3}
-            >
-              <animate
-                attributeName="stroke-opacity"
-                values="0.3;0.8;0.3"
-                dur="2s"
-                repeatCount="indefinite"
-              />
-            </rect>
-          )}
-          <text
-            x={cx}
-            y={cy + 1}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#ececec"
-            fontSize="11"
-            fontFamily="JetBrains Mono, monospace"
-            fontWeight="600"
-          >
-            {serverLabel.length > 10 ? serverLabel.slice(0, 10) + '…' : serverLabel}
-          </text>
-        </g>
-
-        {/* Client nodes (radial) */}
-        {clients.map((client, i) => {
-          const angle = (2 * Math.PI * i) / clients.length - Math.PI / 2;
-          const x = cx + radius * Math.cos(angle);
-          const y = cy + radius * Math.sin(angle);
-          const clientProgress = progressMap[client.client_id];
-          const status = clientProgress?.status ?? 'idle';
-          const statusColors: Record<string, string> = {
-            training: '#ff6d5a',
-            encrypting: '#a78bfa',
-            sending: '#38bdf8',
-            done: '#18a058',
-            idle: '#888888',
-            waiting: '#f0a020',
-            sending_weights: '#38bdf8',
-          };
-          const color = statusColors[status] ?? '#888888';
-
-          return (
-            <g key={`client-${client.id}`}>
-              <circle
-                cx={x}
-                cy={y}
-                r={22}
-                fill="#2b2b2b"
-                stroke={color}
-                strokeWidth={status !== 'idle' ? 2 : 1}
-              />
-              {/* Progress arc */}
-              {clientProgress?.progress_pct != null && clientProgress.progress_pct > 0 && (
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={22}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={3}
-                  strokeDasharray={`${(clientProgress.progress_pct / 100) * 138.2} 138.2`}
-                  strokeLinecap="round"
-                  transform={`rotate(-90 ${x} ${y})`}
-                  opacity={0.6}
-                />
-              )}
-              <text
-                x={x}
-                y={y - 4}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#ececec"
-                fontSize="9"
-                fontFamily="JetBrains Mono, monospace"
-                fontWeight="600"
-              >
-                {client.name.length > 8 ? client.name.slice(0, 8) + '…' : client.name}
-              </text>
-              <text
-                x={x}
-                y={y + 9}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={color}
-                fontSize="8"
-                fontFamily="JetBrains Mono, monospace"
-                fontWeight="500"
-              >
-                {status}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}

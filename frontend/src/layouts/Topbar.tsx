@@ -139,8 +139,14 @@ export default function Topbar() {
           <span
             style={{
               fontSize: 10,
+              fontWeight: 500,
               color: 'var(--n8n-text-muted)',
               textTransform: 'capitalize',
+              padding: '2px 6px',
+              borderRadius: 3,
+              background: 'rgba(136, 136, 136, 0.12)',
+              border: '1px solid rgba(136, 136, 136, 0.2)',
+              lineHeight: 1,
             }}
           >
             {user?.role ?? 'admin'}

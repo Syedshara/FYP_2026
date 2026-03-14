@@ -32,8 +32,8 @@ function getStatusStyles(status: NodeStatus, accent: string, accentLight: string
     case 'running':
       return {
         borderColor: accent,
-        boxShadow: `0 0 0 1px ${accent}66, 0 14px 28px -18px ${accent}99, var(--n8n-node-shadow-hover)`,
-        animation: 'node-running 2.2s ease-in-out infinite',
+        boxShadow: `0 0 0 1px ${accent}33, var(--n8n-node-shadow)`,
+        animation: 'node-running 2.6s ease-in-out infinite',
       };
     case 'active':
       return {

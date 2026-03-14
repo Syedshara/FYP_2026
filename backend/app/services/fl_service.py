@@ -35,6 +35,8 @@ async def create_fl_round(
     global_precision: Optional[float] = None,
     global_recall: Optional[float] = None,
     model_checkpoint_path: Optional[str] = None,
+    security_data: Optional[dict] = None,
+    trust_scores: Optional[dict] = None,
 ) -> FLRound:
     """Record a completed FL round."""
     fl_round = FLRound(
@@ -50,6 +52,8 @@ async def create_fl_round(
         global_precision=global_precision,
         global_recall=global_recall,
         model_checkpoint_path=model_checkpoint_path,
+        security_data=security_data,
+        trust_scores=trust_scores,
     )
     db.add(fl_round)
     await db.commit()

@@ -27,6 +27,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     setAttackRunStatus,
     addAttackResult,
   } = useLiveStore();
+  const addSecurityEvent = useLiveStore((s) => s.addSecurityEvent);
 
   // Sync connection state
   useEffect(() => {
@@ -201,6 +202,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     // ── Training started ──
     unsubs.push(subscribe('training_start', (msg: WSMessage) => {
+      // Clear stale round data from any previous session before updating state
+      useLiveStore.getState().clearFLRoundResults();
+      useLiveStore.getState().clearFLClientRoundHistory();
       const d = msg.data;
       const totalRounds = (d.total_rounds ?? d.num_rounds ?? 0) as number;
       const clientIds = d.client_ids as string[] | undefined;
@@ -317,11 +321,23 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       addAttackResult(result);
     }));
 
+    // ── Security pipeline event (Phase 3) ──
+    unsubs.push(subscribe('security_event', (msg: WSMessage) => {
+      const d = msg.data;
+      addSecurityEvent({
+        kind: d.kind as import('@/stores/liveStore').SecurityEventKind,
+        round: d.round as number,
+        clientId: d.client_id as string | undefined,
+        detail: d.detail as string | undefined,
+        timestamp: msg.timestamp ?? new Date().toISOString(),
+      });
+    }));
+
     return () => { unsubs.forEach((u) => u()); };
   }, [
     subscribe, addPrediction, setFLClientProgress, setFLGlobalProgress,
     addFLRoundResult, addFLClientRoundEntry, clearFLProgress, setClientStatus, setDeviceStatus,
-    setTrustScores, addFlaggedEvent, setAttackRunStatus, addAttackResult,
+    setTrustScores, addFlaggedEvent, setAttackRunStatus, addAttackResult, addSecurityEvent,
   ]);
 
   return <>{children}</>;

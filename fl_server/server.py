@@ -111,6 +111,32 @@ def _post_to_backend(path: str, payload: dict) -> bool:
     return False
 
 
+def _emit_security_event(
+    kind: str,
+    round_num: int,
+    client_id: Optional[str] = None,
+    detail: Optional[str] = None,
+) -> None:
+    """Fire-and-forget a single security event to the backend for WS broadcast."""
+    _post_to_backend("/api/v1/internal/fl/security-event", {
+        "kind": kind,
+        "round": round_num,
+        "client_id": client_id,
+        "detail": detail,
+    })
+
+
+def _emit_security_events_batch(events: List[dict]) -> None:
+    """Fire-and-forget a batch of security events."""
+    if events:
+        try:
+            r = _get_http().post("/api/v1/internal/fl/security-events-batch", json=events)
+            if r.status_code >= 300:
+                log.warning("Security events batch → %s: %s", r.status_code, r.text[:200])
+        except Exception as exc:
+            log.warning("Security events batch failed: %s", exc)
+
+
 # ── Security helpers ─────────────────────────────────────
 
 def generate_round_nonce(session_id: str, round_number: int) -> str:
@@ -238,6 +264,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         nonce = generate_round_nonce(self._session_id, server_round)
         self._round_nonces[server_round] = nonce
 
+        is_detect = server_round % RECESS_INTERVAL == 0
         config: Dict[str, Scalar] = {
             "server_round": server_round,
             "total_rounds": ROUNDS,
@@ -247,6 +274,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             "batch_size": DEFAULT_CONFIG["BATCH_SIZE"],
             "max_batches": MAX_BATCHES,
             "round_nonce": nonce,
+            "detect": str(is_detect).lower(),
         }
         fit_ins = FitIns(parameters, config)
         sample_size = max(self.min_fit_clients, MIN_FIT_CLIENTS)
@@ -254,6 +282,11 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             num_clients=sample_size,
             min_num_clients=self.min_available_clients,
         )
+
+        # Emit security events: round start + nonce issued
+        _emit_security_event("round_start", server_round, detail=f"clients={len(clients)} detect={is_detect}")
+        _emit_security_event("nonce_issued", server_round, detail=nonce[:16] + "...")
+
         return [(client, fit_ins) for client in clients]
 
     def aggregate_fit(self, server_round, results, failures):
@@ -325,8 +358,12 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             "message": f"RECESS detection round {rnd}",
         })
 
+        _emit_security_event("recess_detect", rnd, detail=f"Starting RECESS detection ({len(results)} clients)")
+
         expected_nonce = self._round_nonces.get(rnd, "")
         trust_updates: Dict[str, float] = {}
+        flagged_in_round: List[str] = []
+        sec_events: List[dict] = []  # batch security events
 
         for proxy, fit_res in results:
             m = fit_res.metrics or {}
@@ -336,7 +373,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             nonce_echo = str(m.get("nonce_echo", ""))
             if expected_nonce and nonce_echo != expected_nonce:
                 log.warning("Round %d — client %s: nonce mismatch — discarding", rnd, cid)
+                sec_events.append({"kind": "nonce_verified", "round": rnd, "client_id": cid, "detail": "FAILED — mismatch"})
                 continue
+            sec_events.append({"kind": "nonce_verified", "round": rnd, "client_id": cid, "detail": "OK"})
 
             # ── 2. Retrieve base64-encoded RECESS response ─
             recess_b64 = m.get("recess_response", "")
@@ -360,18 +399,22 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                         log.warning(
                             "Round %d — client %s: invalid signature — discarding", rnd, cid
                         )
+                        sec_events.append({"kind": "signature_failed", "round": rnd, "client_id": cid, "detail": "Invalid Ed25519 signature"})
                         continue
                 except Exception as exc:
                     log.warning(
                         "Round %d — client %s: signature error: %s — discarding", rnd, cid, exc
                     )
+                    sec_events.append({"kind": "signature_failed", "round": rnd, "client_id": cid, "detail": str(exc)[:100]})
                     continue
+                sec_events.append({"kind": "signature_verified", "round": rnd, "client_id": cid, "detail": "Ed25519 OK"})
             elif pub_key_pem:
                 # Key is loaded but no signature provided — warn and continue
                 log.warning(
                     "Round %d — client %s: no signature provided (key on file) — proceeding with caution",
                     rnd, cid,
                 )
+                sec_events.append({"kind": "signature_verified", "round": rnd, "client_id": cid, "detail": "No signature (key on file)"})
 
             # ── 4. Decode response gradient from raw bytes ─
             # Clients encode a flat float32 numpy array as raw bytes
@@ -419,9 +462,11 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
             # ── 8. Flag if abnormality > 0.7 ──────────────
             if abnormality > 0.7:
+                flagged_in_round.append(cid)
                 log.warning(
                     "Round %d — FLAGGING client %s (abnormality=%.4f)", rnd, cid, abnormality
                 )
+                sec_events.append({"kind": "recess_flag", "round": rnd, "client_id": cid, "detail": f"abnormality={abnormality:.4f}"})
                 _post_to_backend(
                     "/api/v1/fl/flagged_client",
                     {
@@ -430,33 +475,20 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                         "abnormality": float(abnormality),
                     },
                 )
-                # Broadcast CLIENT_FLAGGED via backend WS relay
-                _post_to_backend(
-                    "/api/v1/internal/fl/progress",
-                    {
-                        "round": rnd,
-                        "total_rounds": ROUNDS,
-                        "phase": "client_flagged",
-                        "client_id": cid,
-                        "message": (
-                            f"Client {cid} flagged in RECESS round {rnd}: "
-                            f"abnormality={abnormality:.4f}"
-                        ),
-                    },
-                )
 
-        # ── 9. Broadcast trust-score update ───────────────
+        # ── 9. Broadcast trust-score update via detection_round endpoint ──
         if trust_updates:
             _post_to_backend(
-                "/api/v1/internal/fl/progress",
+                "/api/v1/fl/detection_round",
                 {
                     "round": rnd,
-                    "total_rounds": ROUNDS,
-                    "phase": "client_trust_update",
-                    "message": f"Trust scores updated after RECESS round {rnd}",
-                    **{f"trust_{cid}": score for cid, score in trust_updates.items()},
+                    "scores": {cid: float(score) for cid, score in trust_updates.items()},
+                    "flagged": flagged_in_round,
                 },
             )
+
+        # Emit batched security events for the RECESS round
+        _emit_security_events_batch(sec_events)
 
         # RECESS round does not update the model — return current parameters
         current_params = ndarrays_to_parameters(self._get_global_ndarrays())
@@ -549,6 +581,12 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
         _post_to_backend("/api/v1/internal/fl/round", round_payload)
 
+        # Emit round_complete security event
+        _emit_security_event(
+            "round_complete", server_round,
+            detail=f"loss={global_loss:.4f} acc={global_accuracy:.4f} clients={num_clients} dur={duration:.2f}s",
+        )
+
     # ── Plain FedAvg ─────────────────────────────────────
 
     def _aggregate_plain(self, server_round, results):
@@ -573,6 +611,17 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         """
         HE-based aggregation using CKKS. Falls back to plain FedAvg on any error
         (TenSEAL failures are common on low-memory/low-power dev machines).
+
+        NOTE (Phase 2A — deferred):
+        Currently decrypts via ``enc_agg[key].decrypt()`` using the server's own
+        CKKS secret key.  Full VSS integration would call ``threshold_decrypt()``
+        from ``fl_common/vss_utils.py`` which requires client shares, nonces, and
+        commitments.  However the Flower FitRes protocol does not carry those
+        fields today.  Wiring them in requires either:
+          a) extending ``fit()`` return metrics to include VSS shares per layer, or
+          b) a side-channel (HTTP POST from clients to server with share data).
+        Until that plumbing is done, the VSS ceremony runs at init (key-gen +
+        commitment distribution) but threshold decryption is not used.
         """
         try:
             import tenseal as ts
@@ -598,6 +647,8 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     new_ndarrays.append(global_state[key].cpu().numpy())
 
             # HE aggregation for selected layers
+            _emit_security_event("he_encrypt", server_round, detail=f"Encrypting deltas for {len(SELECTED_LAYERS)} layers from {num_clients} clients")
+
             encrypted_deltas = []
             shapes = {}
             for layers, _n in weights_results:
@@ -611,7 +662,11 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                         client_enc[key] = ts.ckks_vector(self.ckks_ctx, delta.flatten().tolist())
                 encrypted_deltas.append(client_enc)
 
+            _emit_security_event("he_aggregate", server_round, detail=f"Summing {num_clients} encrypted delta sets (CKKS poly={HE_POLY_MODULUS})")
+
             enc_agg = encrypted_sum(encrypted_deltas)
+
+            _emit_security_event("he_decrypt", server_round, detail=f"Decrypting aggregated {len(enc_agg)} layers")
 
             for key in enc_agg:
                 flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)

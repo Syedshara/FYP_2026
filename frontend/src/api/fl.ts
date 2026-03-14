@@ -51,6 +51,14 @@ export interface DetectionRound {
   timestamp?: string;
 }
 
+export interface CertificateMetadata {
+  clientId: string;
+  issuer: string;
+  notBefore: string;
+  notAfter: string;
+  fingerprint: string;
+}
+
 // ── API client ──
 
 export const flApi = {
@@ -98,4 +106,8 @@ export const flApi = {
 
   flaggedClients: () =>
     api.get<FlaggedClientEvent[]>('/fl/flagged_clients').then((r) => r.data),
+
+  // Certificates (mTLS)
+  certificates: () =>
+    api.get<CertificateMetadata[]>('/security/certificates').then((r) => r.data),
 };

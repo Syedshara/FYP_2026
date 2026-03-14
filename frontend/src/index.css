@@ -125,8 +125,14 @@
 
 /* ================================================================
    Resets & Base
+   Placed in @layer base so Tailwind's @layer utilities (px-*, py-*,
+   gap-*, m-*, rounded-*, etc.) can correctly override the * reset.
+   Unlayered rules beat all @layer declarations in CSS Cascade L5 —
+   keeping this unlayered would silently zero every Tailwind spacing utility.
    ================================================================ */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+@layer base {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+}
 
 html {
   font-family: var(--n8n-font);
@@ -373,8 +379,8 @@ select.input option {
    Canvas Node — Running state animation (n8n-style pulsing glow)
    ================================================================ */
 @keyframes node-running {
-  0%, 100% { transform: translateY(0); box-shadow: 0 0 0 1px rgba(255, 109, 90, 0.4), 0 12px 24px -22px rgba(255, 109, 90, 0.85), var(--n8n-node-shadow-hover); }
-  50%      { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(255, 109, 90, 0.75), 0 18px 34px -24px rgba(255, 109, 90, 0.95), var(--n8n-node-shadow-hover); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255, 109, 90, 0.30), var(--n8n-node-shadow); }
+  50%      { box-shadow: 0 0 0 1px rgba(255, 109, 90, 0.55), var(--n8n-node-shadow); }
 }
 
 @keyframes toast-in {
@@ -1328,4 +1334,162 @@ select.prop-input option {
   gap: 8px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--n8n-card-border);
+}
+
+/* ================================================================
+   FL Output Panel — Timeline + Certificate viewer
+   ================================================================ */
+
+/* ── Tab bar ── */
+.fl-output-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--n8n-card-border);
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.fl-output-tab {
+  position: relative;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--n8n-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.fl-output-tab:hover {
+  color: var(--n8n-text-primary);
+}
+
+.fl-output-tab--active {
+  color: var(--n8n-accent);
+}
+
+.fl-output-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--n8n-accent);
+}
+
+/* ── Timeline round group ── */
+.fl-timeline-round-group {
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--n8n-canvas-bg);
+}
+
+.fl-timeline-round-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  border-bottom: 1px solid var(--n8n-card-border);
+}
+
+.fl-timeline-round-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--n8n-font-mono, 'JetBrains Mono', monospace);
+  border: 1px solid;
+}
+
+/* ── Timeline event list ── */
+.fl-timeline-events {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Single event row ── */
+.fl-timeline-event-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 12px;
+  transition: background 0.12s ease;
+}
+
+.fl-timeline-event-row:hover {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* ── Dot + vertical connector line ── */
+.fl-timeline-dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 12px;
+  padding-top: 5px;
+  flex-shrink: 0;
+}
+
+.fl-timeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.fl-timeline-line {
+  width: 1px;
+  flex: 1;
+  min-height: 8px;
+  background: var(--n8n-card-border);
+}
+
+/* Hide the connector line on the last event in a group */
+.fl-timeline-event-row:last-child .fl-timeline-line {
+  display: none;
+}
+
+/* ── Event content area ── */
+.fl-timeline-event-content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+/* ── Client tag pill (inline in event row) ── */
+.fl-timeline-client-tag {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--n8n-text-muted);
+  background: rgba(136, 136, 136, 0.1);
+  border: 1px solid rgba(136, 136, 136, 0.15);
+}
+
+/* ── Certificate card ── */
+.fl-cert-card {
+  padding: 12px;
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 10px;
+  background: var(--n8n-canvas-bg);
+  transition: border-color 0.2s ease;
+}
+
+.fl-cert-card:hover {
+  border-color: var(--n8n-node-border);
+}
+
+.fl-cert-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }

@@ -46,6 +46,19 @@ export default function FLAccuracyChart() {
     });
   }, []);
 
+  // Clear stale historical data when a new training session starts so old
+  // round numbers don't persist in the merged chart data.
+  // Uses Zustand subscribe (external-system sync pattern) to avoid setState-in-effect.
+  useEffect(() => {
+    let prev = useLiveStore.getState().flGlobalProgress?.is_training;
+    const unsub = useLiveStore.subscribe((state) => {
+      const cur = state.flGlobalProgress?.is_training;
+      if (cur && !prev) setHistoricalRounds([]);
+      prev = cur;
+    });
+    return unsub;
+  }, []);
+
   // Merge historical + live (live overrides historical for same round)
   const liveMap = new Map(liveRounds.map((r) => [r.round, r]));
   const mergedMap = new Map<number, ChartPoint>();

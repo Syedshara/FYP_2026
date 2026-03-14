@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, Float, String, Boolean, DateTime, Text, Enum as SAEnum, ForeignKey
+from sqlalchemy import Integer, Float, String, Boolean, DateTime, Text, JSON, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -40,6 +40,9 @@ class FLRound(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+    # JSON snapshots persisted per round (nullable — populated when security pipeline is active)
+    security_data: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    trust_scores: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
     # Relationships
     client_metrics: Mapped[list["FLClientMetric"]] = relationship(

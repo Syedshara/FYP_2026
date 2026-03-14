@@ -161,6 +161,8 @@ class WSMessageType:
     DETECTION_ROUND_START = "detection_round_start"   # RECESS detection round beginning
     CLIENT_TRUST_UPDATE   = "client_trust_update"     # trust scores updated after detection
     CLIENT_FLAGGED        = "client_flagged"          # client trust score dropped below threshold
+    # ── Phase 3 security observability ──────────────────
+    SECURITY_EVENT        = "security_event"          # per-round security pipeline step (nonce, sign, HE, VSS, mTLS)
     # ── Attack engine events ────────────────────────────
     ATTACK_STATUS         = "attack_status"           # attack run status change
     ATTACK_RESULT         = "attack_result"           # attack run completed with results

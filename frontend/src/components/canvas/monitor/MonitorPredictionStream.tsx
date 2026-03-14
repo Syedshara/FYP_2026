@@ -12,8 +12,8 @@ interface Props {
   predictions: LivePrediction[];
 }
 
-// 6-column grid — override fl-round-row's default 4-col template
-const GRID = '72px 72px 88px 48px 48px 56px';
+// 5-column grid — Time, Label, Score, Conf, Latency
+const GRID = '72px 72px 48px 48px 56px';
 
 export default function MonitorPredictionStream({ predictions }: Props) {
   // Reverse to show newest first
@@ -58,7 +58,6 @@ export default function MonitorPredictionStream({ predictions }: Props) {
           >
             <span>Time</span>
             <span>Label</span>
-            <span>Attack Type</span>
             <span>Score</span>
             <span>Conf</span>
             <span>Latency</span>
@@ -93,13 +92,6 @@ export default function MonitorPredictionStream({ predictions }: Props) {
                   >
                     {p.label}
                   </span>
-                </span>
-
-                <span
-                  className="truncate"
-                  style={{ color: isAttack ? '#f0a020' : 'var(--n8n-text-muted)' }}
-                >
-                  {isAttack ? (p.attack_type ?? 'unknown') : '—'}
                 </span>
 
                 <span>{(p.score * 100).toFixed(0)}%</span>

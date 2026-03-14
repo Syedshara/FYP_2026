@@ -12,6 +12,7 @@ import {
   BrainCircuit,
   Activity,
 } from 'lucide-react';
+import type { ComponentType, CSSProperties } from 'react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
 
@@ -24,9 +25,7 @@ export default function CanvasStatusBar() {
   const deviceCount = nodes.filter((n) => n.data.nodeType === 'device').length;
   const monitorCount = nodes.filter((n) => n.data.nodeType === 'monitor').length;
 
-  const flStatus = flGlobal?.is_training
-    ? `Round ${flGlobal.current_round}/${flGlobal.total_rounds}`
-    : 'Idle';
+  const isTraining = flGlobal?.is_training ?? false;
 
   return (
     <footer
@@ -42,11 +41,19 @@ export default function CanvasStatusBar() {
     >
       {/* Left: Connection Status */}
       <div className="flex items-center gap-4">
-        <StatusPill
-          icon={wsConnected ? Wifi : WifiOff}
-          label={wsConnected ? 'Connected' : 'Disconnected'}
-          color={wsConnected ? 'var(--n8n-success)' : 'var(--n8n-danger)'}
-        />
+        <div className="flex items-center gap-1.5">
+          {wsConnected
+            ? <Wifi size={12} style={{ color: 'var(--n8n-success)' }} />
+            : <WifiOff size={12} style={{ color: 'var(--n8n-danger)' }} />
+          }
+          <span
+            className="fl-status-dot"
+            style={{
+              background: wsConnected ? 'var(--n8n-success)' : 'var(--n8n-danger)',
+              animation: !wsConnected ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+            }}
+          />
+        </div>
       </div>
 
       {/* Center: Entity Counts */}
@@ -61,9 +68,19 @@ export default function CanvasStatusBar() {
       {/* Right: FL Status */}
       <div className="flex items-center gap-2">
         <BrainCircuit size={12} style={{ color: 'var(--n8n-accent)' }} />
-        <span>
-          FL: <span style={{ color: flGlobal?.is_training ? 'var(--n8n-accent)' : 'inherit' }}>{flStatus}</span>
-        </span>
+        <span>FL:</span>
+        <span
+          className="fl-status-dot"
+          style={{
+            background: isTraining ? 'var(--n8n-accent)' : 'var(--n8n-success)',
+            animation: isTraining ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+          }}
+        />
+        {isTraining && (
+          <span style={{ color: 'var(--n8n-accent)' }}>
+            Round {flGlobal!.current_round}/{flGlobal!.total_rounds}
+          </span>
+        )}
       </div>
     </footer>
   );
@@ -71,30 +88,13 @@ export default function CanvasStatusBar() {
 
 // ── Sub-components ──
 
-function StatusPill({
-  icon: Icon,
-  label,
-  color,
-}: {
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
-  label: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <Icon size={12} style={{ color }} />
-      <span style={{ color }}>{label}</span>
-    </div>
-  );
-}
-
 function CountPill({
   icon: Icon,
   count,
   label,
   accent,
 }: {
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  icon: ComponentType<{ size?: number; style?: CSSProperties }>;
   count: number;
   label: string;
   accent: string;

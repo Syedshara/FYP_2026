@@ -18,6 +18,19 @@ export default function FLRoundLog() {
     flApi.rounds().then(setHistoricalRounds).catch(() => {});
   }, []);
 
+  // When a new training session starts, clear stale historical data so old
+  // round numbers don't filter out incoming live rounds via deduplication.
+  // Uses Zustand subscribe (external-system sync pattern) to avoid setState-in-effect.
+  useEffect(() => {
+    let prev = useLiveStore.getState().flGlobalProgress?.is_training;
+    const unsub = useLiveStore.subscribe((state) => {
+      const cur = state.flGlobalProgress?.is_training;
+      if (cur && !prev) setHistoricalRounds([]);
+      prev = cur;
+    });
+    return unsub;
+  }, []);
+
   // Build merged list: historical first, then any live rounds not in historical
   const historicalNums = new Set(historicalRounds.map((r) => r.round_number));
   const newLiveRounds = liveRounds.filter((lr) => !historicalNums.has(lr.round));
