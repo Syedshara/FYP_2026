@@ -136,7 +136,7 @@ function ClientCard({
 
       {/* Metrics row */}
       {progress && status !== 'idle' && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5" style={{ fontSize: 10, color: 'var(--n8n-text-muted)' }}>
+        <div className="flex flex-wrap gap-x-3 gap-y-1" style={{ fontSize: 10, color: 'var(--n8n-text-muted)' }}>
           {progress.current_epoch != null && progress.total_epochs != null && (
             <span>Epoch {progress.current_epoch}/{progress.total_epochs}</span>
           )}

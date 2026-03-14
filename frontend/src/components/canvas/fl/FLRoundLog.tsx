@@ -43,29 +43,27 @@ export default function FLRoundLog() {
   ].sort((a, b) => b.round_number - a.round_number);
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Header */}
-      <div className="fl-section-header">
+    <div className="fl-vis-card">
+      {/* Card header — title lives inside the card, same as Topology */}
+      <div className="fl-vis-card-header">
         <List size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
         <span className="fl-section-header-title">Round History ({allRounds.length})</span>
       </div>
 
-      {/* Rounds list */}
+      {/* Content */}
       {allRounds.length === 0 ? (
         <div className="fl-empty-state">
           <History size={24} className="fl-empty-state-icon" />
           <p className="fl-empty-state-text">No rounds completed yet</p>
         </div>
       ) : (
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{ border: '1px solid var(--n8n-card-border)', maxHeight: 220, overflowY: 'auto' }}
-        >
-          {/* Table header row */}
+        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+          {/* Sticky column header */}
           <div
-            className="grid gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider"
+            className="grid gap-2 text-[10px] font-semibold uppercase tracking-wider"
             style={{
               gridTemplateColumns: '48px 1fr 88px 66px',
+              padding: '10px 16px',
               background: 'var(--n8n-card-bg)',
               color: 'var(--n8n-text-muted)',
               borderBottom: '1px solid var(--n8n-card-border)',
@@ -80,6 +78,7 @@ export default function FLRoundLog() {
             <span>Clients</span>
           </div>
 
+          {/* Data rows */}
           {allRounds.map((r) => (
             <div
               key={r.round_number}

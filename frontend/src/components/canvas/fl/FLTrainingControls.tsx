@@ -32,6 +32,8 @@ export default function FLTrainingControls() {
         errors: ['No FL Server selected.'],
         connectedClientNodeIds: [],
         incompleteClientNodeIds: [],
+        deviceNodeIds: [],
+        trafficSourceNodeIds: [],
       };
     }
     return validateFLTopology(drilldownServerId, nodes, edges);
@@ -39,8 +41,9 @@ export default function FLTrainingControls() {
 
   // Config state — auto-set min_clients from connected topology
   const [numRounds, setNumRounds] = useState(5);
-  const [localEpochs, setLocalEpochs] = useState(3);
+  const [localEpochs, setLocalEpochs] = useState(5);
   const [learningRate, setLearningRate] = useState(0.001);
+  const [maxBatches, setMaxBatches] = useState(0);  // 0 = no cap (use all data)
   const [useHE, setUseHE] = useState(false); // Default off — HE is computationally heavy
 
   const autoMinClients = topologyResult.connectedClientNodeIds.length;
@@ -64,6 +67,7 @@ export default function FLTrainingControls() {
         use_he: useHE,
         local_epochs: localEpochs,
         learning_rate: learningRate,
+        max_batches: maxBatches,
         workspace_id: workspaceId ?? undefined,
         canvas_node_ids: topologyResult.connectedClientNodeIds,
       };
@@ -171,6 +175,15 @@ export default function FLTrainingControls() {
         <ConfigField label="Rounds" value={numRounds} onChange={setNumRounds} min={1} max={100} disabled={isTraining} />
         <ConfigField label="Local Epochs" value={localEpochs} onChange={setLocalEpochs} min={1} max={20} disabled={isTraining} />
         <ConfigField label="Learning Rate" value={learningRate} onChange={setLearningRate} min={0.0001} max={1} step={0.0001} disabled={isTraining} />
+        <ConfigField
+          label="Max Batches"
+          value={maxBatches}
+          onChange={setMaxBatches}
+          min={0}
+          max={10000}
+          disabled={isTraining}
+          hint="0 = no cap (all data)"
+        />
         <ConfigField
           label="Min Clients"
           value={autoMinClients > 0 ? autoMinClients : 1}
@@ -292,6 +305,7 @@ function ConfigField({
   max,
   step = 1,
   disabled,
+  hint,
 }: {
   label: string;
   value: number;
@@ -300,10 +314,21 @@ function ConfigField({
   max: number;
   step?: number;
   disabled: boolean;
+  hint?: string;
 }) {
   return (
     <div className="fl-config-field">
-      <span className="fl-config-label">{label}</span>
+      <div className="fl-config-label">
+        <span>{label}</span>
+        {hint && (
+          <span
+            className="fl-config-hint"
+            style={{ color: 'var(--n8n-text-muted)', fontSize: 10 }}
+          >
+            {hint}
+          </span>
+        )}
+      </div>
       <input
         type="number"
         value={value}

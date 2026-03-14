@@ -68,6 +68,9 @@ MIN_CLIENTS = int(os.environ.get("MIN_CLIENTS", 2))
 MIN_FIT_CLIENTS = int(os.environ.get("MIN_FIT_CLIENTS", MIN_CLIENTS))
 SERVER_ADDRESS = os.environ.get("FL_SERVER_ADDRESS", "0.0.0.0:8080")
 USE_HE = os.environ.get("USE_HE", "true").lower() in ("true", "1", "yes")
+LOCAL_EPOCHS = int(os.environ.get("LOCAL_EPOCHS", DEFAULT_CONFIG["LOCAL_EPOCHS"]))
+LEARNING_RATE = float(os.environ.get("LEARNING_RATE", DEFAULT_CONFIG["LEARNING_RATE"]))
+MAX_BATCHES = int(os.environ.get("MAX_BATCHES", DEFAULT_CONFIG["MAX_BATCHES"]))
 MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://iot_ids_backend:8000")
 CLIENT_KEY_DIR = os.environ.get("CLIENT_KEY_DIR", "./certs/client_keys/")
@@ -238,11 +241,11 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         config: Dict[str, Scalar] = {
             "server_round": server_round,
             "total_rounds": ROUNDS,
-            "local_epochs": DEFAULT_CONFIG["LOCAL_EPOCHS"],
-            "lr": float(DEFAULT_CONFIG["LEARNING_RATE"]),
+            "local_epochs": LOCAL_EPOCHS,
+            "lr": float(LEARNING_RATE),
             "use_he": self.use_he,
             "batch_size": DEFAULT_CONFIG["BATCH_SIZE"],
-            "max_batches": DEFAULT_CONFIG["MAX_BATCHES"],
+            "max_batches": MAX_BATCHES,
             "round_nonce": nonce,
         }
         fit_ins = FitIns(parameters, config)

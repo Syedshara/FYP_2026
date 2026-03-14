@@ -74,12 +74,12 @@ DEFAULT_CONFIG = {
     "SEED": 42,
     "NUM_CLIENTS": 3,
     "BATCH_SIZE": 128,
-    "LOCAL_EPOCHS": 1,
+    "LOCAL_EPOCHS": 5,
     "ROUNDS": 25,
     "LEARNING_RATE": 1e-3,
     "SEQUENCE_LENGTH": 10,
     "NUM_FEATURES": 78,
     "POS_WEIGHT": 5.0,
     "THRESHOLD": 0.5,
-    "MAX_BATCHES": 50,
+    "MAX_BATCHES": 0,          # 0 = no cap → use all batches in dataset
 }

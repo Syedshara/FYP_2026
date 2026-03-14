@@ -24,11 +24,13 @@ FL_CA_CERT         : str   — path to CA certificate PEM for server verificatio
 CLIENT_SIGNING_KEY : str   — path to Ed25519 private key PEM file for gradient signing
 """
 
+import asyncio
 import base64
 import os
 import sys
 import time
 import logging
+import threading
 from collections import OrderedDict
 
 import numpy as np
@@ -145,6 +147,44 @@ class ClientSequenceDataset(Dataset):
 
 
 # ═══════════════════════════════════════════════════════════
+#  Live-traffic dataset — generates windows on-the-fly
+# ═══════════════════════════════════════════════════════════
+
+class LiveTrafficDataset(Dataset):
+    """Generates training windows live from ReplaySimulator / SyntheticGenerator.
+
+    Used when TRAIN mode runs with concurrent traffic simulation so the model
+    trains on live (replayed) traffic instead of static .npy files.
+    Each __getitem__ call pulls the next window from the simulator, providing
+    a stream of fresh data every round.
+    """
+
+    def __init__(self, data_dir: str, num_windows: int = 500):
+        from replay_simulator import ReplaySimulator
+        self.simulator = ReplaySimulator(
+            data_dir=data_dir,
+            scenario_dir=None,
+            loop=True,
+            shuffle=True,
+        )
+        self.num_windows = num_windows
+        log.info(
+            "[%s] LiveTrafficDataset: %d windows/round from %s (%d total available)",
+            CLIENT_ID, num_windows, data_dir, self.simulator.total_windows,
+        )
+
+    def __len__(self) -> int:
+        return self.num_windows
+
+    def __getitem__(self, idx: int):
+        window, label, _ = self.simulator.get_next_window()
+        return (
+            torch.tensor(window, dtype=torch.float32),
+            torch.tensor(float(label), dtype=torch.float32),
+        )
+
+
+# ═══════════════════════════════════════════════════════════
 #  Local training function
 # ═══════════════════════════════════════════════════════════
 # Throttle interval for per-batch progress reports (seconds)
@@ -156,7 +196,7 @@ def local_train(
     dataloader: DataLoader,
     epochs: int,
     lr: float,
-    max_batches: int = 50,
+    max_batches: int = 0,
     server_round: int = 0,
     total_rounds: int = 0,
 ) -> dict:
@@ -165,6 +205,8 @@ def local_train(
     Reports per-batch progress (throttled to every 2 s) with:
     batches_processed, total_batches, samples_processed, total_samples,
     throughput (samples/sec), eta_seconds, current_loss, current_accuracy.
+
+    max_batches=0 means no cap — use all batches in the dataloader.
     """
     model.train()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -175,7 +217,8 @@ def local_train(
     last_report_time = 0.0  # ensures first batch reports immediately
 
     # Pre-calculate totals for progress tracking
-    total_batches_per_epoch = min(len(dataloader), max_batches)
+    effective_max = max_batches if max_batches > 0 else len(dataloader)
+    total_batches_per_epoch = min(len(dataloader), effective_max)
     grand_total_batches = total_batches_per_epoch * epochs
     # Estimate total samples (batch_size * total_batches) — refined as we go
     batch_size_est = dataloader.batch_size or 32
@@ -188,7 +231,7 @@ def local_train(
         epoch_samples = 0
 
         for batch_idx, (x, y) in enumerate(dataloader):
-            if batch_idx >= max_batches:
+            if max_batches > 0 and batch_idx >= max_batches:
                 break
             x = x.to(DEVICE)
             y = y.to(DEVICE).unsqueeze(1)
@@ -303,6 +346,46 @@ def _load_signing_key() -> bytes | None:
             CLIENT_ID, CLIENT_SIGNING_KEY,
         )
         return None
+
+
+def _run_monitor_background(stop_flag: threading.Event) -> None:
+    """Run the monitor loop in a background thread during TRAIN mode.
+
+    Creates a dedicated asyncio event loop (cannot reuse the main-thread loop)
+    and runs ``monitor.monitor_loop(stop_event)`` until *stop_flag* is set by
+    the main thread (after Flower training ends).
+
+    Best-effort: exceptions are logged but never propagate — training must
+    never be disrupted by the monitoring subsystem.
+    """
+    from monitor import monitor_loop as _monitor_loop
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    async_stop = asyncio.Event()
+
+    async def _bridge_stop() -> None:
+        """Poll the threading.Event and mirror it to the asyncio.Event."""
+        while not stop_flag.is_set():
+            await asyncio.sleep(0.5)
+        async_stop.set()
+
+    async def _run() -> None:
+        bridge_task = asyncio.create_task(_bridge_stop())
+        try:
+            await _monitor_loop(stop_event=async_stop)
+        finally:
+            async_stop.set()
+            bridge_task.cancel()
+
+    try:
+        log.info("[%s] Background monitor thread starting", CLIENT_ID)
+        loop.run_until_complete(_run())
+    except Exception as exc:
+        log.warning("[%s] Background monitor exited: %s", CLIENT_ID, exc)
+    finally:
+        loop.close()
+        log.info("[%s] Background monitor thread stopped", CLIENT_ID)
 
 
 def run_train_mode():
@@ -545,12 +628,19 @@ def run_train_mode():
 
     log.info("TRAIN mode — connecting to FL server at %s", FL_SERVER_ADDRESS)
 
-    # Load data
+    # Load data — prefer static .npy files; fall back to live traffic dataset
     if not os.path.isdir(DATA_PATH):
         log.error("Data directory not found: %s", DATA_PATH)
         sys.exit(1)
 
-    dataset = ClientSequenceDataset(DATA_PATH)
+    has_npy = any(f.startswith("X_seq") for f in os.listdir(DATA_PATH))
+    if has_npy:
+        dataset = ClientSequenceDataset(DATA_PATH)
+        log.info("[%s] Using static .npy dataset (%d samples)", CLIENT_ID, len(dataset))
+    else:
+        dataset = LiveTrafficDataset(DATA_PATH, num_windows=500)
+        log.info("[%s] No .npy files — using LiveTrafficDataset", CLIENT_ID)
+
     dataloader = DataLoader(
         dataset,
         batch_size=DEFAULT_CONFIG["BATCH_SIZE"],
@@ -558,28 +648,46 @@ def run_train_mode():
         num_workers=0,
         pin_memory=False,
     )
-    log.info("[%s] Loaded %d samples", CLIENT_ID, len(dataset))
 
     # Init model
     model = CNN_LSTM_IDS(SEQ_LEN, NUM_FEATURES).to(DEVICE)
 
+    # ── Start background monitor thread (live traffic + predictions) ──
+    monitor_stop = threading.Event()
+    monitor_thread = threading.Thread(
+        target=_run_monitor_background,
+        args=(monitor_stop,),
+        daemon=True,
+        name=f"{CLIENT_ID}-monitor",
+    )
+    monitor_thread.start()
+    log.info("[%s] Background monitor thread launched", CLIENT_ID)
+
     # Start Flower client
     client = IDSClient(model, dataloader, len(dataset))
     tls_credentials = _load_tls_credentials()
-    if tls_credentials is not None:
-        fl.client.start_numpy_client(
-            server_address=FL_SERVER_ADDRESS,
-            client=client,
-            grpc_max_message_length=512 * 1024 * 1024,
-            root_certificates=tls_credentials,  # CA PEM bytes for server cert verification
-        )
-    else:
-        fl.client.start_numpy_client(
-            server_address=FL_SERVER_ADDRESS,
-            client=client,
-            grpc_max_message_length=512 * 1024 * 1024,
-        )
+    try:
+        if tls_credentials is not None:
+            fl.client.start_numpy_client(
+                server_address=FL_SERVER_ADDRESS,
+                client=client,
+                grpc_max_message_length=512 * 1024 * 1024,
+                root_certificates=tls_credentials,
+            )
+        else:
+            fl.client.start_numpy_client(
+                server_address=FL_SERVER_ADDRESS,
+                client=client,
+                grpc_max_message_length=512 * 1024 * 1024,
+            )
+    finally:
+        # Signal the monitor thread to stop cleanly
+        monitor_stop.set()
+        monitor_thread.join(timeout=10)
+        log.info("[%s] Monitor thread joined", CLIENT_ID)
+
     log.info("[%s] Training complete", CLIENT_ID)
+    _report_progress({"phase": "completed", "status": "done", "progress_pct": 100})
 
 
 # ═══════════════════════════════════════════════════════════

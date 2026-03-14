@@ -17,6 +17,7 @@ export default function TrafficFeedEdge({
   sourcePosition,
   targetPosition,
   style,
+  data,
 }: EdgeProps) {
   const [edgePath] = getBezierPath({
     sourceX,
@@ -27,6 +28,8 @@ export default function TrafficFeedEdge({
     targetPosition,
   });
 
+  const isActive = data?.animated === true;
+
   return (
     <BaseEdge
       id={id}
@@ -35,8 +38,9 @@ export default function TrafficFeedEdge({
       style={{
         ...style,
         stroke: '#18a058',
-        strokeWidth: 1.5,
+        strokeWidth: isActive ? 2 : 1.5,
         strokeDasharray: '4 4',
+        animation: isActive ? 'fl-edge-flow 1.5s linear infinite' : 'none',
       }}
     />
   );

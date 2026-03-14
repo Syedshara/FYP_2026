@@ -187,9 +187,32 @@ async def register_client_internal(
             description=body.description,
             create_container=False,       # We ARE the container
         )
-        return client
     except ConflictException:
         raise HTTPException(status_code=409, detail=f"Client '{body.client_id}' already exists")
+
+    # Auto-create a default Device linked to this client so that monitor mode
+    # finds at least one device immediately without requiring manual registration.
+    try:
+        await device_service.create_device(
+            db,
+            name=f"{body.name} Sensor 1",
+            device_type="sensor",
+            protocol="tcp",
+            port=0,
+            traffic_source="simulated",
+            description=f"Auto-created device for FL client '{body.client_id}'",
+            client_id=client.id,
+        )
+        log.info(
+            "Auto-created device for FL client '%s' (db_id=%d)",
+            body.client_id, client.id,
+        )
+    except Exception as exc:
+        # Non-fatal: client is registered; device creation is best-effort.
+        # On duplicate name (e.g. if register is retried) this is harmless.
+        log.warning("Could not auto-create device for client '%s': %s", body.client_id, exc)
+
+    return client
 
 
 @router.post("/predictions", response_model=InternalPredictionOut, status_code=201)
@@ -217,11 +240,21 @@ async def save_prediction(
     await db.commit()
     await db.refresh(pred)
 
-    # Look up device name for WS broadcast
+    # Look up device name + owning FL client string ID for WS broadcast
     device_name: str | None = None
+    client_string_id: str | None = None
     try:
-        dev = await device_service.get_device(db, body.device_id)
-        device_name = dev.name
+        from sqlalchemy import select as sa_select
+        from app.models.device import Device
+        from app.models.fl import FLClient
+        result = await db.execute(
+            sa_select(Device.name, FLClient.client_id)
+            .outerjoin(FLClient, Device.client_id == FLClient.id)
+            .where(Device.id == body.device_id)
+        )
+        row = result.first()
+        if row:
+            device_name, client_string_id = row
     except Exception:
         pass
 
@@ -230,6 +263,7 @@ async def save_prediction(
         "id": pred.id,
         "device_id": str(pred.device_id),
         "device_name": device_name,
+        "client_string_id": client_string_id,
         "client_id": pred.client_id,
         "score": pred.score,
         "label": pred.label,

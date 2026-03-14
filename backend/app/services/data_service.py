@@ -225,6 +225,7 @@ def _generate_from_cicids2017(
     return {
         "created": True,
         "source": "cicids2017",
+        "data_quality": "real",
         "chunks": chunks_created,
         "total_samples": total_samples,
         "path": target_dir,
@@ -267,6 +268,7 @@ def _copy_from_existing(target_dir: str, exclude: str = "") -> dict:
     return {
         "created": True,
         "source": source_id,
+        "data_quality": "copied",
         "chunks": chunks_created,
         "total_samples": total_samples,
         "path": target_dir,
@@ -294,7 +296,19 @@ def _get_source_client(exclude: str = "") -> Optional[str]:
 
 
 def _generate_synthetic_data(target_dir: str, traffic_type: str = "mixed") -> dict:
-    """Create random synthetic traffic data in CIC-IDS2017 format."""
+    """Create random synthetic traffic data in CIC-IDS2017 format.
+
+    WARNING: This generates uniform-random noise (np.random.rand), NOT
+    realistic network traffic.  The model cannot learn meaningful patterns
+    from this data.  It exists only as a last-resort fallback when no real
+    data or existing client data is available.
+    """
+    log.warning(
+        "SYNTHETIC FALLBACK — generating random noise data in %s. "
+        "This data is NOT usable for real training.  Ensure CIC-IDS2017 "
+        "CSVs are mounted at %s or that existing client data is available.",
+        target_dir, DATASET_DIR,
+    )
     os.makedirs(target_dir, exist_ok=True)
     total_samples = 0
 
@@ -315,9 +329,14 @@ def _generate_synthetic_data(target_dir: str, traffic_type: str = "mixed") -> di
     return {
         "created": True,
         "source": "synthetic",
+        "data_quality": "synthetic_random",
         "chunks": SYNTHETIC_NUM_CHUNKS,
         "total_samples": total_samples,
         "path": target_dir,
+        "warning": (
+            "Data is random noise (np.random.rand). Model cannot learn "
+            "meaningful patterns. Use CIC-IDS2017 data source for real training."
+        ),
     }
 
 

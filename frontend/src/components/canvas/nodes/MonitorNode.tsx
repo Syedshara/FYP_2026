@@ -56,6 +56,11 @@ function MonitorNode(props: NodeProps<MonitorNodeData>) {
     <BaseCanvasNode {...props}>
       {hasMetrics ? (
         <div className="flex flex-col gap-2 w-full">
+          {data.deviceLabel && (
+            <div className="text-[10px] text-center" style={{ color: 'var(--n8n-text-muted)' }}>
+              Monitoring: <span style={{ fontWeight: 600, color: '#38bdf8' }}>{data.deviceLabel}</span>
+            </div>
+          )}
           <MetricBar
             label="ATK"
             value={m.attackRate ?? 0}

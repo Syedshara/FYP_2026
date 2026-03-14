@@ -93,8 +93,8 @@ export default function FLAccuracyChart() {
             border: '1px solid var(--n8n-card-border)',
           }}
         >
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={data} margin={{ top: 10, right: 40, bottom: 10, left: 0 }}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="rgba(255,255,255,0.06)"
@@ -107,10 +107,22 @@ export default function FLAccuracyChart() {
                 label={{ value: 'Round', position: 'insideBottom', offset: -2, fontSize: 10, fill: '#888888' }}
               />
               <YAxis
+                yAxisId="accuracy"
                 tick={{ fontSize: 10, fill: '#888888' }}
                 tickLine={false}
                 axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
                 domain={[0, 1]}
+                orientation="left"
+                label={{ value: 'Accuracy', angle: -90, position: 'insideLeft', offset: 15, fontSize: 9, fill: '#18a058' }}
+              />
+              <YAxis
+                yAxisId="loss"
+                tick={{ fontSize: 10, fill: '#888888' }}
+                tickLine={false}
+                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                domain={[0, 'auto']}
+                orientation="right"
+                label={{ value: 'Loss', angle: 90, position: 'insideRight', offset: 15, fontSize: 9, fill: '#d03050' }}
               />
               <Tooltip
                 contentStyle={{
@@ -122,12 +134,17 @@ export default function FLAccuracyChart() {
                   color: '#ececec',
                 }}
                 labelFormatter={(label) => `Round ${label}`}
-                formatter={(value) => (typeof value === 'number' ? value.toFixed(4) : '—')}
+                formatter={(value?: number, name?: string) =>
+                  typeof value === 'number'
+                    ? [name === 'Accuracy' ? `${(value * 100).toFixed(1)}%` : value.toFixed(4), name ?? '']
+                    : ['—', name ?? '']
+                }
               />
               <Legend
                 wrapperStyle={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               />
               <Line
+                yAxisId="accuracy"
                 type="monotone"
                 dataKey="accuracy"
                 name="Accuracy"
@@ -135,8 +152,10 @@ export default function FLAccuracyChart() {
                 strokeWidth={2}
                 dot={{ r: 3, fill: '#18a058' }}
                 activeDot={{ r: 5 }}
+                connectNulls
               />
               <Line
+                yAxisId="loss"
                 type="monotone"
                 dataKey="loss"
                 name="Loss"
@@ -144,6 +163,7 @@ export default function FLAccuracyChart() {
                 strokeWidth={2}
                 dot={{ r: 3, fill: '#d03050' }}
                 activeDot={{ r: 5 }}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>

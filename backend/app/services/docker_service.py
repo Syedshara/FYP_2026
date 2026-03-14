@@ -260,6 +260,9 @@ def start_fl_server(
     num_rounds: int = 5,
     min_clients: int = 1,
     use_he: bool = False,
+    local_epochs: int = 5,
+    learning_rate: float = 0.001,
+    max_batches: int = 0,
     client_names: list[str] | None = None,
 ) -> ContainerInfo:
     """
@@ -283,6 +286,9 @@ def start_fl_server(
         "MIN_CLIENTS": str(min_clients),
         "MIN_FIT_CLIENTS": str(min_clients),
         "USE_HE": "true" if use_he else "false",
+        "LOCAL_EPOCHS": str(local_epochs),
+        "LEARNING_RATE": str(learning_rate),
+        "MAX_BATCHES": str(max_batches),
         "FL_SERVER_ADDRESS": "0.0.0.0:8080",
         "BACKEND_URL": "http://iot_ids_backend:8000",
         # Phase 2 — mTLS server credentials
@@ -313,18 +319,9 @@ def start_fl_server(
         environment=environment,
         volumes=volumes,
         network=DOCKER_NETWORK,
-        ports={"8080/tcp": 8080},
         restart_policy={"Name": "no"},
         detach=True,
     )
-
-    # Add network alias so clients can reach it as "fl_server" (docker-compose service name)
-    try:
-        network = dk.networks.get(DOCKER_NETWORK)
-        network.disconnect(container)
-        network.connect(container, aliases=["fl_server", FL_SERVER_CONTAINER])
-    except Exception as exc:
-        log.warning("Failed to set network alias for FL server: %s", exc)
 
     container.start()
     container.reload()

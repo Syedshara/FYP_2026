@@ -66,7 +66,7 @@ export default function LiveDataSync() {
     const fingerprint = JSON.stringify({
       fl: flGlobal?.is_training,
       flRound: flGlobal?.current_round,
-      flClients: Object.keys(flClientProgress).length,
+      flClients: Object.entries(flClientProgress).map(([k, v]) => `${k}:${v.status}`).join(','),
       activeServer: activeFlServerNodeId,
       attacks: Object.keys(attackRunStatuses).length,
       devices: Object.keys(deviceStatuses).length,
@@ -120,6 +120,8 @@ export default function LiveDataSync() {
     // ── 2. Client nodes — map FL client progress to canvas ──
     // Build a set of "running" client node IDs for Device/TrafficSource cascade
     const runningClientNodeIds = new Set<string>();
+    // Map FL client string ID (e.g. "client_abc123") → canvas node ID for device linking
+    const clientStringToNodeId = new Map<string, string>();
 
     for (const node of nodes) {
       if (node.data.nodeType !== 'client') continue;
@@ -129,6 +131,14 @@ export default function LiveDataSync() {
       const derivedClientId = node.id.replace(/-/g, '_');
       const progress = flClientProgress[derivedClientId]
         ?? Object.values(flClientProgress).find((p) => p.client_id === d.label);
+
+      // Track the mapping from FL client string ID → canvas node ID
+      if (progress) {
+        clientStringToNodeId.set(progress.client_id, node.id);
+      } else {
+        // Even without progress, register the derived ID so device linking works at rest
+        clientStringToNodeId.set(derivedClientId, node.id);
+      }
 
       let newStatus: NodeStatus = d.status;
       if (isTraining && progress) {
@@ -198,6 +208,29 @@ export default function LiveDataSync() {
     // Build a set of running device node IDs for traffic source cascade
     const runningDeviceNodeIds = new Set<string>();
 
+    // Build reverse mapping: FL client string ID → Set of device UUIDs from predictions
+    // This lets us auto-link canvas Device nodes to backend Device records
+    const clientDevices = new Map<string, Set<string>>();
+    for (const pred of latestPredictions) {
+      if (pred.client_string_id) {
+        let devSet = clientDevices.get(pred.client_string_id);
+        if (!devSet) {
+          devSet = new Set();
+          clientDevices.set(pred.client_string_id, devSet);
+        }
+        devSet.add(pred.device_id);
+      }
+    }
+
+    // Also build reverse: canvas node ID → FL client string ID
+    const nodeIdToClientString = new Map<string, string>();
+    for (const [clientStr, nodeId] of clientStringToNodeId) {
+      nodeIdToClientString.set(nodeId, clientStr);
+    }
+
+    // Track resolved device UUIDs so Monitor section can read them (updateNodeData is async)
+    const deviceNodeResolvedIds = new Map<string, string>();
+
     for (const node of nodes) {
       if (node.data.nodeType !== 'device') continue;
       const d = node.data as DeviceNodeData;
@@ -207,19 +240,118 @@ export default function LiveDataSync() {
         (e) => e.target === node.id && e.type === 'ownership' && runningClientNodeIds.has(e.source),
       );
 
+      // Auto-populate deviceId from predictions if not already set
+      let resolvedDeviceId = d.deviceId;
+      if (!resolvedDeviceId) {
+        // Find the owning Client node (any ownership edge, not just running)
+        const anyOwnerEdge = ownerClientEdge ?? edges.find(
+          (e) => e.target === node.id && e.type === 'ownership',
+        );
+        if (anyOwnerEdge) {
+          const ownerClientStringId = nodeIdToClientString.get(anyOwnerEdge.source);
+          if (ownerClientStringId) {
+            const deviceUuids = clientDevices.get(ownerClientStringId);
+            if (deviceUuids && deviceUuids.size > 0) {
+              // Pick the first device UUID (most common: 1 client → 1 device)
+              resolvedDeviceId = deviceUuids.values().next().value;
+            }
+          }
+        }
+      }
+
+      const deviceUpdates: Partial<DeviceNodeData> = {};
+      if (resolvedDeviceId && resolvedDeviceId !== d.deviceId) {
+        deviceUpdates.deviceId = resolvedDeviceId;
+      }
+
+      // Track resolved ID for downstream Monitor section (store update is async)
+      if (resolvedDeviceId) {
+        deviceNodeResolvedIds.set(node.id, resolvedDeviceId);
+      }
+
       if (ownerClientEdge && isTraining) {
-        updateNodeData(node.id, { status: 'running' } as Partial<CanvasNodeData>);
+        deviceUpdates.status = 'running';
         runningDeviceNodeIds.add(node.id);
-      } else if (d.deviceId && deviceStatuses[d.deviceId]) {
-        const devStatus = deviceStatuses[d.deviceId];
-        const newStatus = deviceStatusToNode(devStatus.status);
-        updateNodeData(node.id, { status: newStatus } as Partial<CanvasNodeData>);
+      } else if (resolvedDeviceId && deviceStatuses[resolvedDeviceId]) {
+        const devStatus = deviceStatuses[resolvedDeviceId];
+        deviceUpdates.status = deviceStatusToNode(devStatus.status);
       } else if (!isTraining && (d.status === 'active' || d.status === 'running')) {
-        updateNodeData(node.id, { status: 'idle' } as Partial<CanvasNodeData>);
+        deviceUpdates.status = 'idle';
+      }
+
+      if (Object.keys(deviceUpdates).length > 0) {
+        updateNodeData(node.id, deviceUpdates as Partial<CanvasNodeData>);
       }
     }
 
-    // ── 4b. Traffic Source nodes — cascade from running devices ──
+    // ── 4b. Monitor nodes — cascade from devices + resolve observed device ──
+    // Track resolved deviceId per monitor node so section 5 doesn't read stale node.data
+    const monitorResolvedDeviceIds = new Map<string, string>(); // monitorNodeId → deviceUUID
+
+    for (const node of nodes) {
+      if (node.data.nodeType !== 'monitor') continue;
+
+      // Find the observation edge targeting this Monitor (Device → Monitor)
+      const observationEdge = edges.find(
+        (e) => e.target === node.id && e.type === 'observation',
+      );
+
+      if (!observationEdge) {
+        // Monitor not connected to any device — mark disabled
+        updateNodeData(node.id, { status: 'disabled', deviceId: undefined, deviceLabel: undefined } as Partial<MonitorNodeData> as Partial<CanvasNodeData>);
+        continue;
+      }
+
+      const sourceNode = nodes.find((n) => n.id === observationEdge.source);
+      if (!sourceNode) continue;
+
+      let connectedDeviceId: string | undefined;
+      let connectedDeviceLabel: string | undefined;
+      let deviceNodeId: string | undefined; // canvas node ID of the device (for status check)
+
+      if (sourceNode.data.nodeType === 'device') {
+        const deviceData = sourceNode.data as DeviceNodeData;
+        // Prefer resolved ID (computed this tick) over stale node data
+        connectedDeviceId = deviceNodeResolvedIds.get(sourceNode.id) ?? deviceData.deviceId;
+        connectedDeviceLabel = deviceData.label;
+        deviceNodeId = sourceNode.id;
+      } else if (sourceNode.data.nodeType === 'rate-filter') {
+        // Rate-filter sits between Device and Monitor — trace back to Device
+        const rfSourceEdge = edges.find(
+          (e) => e.target === sourceNode.id && e.type === 'observation',
+        );
+        if (rfSourceEdge) {
+          const rfSourceNode = nodes.find((n) => n.id === rfSourceEdge.source);
+          if (rfSourceNode?.data.nodeType === 'device') {
+            const deviceData = rfSourceNode.data as DeviceNodeData;
+            connectedDeviceId = deviceNodeResolvedIds.get(rfSourceNode.id) ?? deviceData.deviceId;
+            connectedDeviceLabel = deviceData.label;
+            deviceNodeId = rfSourceNode.id;
+          }
+        }
+      }
+
+      // Store resolved ID so section 5 can use it without re-reading stale node.data
+      if (connectedDeviceId) {
+        monitorResolvedDeviceIds.set(node.id, connectedDeviceId);
+      }
+
+      // Cascade status from connected Device
+      let monitorStatus: NodeStatus = 'idle';
+      if (deviceNodeId && runningDeviceNodeIds.has(deviceNodeId) && isTraining) {
+        monitorStatus = 'running';
+      } else if (!isTraining && ((node.data as MonitorNodeData).status === 'running' || (node.data as MonitorNodeData).status === 'active')) {
+        monitorStatus = 'idle';
+      }
+
+      updateNodeData(node.id, {
+        status: monitorStatus,
+        deviceId: connectedDeviceId,
+        deviceLabel: connectedDeviceLabel,
+      } as Partial<MonitorNodeData> as Partial<CanvasNodeData>);
+    }
+
+    // ── 4c. Traffic Source nodes — cascade from running devices ──
     for (const node of nodes) {
       if (node.data.nodeType !== 'traffic-source') continue;
       const d = node.data as CanvasNodeData;
@@ -236,29 +368,47 @@ export default function LiveDataSync() {
       }
     }
 
-    // ── 5. Monitor nodes — update prediction metrics ──
-    if (latestPredictions.length > 0) {
-      const totalPredictions = latestPredictions.length;
-      const attacks = latestPredictions.filter((p) => p.label === 'attack');
-      const attackRate = totalPredictions > 0 ? attacks.length / totalPredictions : 0;
-      const avgLatency =
-        latestPredictions.reduce((sum, p) => sum + (p.inference_latency_ms ?? 0), 0) /
-        totalPredictions;
-      const avgConfidence =
-        latestPredictions.reduce((sum, p) => sum + p.confidence, 0) / totalPredictions;
+    // ── 5. Monitor nodes — update device-scoped prediction metrics ──
+    for (const node of nodes) {
+      if (node.data.nodeType !== 'monitor') continue;
+      const d = node.data as MonitorNodeData;
 
-      for (const node of nodes) {
-        if (node.data.nodeType !== 'monitor') continue;
-        updateNodeData(node.id, {
-          status: 'active',
-          metrics: {
-            totalPredictions,
-            attackRate: Math.round(attackRate * 100),
-            avgLatency: Math.round(avgLatency * 10) / 10,
-            avgConfidence: Math.round(avgConfidence * 100),
-          },
-        } as Partial<MonitorNodeData> as Partial<CanvasNodeData>);
+      // Prefer the device ID resolved this tick (avoids stale node.data from previous tick)
+      const effectiveDeviceId = monitorResolvedDeviceIds.get(node.id) ?? d.deviceId;
+
+      // Filter predictions by this Monitor's connected device
+      const devicePredictions = effectiveDeviceId
+        ? latestPredictions.filter((p) => p.device_id === effectiveDeviceId)
+        : [];
+
+      const updates: Partial<MonitorNodeData> = {};
+
+      if (devicePredictions.length > 0) {
+        const attacks = devicePredictions.filter((p) => p.label === 'attack');
+        const attackRate = attacks.length / devicePredictions.length;
+        const avgLatency =
+          devicePredictions.reduce((sum, p) => sum + (p.inference_latency_ms ?? 0), 0) /
+          devicePredictions.length;
+        const avgConfidence =
+          devicePredictions.reduce((sum, p) => sum + p.confidence, 0) /
+          devicePredictions.length;
+
+        updates.metrics = {
+          totalPredictions: devicePredictions.length,
+          attackRate: Math.round(attackRate * 100),
+          avgLatency: Math.round(avgLatency * 10) / 10,
+          avgConfidence: Math.round(avgConfidence * 100),
+        };
+
+        // If metrics are flowing, ensure the Monitor shows as active at minimum
+        if (d.status === 'idle' || d.status === 'disabled') {
+          updates.status = 'active';
+        }
+      } else {
+        updates.metrics = undefined;
       }
+
+      updateNodeData(node.id, updates as Partial<CanvasNodeData>);
     }
 
     // ── 6. Edge data updates ──
@@ -276,6 +426,14 @@ export default function LiveDataSync() {
         const shouldPulse = activeAttackIds.size > 0;
         if (edge.data?.active !== shouldPulse) {
           updateEdgeData(edge.id, { active: shouldPulse });
+        }
+      }
+
+      // Traffic feed edges: animated when training + target device is running
+      if (edge.type === 'traffic-feed') {
+        const shouldAnimate = isTraining && runningDeviceNodeIds.has(edge.target);
+        if (edge.data?.animated !== shouldAnimate) {
+          updateEdgeData(edge.id, { animated: shouldAnimate });
         }
       }
     }

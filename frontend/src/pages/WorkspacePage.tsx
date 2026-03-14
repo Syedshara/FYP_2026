@@ -26,6 +26,7 @@ import CanvasStatusBar from '@/components/canvas/CanvasStatusBar';
 import NodePalette from '@/components/canvas/NodePalette';
 import PropertiesPanel from '@/components/canvas/PropertiesPanel';
 import FLDrillDownView from '@/components/canvas/fl/FLDrillDownView';
+import MonitorDrillDownView from '@/components/canvas/monitor/MonitorDrillDownView';
 import LiveDataSync from '@/components/canvas/LiveDataSync';
 
 // Custom node components
@@ -84,6 +85,7 @@ export default function WorkspacePage() {
   const viewMode = useWorkspaceStore((s) => s.viewMode);
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const setDrilldownServerId = useWorkspaceStore((s) => s.setDrilldownServerId);
+  const setDrilldownMonitorId = useWorkspaceStore((s) => s.setDrilldownMonitorId);
   const setRfInstance = useWorkspaceStore((s) => s.setRfInstance);
 
   // ── Auto-load workspace on mount ──
@@ -162,9 +164,12 @@ export default function WorkspacePage() {
       if (node.type === 'fl-server') {
         setDrilldownServerId(node.id);
         setViewMode('fl-drilldown');
+      } else if (node.type === 'monitor') {
+        setDrilldownMonitorId(node.id);
+        setViewMode('monitor-drilldown');
       }
     },
-    [setDrilldownServerId, setViewMode],
+    [setDrilldownServerId, setDrilldownMonitorId, setViewMode],
   );
 
   // ── If in FL drill-down mode, render that view instead ──
@@ -176,6 +181,19 @@ export default function WorkspacePage() {
       >
         <LiveDataSync />
         <FLDrillDownView />
+      </div>
+    );
+  }
+
+  // ── If in Monitor drill-down mode, render analytics dashboard ──
+  if (viewMode === 'monitor-drilldown') {
+    return (
+      <div
+        className="flex flex-col w-screen h-screen overflow-hidden"
+        style={{ background: 'var(--n8n-canvas-bg)' }}
+      >
+        <LiveDataSync />
+        <MonitorDrillDownView />
       </div>
     );
   }

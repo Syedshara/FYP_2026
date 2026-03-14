@@ -116,6 +116,10 @@ export interface MonitorNodeData {
   label: string;
   subtitle?: string;
   status: NodeStatus;
+  /** ID of the Device this Monitor observes (via observation edge). Injected by LiveDataSync. */
+  deviceId?: string;
+  /** Display label of the observed Device. Injected by LiveDataSync. */
+  deviceLabel?: string;
   metrics?: {
     totalPredictions?: number;
     attackRate?: number;

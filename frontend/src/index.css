@@ -977,7 +977,8 @@ select.prop-input option {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--n8n-card-border);
 }
 
 .fl-section-header-title {
@@ -1001,6 +1002,12 @@ select.prop-input option {
   line-height: 1;
   border: 1px solid transparent;
   white-space: nowrap;
+}
+
+/* Larger variant — used in the top bar where the badge needs more visual weight */
+.fl-status-badge--lg {
+  padding: 6px 12px;
+  font-size: 11px;
 }
 
 .fl-status-badge--idle {
@@ -1087,6 +1094,14 @@ select.prop-input option {
   color: var(--n8n-text-muted);
   line-height: 1.3;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fl-config-hint {
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .fl-config-input {
@@ -1172,10 +1187,10 @@ select.prop-input option {
 /* ── Round log table row ── */
 .fl-round-row {
   display: grid;
-  grid-template-columns: 48px 1fr 88px 66px 44px;
+  grid-template-columns: 48px 1fr 88px 66px;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--n8n-card-border);
   font-size: 11px;
   font-family: var(--n8n-font-mono, 'JetBrains Mono', monospace);
@@ -1311,6 +1326,6 @@ select.prop-input option {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--n8n-card-border);
 }

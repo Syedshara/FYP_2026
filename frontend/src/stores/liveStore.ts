@@ -15,6 +15,8 @@ export interface LivePrediction {
   device_id: string;
   device_name?: string;
   client_id?: number;
+  /** FL client string ID (e.g. "client_abc123") — bridges predictions to canvas Client nodes */
+  client_string_id?: string;
   score: number;
   label: string;
   confidence: number;
@@ -85,6 +87,7 @@ export interface AttackRunLiveStatus {
 
 // ── Ring buffer sizes ──
 const MAX_PREDICTIONS = 50;
+const MAX_DEVICE_HISTORY = 200;   // per-device prediction history for Monitor charts
 const MAX_FLAGGED_EVENTS = 100;
 const MAX_ATTACK_RESULTS = 50;
 
@@ -95,6 +98,10 @@ interface LiveState {
   latestPredictions: LivePrediction[];
   addPrediction: (p: LivePrediction) => void;
   clearPredictions: () => void;
+
+  // Per-device prediction history (larger buffer for Monitor charts)
+  devicePredictionHistory: Record<string, LivePrediction[]>;
+  clearDevicePredictionHistory: () => void;
 
   // FL training progress per client
   flClientProgress: Record<string, FLClientProgress>;
@@ -150,9 +157,20 @@ export const useLiveStore = create<LiveState>()((set) => ({
   latestPredictions: [],
   clearPredictions: () => set({ latestPredictions: [] }),
   addPrediction: (p) =>
-    set((state) => ({
-      latestPredictions: [p, ...state.latestPredictions].slice(0, MAX_PREDICTIONS),
-    })),
+    set((state) => {
+      // Also maintain per-device history for Monitor drill-down charts
+      const devId = p.device_id;
+      const prev = state.devicePredictionHistory[devId] ?? [];
+      const next = [...prev, p].slice(-MAX_DEVICE_HISTORY);
+      return {
+        latestPredictions: [p, ...state.latestPredictions].slice(0, MAX_PREDICTIONS),
+        devicePredictionHistory: { ...state.devicePredictionHistory, [devId]: next },
+      };
+    }),
+
+  // Per-device prediction history
+  devicePredictionHistory: {},
+  clearDevicePredictionHistory: () => set({ devicePredictionHistory: {} }),
 
   // ── FL Client Progress ──
   flClientProgress: {},
@@ -244,7 +262,17 @@ export const useLiveStore = create<LiveState>()((set) => ({
 }));
 
 // ── Selectors ──────────────────────────────────────────
+
+// Stable empty array — reused as fallback to prevent infinite re-render loops in
+// useSyncExternalStore (a new `[]` on every call creates a new reference, which
+// Zustand treats as changed state and triggers another render).
+const EMPTY_PREDICTIONS: LivePrediction[] = [];
+
 export const useTrustScores = () => useLiveStore((s) => s.trustScores);
 export const useFlaggedEvents = () => useLiveStore((s) => s.flaggedEvents);
 export const useAttackRunStatuses = () => useLiveStore((s) => s.attackRunStatuses);
 export const useAttackResults = () => useLiveStore((s) => s.attackResults);
+export const useDevicePredictions = (deviceId: string | undefined) =>
+  useLiveStore((s) =>
+    deviceId ? (s.devicePredictionHistory[deviceId] ?? EMPTY_PREDICTIONS) : EMPTY_PREDICTIONS,
+  );

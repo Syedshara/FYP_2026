@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useLiveStore } from '@/stores/liveStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { flApi } from '@/api/fl';
 import type { WSMessage } from '@/hooks/useWebSocket';
 
@@ -72,6 +73,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         device_id: d.device_id as string,
         device_name: d.device_name as string | undefined,
         client_id: d.client_id as number | undefined,
+        client_string_id: d.client_string_id as string | undefined,
         score: d.score as number,
         label: d.label as string,
         confidence: d.confidence as number,
@@ -240,7 +242,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         global_loss: (d.global_loss ?? null) as number | null,
         global_accuracy: (d.global_accuracy ?? null) as number | null,
       });
-      // Don't clear progress immediately so users can review
+      // Clear the active server flag so LiveDataSync resets nodes to idle.
+      // Progress data (rounds, accuracy) is preserved in flGlobalProgress for review.
+      useWorkspaceStore.getState().setActiveFlServerNodeId(null);
     }));
 
     // ── Client status change ──

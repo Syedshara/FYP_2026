@@ -133,7 +133,7 @@ export default function FLDrillDownView() {
         {/* Right: Training status badge */}
         <div className="flex items-center gap-3">
           <div
-            className={`fl-status-badge ${isTraining ? 'fl-status-badge--training' : 'fl-status-badge--idle'}`}
+            className={`fl-status-badge fl-status-badge--lg ${isTraining ? 'fl-status-badge--training' : 'fl-status-badge--idle'}`}
           >
             <span
               className="fl-status-dot"
@@ -260,10 +260,10 @@ function FLRadialVisualization({
   }
 
   const cx = 250;
-  const cy = 110;
+  const cy = 120;
   const radius = 85;
   const viewWidth = 500;
-  const viewHeight = 220;
+  const viewHeight = 240;
 
   return (
     <div className="fl-vis-card">
@@ -280,7 +280,7 @@ function FLRadialVisualization({
           </span>
         )}
       </div>
-      <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="w-full h-auto" style={{ maxHeight: 220, display: 'block' }}>
+      <svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} className="w-full h-auto" style={{ maxHeight: 240, display: 'block' }}>
         <defs>
           {/* Animated dash for active connections */}
           <linearGradient id="fl-conn-gradient" x1="0%" y1="0%" x2="100%" y2="0%">

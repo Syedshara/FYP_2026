@@ -1,9 +1,7 @@
 [
   {
     "round": 1,
-    "aggregation": "fedavg_he_ckks",
-    "he_poly_modulus": "16384",
-    "num_encrypted_layers": "4",
-    "aggregation_time_sec": 0.5295579433441162
+    "aggregation": "fedavg_plain",
+    "aggregation_time_sec": 0.006264209747314453
   }
 ]

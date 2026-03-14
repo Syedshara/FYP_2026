@@ -425,8 +425,12 @@ class FLStartRequest(BaseModel):
     num_rounds: int = Field(default=5, ge=1, le=100)
     min_clients: int = Field(default=1, ge=1)
     use_he: bool = False  # Default off — HE is computationally heavy on dev machines
-    local_epochs: int = Field(default=3, ge=1)
+    local_epochs: int = Field(default=5, ge=1, le=50)
     learning_rate: float = Field(default=0.001, gt=0.0)
+    max_batches: int = Field(
+        default=0, ge=0,
+        description="Max batches per epoch per client. 0 = no cap (use all data).",
+    )
     workspace_id: Optional[int] = Field(default=None, description="Workspace ID for topology lookup")
     # Canvas-aware: list of canvas node IDs of Client nodes connected to this FL Server
     canvas_node_ids: Optional[List[str]] = Field(
@@ -607,6 +611,9 @@ async def start_training(
             num_rounds=body.num_rounds,
             min_clients=min(body.min_clients, len(trainable_clients)),
             use_he=body.use_he,
+            local_epochs=body.local_epochs,
+            learning_rate=body.learning_rate,
+            max_batches=body.max_batches,
             client_names=client_names,
         )
         log.info("FL server started: rounds=%d, clients=%d", body.num_rounds, len(trainable_clients))
