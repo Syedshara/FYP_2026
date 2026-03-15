@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import type { ClientTrustUpdatePayload, ClientFlaggedPayload } from '../types/index';
+import type { ClientTrustUpdatePayload, ClientFlaggedPayload, TrustScoreComponents, ClientEnforcementStatus, AggregationEnforcementPayload } from '../types/index';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -76,8 +76,8 @@ export interface LiveDeviceStatus {
 // ── Attack run live status ──
 
 export interface AttackRunLiveStatus {
-  run_id: number;
-  attack_id: number;
+  run_id: string;
+  attack_id: string;
   status: string;         // pending | running | completed | failed | cancelled
   packets_sent?: number;
   duration_seconds?: number;
@@ -163,14 +163,22 @@ interface LiveState {
 
   // ── Security: client trust scores (CLIENT_TRUST_UPDATE) ──
   trustScores: Record<string, number>;
+  currentDetectionRound: number | null;
+  trustScoreHistory: Record<string, Array<{ round: number; score: number; components?: TrustScoreComponents }>>;
   setTrustScores: (payload: ClientTrustUpdatePayload) => void;
+  hydrateTrustState: (
+    scores: Record<string, number>,
+    rounds: Array<{ round: number; scores: Record<string, number>; flagged: string[]; timestamp?: string }>,
+    flagged: Array<{ client_id: string; round: number; abnormality: number; timestamp?: string }>,
+  ) => void;
+  clearTrustScores: () => void;
 
   // ── Security: flagged client events (CLIENT_FLAGGED) ──
   flaggedEvents: Array<{ clientId: string; round: number; abnormality: number; timestamp: string }>;
   addFlaggedEvent: (payload: ClientFlaggedPayload) => void;
 
   // ── Attack run live statuses (ATTACK_STATUS / ATTACK_RESULT) ──
-  attackRunStatuses: Record<number, AttackRunLiveStatus>;
+  attackRunStatuses: Record<string, AttackRunLiveStatus>;
   setAttackRunStatus: (status: AttackRunLiveStatus) => void;
   clearAttackRunStatuses: () => void;
 
@@ -182,6 +190,12 @@ interface LiveState {
   securityEvents: SecurityEvent[];
   addSecurityEvent: (evt: SecurityEvent) => void;
   clearSecurityEvents: () => void;
+
+  // ── Aggregation enforcement (AGGREGATION_ENFORCEMENT) ──
+  clientEnforcementStatus: Record<string, ClientEnforcementStatus>;
+  lastEnforcementRound: number | null;
+  setEnforcementStatus: (payload: AggregationEnforcementPayload) => void;
+  hydrateEnforcementStatus: (enforcement: Record<string, ClientEnforcementStatus>) => void;
 }
 
 export const useLiveStore = create<LiveState>()((set) => ({
@@ -262,8 +276,63 @@ export const useLiveStore = create<LiveState>()((set) => ({
 
   // ── Trust Scores ──
   trustScores: {},
+  currentDetectionRound: null,
+  trustScoreHistory: {},
   setTrustScores: (payload) =>
-    set({ trustScores: payload.scores }),
+    set((state) => {
+      // Append each client's score to history (capped at 10 per client)
+      const newHistory = { ...state.trustScoreHistory };
+      for (const [cid, score] of Object.entries(payload.scores)) {
+        const prev = newHistory[cid] ?? [];
+        const entry = {
+          round: payload.round,
+          score,
+          components: payload.components?.[cid],
+        };
+        newHistory[cid] = [...prev, entry].slice(-10);
+      }
+      return {
+        trustScores: payload.scores,
+        currentDetectionRound: payload.round,
+        trustScoreHistory: newHistory,
+      };
+    }),
+
+  hydrateTrustState: (scores, rounds, flagged) =>
+    set(() => {
+      // Rebuild history from detection rounds (sorted ascending)
+      const history: Record<string, Array<{ round: number; score: number; components?: TrustScoreComponents }>> = {};
+      const sorted = [...rounds].sort((a, b) => a.round - b.round);
+      for (const dr of sorted) {
+        for (const [cid, score] of Object.entries(dr.scores)) {
+          const prev = history[cid] ?? [];
+          history[cid] = [...prev, { round: dr.round, score }].slice(-10);
+        }
+      }
+      const lastRound = sorted.length > 0 ? sorted[sorted.length - 1].round : null;
+
+      // Map flagged events
+      const flaggedEvents = flagged
+        .slice()
+        .sort((a, b) => b.round - a.round)
+        .map((f) => ({
+          clientId: f.client_id,
+          round: f.round,
+          abnormality: f.abnormality,
+          timestamp: f.timestamp ?? new Date().toISOString(),
+        }))
+        .slice(0, MAX_FLAGGED_EVENTS);
+
+      return {
+        trustScores: scores,
+        currentDetectionRound: lastRound,
+        trustScoreHistory: history,
+        flaggedEvents,
+      };
+    }),
+
+  clearTrustScores: () =>
+    set({ trustScores: {}, currentDetectionRound: null, trustScoreHistory: {}, flaggedEvents: [] }),
 
   // ── Flagged Events ──
   flaggedEvents: [],
@@ -271,7 +340,12 @@ export const useLiveStore = create<LiveState>()((set) => ({
     set((state) => {
       const next = [
         ...state.flaggedEvents,
-        { ...payload, timestamp: new Date().toISOString() },
+        {
+          clientId: payload.clientId,
+          round: payload.round,
+          abnormality: payload.abnormality,
+          timestamp: payload.timestamp ?? new Date().toISOString(),
+        },
       ];
       return { flaggedEvents: next.slice(-MAX_FLAGGED_EVENTS) };
     }),
@@ -300,6 +374,17 @@ export const useLiveStore = create<LiveState>()((set) => ({
     })),
   clearSecurityEvents: () =>
     set({ securityEvents: [] }),
+
+  // ── Aggregation Enforcement ──
+  clientEnforcementStatus: {},
+  lastEnforcementRound: null,
+  setEnforcementStatus: (payload) =>
+    set({
+      clientEnforcementStatus: payload.enforcement,
+      lastEnforcementRound: payload.round,
+    }),
+  hydrateEnforcementStatus: (enforcement) =>
+    set({ clientEnforcementStatus: enforcement }),
 }));
 
 // ── Selectors ──────────────────────────────────────────
@@ -308,8 +393,12 @@ export const useLiveStore = create<LiveState>()((set) => ({
 // useSyncExternalStore (a new `[]` on every call creates a new reference, which
 // Zustand treats as changed state and triggers another render).
 const EMPTY_PREDICTIONS: LivePrediction[] = [];
+const EMPTY_TRUST_HISTORY: Array<{ round: number; score: number; components?: TrustScoreComponents }> = [];
 
 export const useTrustScores = () => useLiveStore((s) => s.trustScores);
+export const useCurrentDetectionRound = () => useLiveStore((s) => s.currentDetectionRound);
+export const useTrustScoreHistory = (clientId: string) =>
+  useLiveStore((s) => s.trustScoreHistory[clientId] ?? EMPTY_TRUST_HISTORY);
 export const useFlaggedEvents = () => useLiveStore((s) => s.flaggedEvents);
 export const useAttackRunStatuses = () => useLiveStore((s) => s.attackRunStatuses);
 export const useAttackResults = () => useLiveStore((s) => s.attackResults);
@@ -318,3 +407,5 @@ export const useDevicePredictions = (deviceId: string | undefined) =>
   useLiveStore((s) =>
     deviceId ? (s.devicePredictionHistory[deviceId] ?? EMPTY_PREDICTIONS) : EMPTY_PREDICTIONS,
   );
+export const useClientEnforcementStatus = () => useLiveStore((s) => s.clientEnforcementStatus);
+export const useLastEnforcementRound = () => useLiveStore((s) => s.lastEnforcementRound);

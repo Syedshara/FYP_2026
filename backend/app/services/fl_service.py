@@ -7,7 +7,7 @@ from typing import Optional
 import logging
 import os
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -414,6 +414,14 @@ _trust_scores: dict[str, float] = {}
 _detection_rounds: list[dict] = []
 _flagged_clients: list[dict] = []
 
+# ── Aggregation Enforcement (in-memory) ──────────────────
+
+# Latest per-client enforcement status from the most recent aggregation round.
+# Values: 'included' | 'downweighted' | 'excluded'
+_enforcement_status: dict[str, str] = {}
+# History of enforcement decisions per aggregation round
+_enforcement_rounds: list[dict] = []
+
 
 def ensure_trust_score(client_id: str) -> None:
     """Ensure a client has a trust score entry (default 1.0)."""
@@ -424,6 +432,49 @@ def ensure_trust_score(client_id: str) -> None:
 def update_trust_scores(scores: dict[str, float]) -> None:
     """Update in-memory trust scores. Merges with existing."""
     _trust_scores.update(scores)
+
+
+async def save_trust_scores_to_db(db: AsyncSession) -> None:
+    """Persist the current in-memory trust scores to the fl_clients table.
+
+    Called after every RECESS detection round so scores survive a backend
+    restart.  Only updates clients that already have an in-memory entry.
+    """
+    if not _trust_scores:
+        return
+    for client_id, score in _trust_scores.items():
+        await db.execute(
+            update(FLClient)
+            .where(FLClient.client_id == client_id)
+            .values(trust_score=float(score))
+        )
+    await db.commit()
+    log.debug("Trust scores persisted to DB: %s", _trust_scores)
+
+
+async def load_trust_scores_from_db(db: AsyncSession) -> None:
+    """Re-hydrate the in-memory trust scores from the fl_clients table.
+
+    Called when a new training session starts so the FL server inherits the
+    scores that were accumulated during previous sessions.
+    """
+    result = await db.execute(select(FLClient))
+    clients = list(result.scalars().all())
+    for client in clients:
+        _trust_scores[client.client_id] = float(client.trust_score)
+    log.info("Trust scores loaded from DB: %s", _trust_scores)
+
+
+async def reset_all_trust_scores(db: AsyncSession) -> None:
+    """Reset every client's trust score to 1.0 in both DB and memory."""
+    await db.execute(update(FLClient).values(trust_score=1.0))
+    await db.commit()
+    _trust_scores.clear()
+    # Re-populate memory with all registered clients at 1.0
+    result = await db.execute(select(FLClient))
+    for client in result.scalars().all():
+        _trust_scores[client.client_id] = 1.0
+    log.info("All trust scores reset to 1.0")
 
 
 def record_detection_round(
@@ -471,3 +522,37 @@ def get_detection_rounds() -> list[dict]:
 def get_flagged_clients() -> list[dict]:
     """Return all flagged client records."""
     return list(_flagged_clients)
+
+
+def update_enforcement_status(enforcement: dict[str, str]) -> None:
+    """Overwrite the current per-client enforcement status dict."""
+    _enforcement_status.clear()
+    _enforcement_status.update(enforcement)
+
+
+def record_enforcement_round(
+    round_number: int,
+    enforcement: dict[str, str],
+    excluded_count: int,
+    downweighted_count: int,
+) -> None:
+    """Append an enforcement round record with ISO timestamp."""
+    _enforcement_rounds.append(
+        {
+            "round_number": round_number,
+            "enforcement": dict(enforcement),
+            "excluded_count": excluded_count,
+            "downweighted_count": downweighted_count,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+
+def get_enforcement_status() -> dict[str, str]:
+    """Return the current per-client enforcement status."""
+    return dict(_enforcement_status)
+
+
+def get_enforcement_rounds() -> list[dict]:
+    """Return the full history of enforcement rounds."""
+    return list(_enforcement_rounds)

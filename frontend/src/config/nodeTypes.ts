@@ -133,7 +133,7 @@ export function createDefaultNodeData(type: CanvasNodeType): CanvasNodeData {
         securityFeatures: { vss: true, mtls: true, gradientSigning: true, roundNonces: true, recess: true },
       };
     case 'attack':
-      return { ...base, attackCategory: 'ddos', attackType: 'syn-flood', intensity: 5, duration: 30 };
+      return { ...base, attackCategory: 'ddos', attackType: 'syn-flood', intensity: 9, duration: 30 };
     case 'traffic-source':
       return { ...base, trafficType: 'benign', rate: 100, protocol: 'TCP' };
     case 'rate-filter':

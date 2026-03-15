@@ -183,11 +183,15 @@ export default function LiveDataSync() {
       updateNodeData(node.id, updates as Partial<CanvasNodeData>);
     }
 
-    // ── 3. Attack nodes — map active attack runs by attackId ──
-    const activeAttackIds = new Set<number>();
+    // ── 3. Attack nodes — map active attack runs by attack_id (canvas node ID string) ──
+    const activeAttackNodeIds = new Set<string>();
+    const terminalAttackNodeIds = new Set<string>(); // completed | failed | cancelled
+
     for (const run of Object.values(attackRunStatuses)) {
       if (run.status === 'running' || run.status === 'pending') {
-        activeAttackIds.add(run.attack_id);
+        activeAttackNodeIds.add(run.attack_id);
+      } else if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
+        terminalAttackNodeIds.add(run.attack_id);
       }
     }
 
@@ -195,13 +199,55 @@ export default function LiveDataSync() {
       if (node.data.nodeType !== 'attack') continue;
       const d = node.data as AttackNodeData;
 
-      // Match attack node to live run via data.attackId
-      const isActive = d.attackId != null
-        ? activeAttackIds.has(d.attackId)
-        : activeAttackIds.size > 0; // fallback: no attackId → match any active run
-      const newStatus: NodeStatus = isActive ? 'running' : d.status === 'running' ? 'idle' : d.status;
+      // Match attack node to live run via:
+      // 1. Canvas node ID directly (CVAE attack-node sim)
+      // 2. data.attackId numeric (legacy backend runs)
+      const isActive = activeAttackNodeIds.has(node.id);
 
-      updateNodeData(node.id, { status: newStatus } as Partial<CanvasNodeData>);
+      // Terminal: attack just ended — revert to idle
+      const isTerminal = terminalAttackNodeIds.has(node.id);
+
+      let newStatus: NodeStatus = d.status;
+      if (isActive) {
+        newStatus = 'running';
+      } else if (isTerminal && d.status === 'running') {
+        newStatus = 'idle';
+      } else if (!isActive && d.status === 'running') {
+        // No matching run at all and we're still "running" — revert
+        newStatus = 'idle';
+      }
+
+      if (newStatus !== d.status) {
+        updateNodeData(node.id, { status: newStatus } as Partial<CanvasNodeData>);
+      }
+
+      // When an attack node transitions to idle, also revert chained devices + monitors
+      if (isTerminal && d.status === 'running') {
+        const attackEdges = edges.filter(
+          (e) => e.source === node.id && e.type === 'attack-vector',
+        );
+        for (const ae of attackEdges) {
+          // Only revert device if no *other* active attack targets it
+          const otherActiveAttack = edges.some(
+            (e) =>
+              e.target === ae.target &&
+              e.type === 'attack-vector' &&
+              e.source !== node.id &&
+              activeAttackNodeIds.has(e.source),
+          );
+          if (!otherActiveAttack) {
+            updateNodeData(ae.target, { status: 'idle' } as Partial<CanvasNodeData>);
+
+            // Revert monitors observing this device
+            const monitorEdges = edges.filter(
+              (e) => e.source === ae.target && e.type === 'observation',
+            );
+            for (const me of monitorEdges) {
+              updateNodeData(me.target, { status: 'idle' } as Partial<CanvasNodeData>);
+            }
+          }
+        }
+      }
     }
 
     // ── 4. Device nodes — map device statuses from WS + FL training cascade ──
@@ -421,9 +467,9 @@ export default function LiveDataSync() {
         }
       }
 
-      // Attack vector edges: active when any attack run is running
+      // Attack vector edges: active when the source attack node has a running run
       if (edge.type === 'attack-vector') {
-        const shouldPulse = activeAttackIds.size > 0;
+        const shouldPulse = activeAttackNodeIds.has(edge.source);
         if (edge.data?.active !== shouldPulse) {
           updateEdgeData(edge.id, { active: shouldPulse });
         }

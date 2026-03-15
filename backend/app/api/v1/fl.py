@@ -705,11 +705,19 @@ class FlaggedClientBody(BaseModel):
     abnormality: float
 
 
+class TrustScoreComponents(BaseModel):
+    """Per-client abnormality breakdown from RECESS."""
+    abnormality: float
+    direction_score: float
+    magnitude_score: float
+
+
 class DetectionRoundBody(BaseModel):
     """Payload from FL server when a detection round completes."""
     round: int
     scores: dict[str, float]
     flagged: list[str]
+    components: dict[str, TrustScoreComponents] = {}
 
 
 @router.post("/flagged_client")
@@ -724,16 +732,21 @@ async def post_flagged_client(body: FlaggedClientBody):
         round_number=body.round,
         abnormality=body.abnormality,
     )
+    timestamp = datetime.utcnow().isoformat() + "Z"
     await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_FLAGGED, {
         "client_id": body.client_id,
         "round": body.round,
         "abnormality": body.abnormality,
+        "timestamp": timestamp,
     }))
     return {"ok": True}
 
 
 @router.post("/detection_round")
-async def post_detection_round(body: DetectionRoundBody):
+async def post_detection_round(
+    body: DetectionRoundBody,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Record a completed detection round and update trust scores.
     Called by the FL server after each RECESS anomaly-detection pass.
@@ -745,10 +758,13 @@ async def post_detection_round(body: DetectionRoundBody):
         flagged=body.flagged,
     )
     fl_service.update_trust_scores(body.scores)
+    # Persist updated scores so they survive a backend restart
+    await fl_service.save_trust_scores_to_db(db)
     await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_TRUST_UPDATE, {
         "round": body.round,
         "scores": body.scores,
         "flagged": body.flagged,
+        "components": {cid: c.model_dump() for cid, c in body.components.items()},
     }))
     return {"ok": True}
 
@@ -757,6 +773,25 @@ async def post_detection_round(body: DetectionRoundBody):
 async def get_trust_scores(_user=Depends(get_current_user)):
     """Return the current in-memory trust scores for all FL clients."""
     return {"trust_scores": fl_service.get_trust_scores()}
+
+
+@router.post("/trust_scores/reset")
+async def reset_trust_scores(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Reset all client trust scores to 1.0 in DB and memory.
+
+    JWT-protected — intended for use via the FLSecurityPanel Reset button.
+    Useful before a fresh experiment to avoid stale historical scores
+    influencing RECESS detection.
+    """
+    await fl_service.reset_all_trust_scores(db)
+    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_TRUST_UPDATE, {
+        "scores": fl_service.get_trust_scores(),
+        "reset": True,
+    }))
+    return {"status": "ok", "message": "All trust scores reset to 1.0"}
 
 
 @router.get("/detection_rounds")
@@ -769,6 +804,48 @@ async def get_detection_rounds(_user=Depends(get_current_user)):
 async def get_flagged_clients(_user=Depends(get_current_user)):
     """Return the full history of flagged client events."""
     return {"flagged": fl_service.get_flagged_clients()}
+
+
+# ── Aggregation Enforcement Endpoints ───────────────────
+
+class AggregationEnforcementBody(BaseModel):
+    """Payload sent by the FL server after each aggregation round."""
+    round: int
+    enforcement: dict[str, str]   # client_id → 'included'|'downweighted'|'excluded'
+    excluded_count: int = 0
+    downweighted_count: int = 0
+
+
+@router.post("/aggregation_enforcement")
+async def post_aggregation_enforcement(body: AggregationEnforcementBody):
+    """
+    Record per-client enforcement decisions for an aggregation round.
+    Called by the FL server after trust-weighted aggregation.
+    No auth required (internal service-to-service call).
+    """
+    fl_service.update_enforcement_status(body.enforcement)
+    fl_service.record_enforcement_round(
+        round_number=body.round,
+        enforcement=body.enforcement,
+        excluded_count=body.excluded_count,
+        downweighted_count=body.downweighted_count,
+    )
+    await ws_manager.broadcast(build_ws_message(WSMessageType.AGGREGATION_ENFORCEMENT, {
+        "round": body.round,
+        "enforcement": body.enforcement,
+        "excluded_count": body.excluded_count,
+        "downweighted_count": body.downweighted_count,
+    }))
+    return {"ok": True}
+
+
+@router.get("/enforcement_status")
+async def get_enforcement_status(_user=Depends(get_current_user)):
+    """Return the current per-client enforcement status and full history."""
+    return {
+        "enforcement": fl_service.get_enforcement_status(),
+        "rounds": fl_service.get_enforcement_rounds(),
+    }
 
 
 @router.post("/stop", response_model=FLStopResponse)

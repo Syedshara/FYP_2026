@@ -9,6 +9,8 @@ import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { flApi } from '@/api/fl';
 import type { WSMessage } from '@/hooks/useWebSocket';
+import type { TrustScoreComponents } from '@/types';
+import type { AggregationEnforcementPayload } from '@/types';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const { isConnected, subscribe } = useWebSocket();
@@ -26,6 +28,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     addFlaggedEvent,
     setAttackRunStatus,
     addAttackResult,
+    setEnforcementStatus,
   } = useLiveStore();
   const addSecurityEvent = useLiveStore((s) => s.addSecurityEvent);
 
@@ -278,6 +281,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       setTrustScores({
         scores: d.scores as Record<string, number>,
         round: d.round as number,
+        flagged: d.flagged as string[] ?? [],
+        components: d.components as Record<string, TrustScoreComponents> | undefined,
       });
     }));
 
@@ -288,6 +293,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         clientId: d.client_id as string,
         round: d.round as number,
         abnormality: d.abnormality as number,
+        timestamp: d.timestamp as string | undefined,
       });
     }));
 
@@ -295,8 +301,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     unsubs.push(subscribe('attack_status', (msg: WSMessage) => {
       const d = msg.data;
       setAttackRunStatus({
-        run_id: d.run_id as number,
-        attack_id: d.attack_id as number,
+        run_id: d.run_id as string,
+        attack_id: d.attack_id as string,
         status: d.status as string,
         packets_sent: d.packets_sent as number | undefined,
         duration_seconds: d.duration_seconds as number | undefined,
@@ -309,8 +315,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     unsubs.push(subscribe('attack_result', (msg: WSMessage) => {
       const d = msg.data;
       const result = {
-        run_id: d.run_id as number,
-        attack_id: d.attack_id as number,
+        run_id: d.run_id as string,
+        attack_id: d.attack_id as string,
         status: d.status as string,
         packets_sent: d.packets_sent as number | undefined,
         duration_seconds: d.duration_seconds as number | undefined,
@@ -319,6 +325,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       };
       setAttackRunStatus(result);
       addAttackResult(result);
+    }));
+
+    // ── Aggregation enforcement decisions ──
+    unsubs.push(subscribe('aggregation_enforcement', (msg: WSMessage) => {
+      const d = msg.data as unknown as AggregationEnforcementPayload;
+      setEnforcementStatus(d);
     }));
 
     // ── Security pipeline event (Phase 3) ──
@@ -338,6 +350,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     subscribe, addPrediction, setFLClientProgress, setFLGlobalProgress,
     addFLRoundResult, addFLClientRoundEntry, clearFLProgress, setClientStatus, setDeviceStatus,
     setTrustScores, addFlaggedEvent, setAttackRunStatus, addAttackResult, addSecurityEvent,
+    setEnforcementStatus,
   ]);
 
   return <>{children}</>;

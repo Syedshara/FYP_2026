@@ -113,6 +113,8 @@ class FLClient(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    # Persisted RECESS trust score — survives backend restarts
+    trust_score: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     # Relationships — one client has many devices
     devices: Mapped[list["Device"]] = relationship(

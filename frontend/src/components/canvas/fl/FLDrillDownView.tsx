@@ -21,6 +21,7 @@ import FLSecurityPanel from './FLSecurityPanel';
 import FLOutputPanel from './FLOutputPanel';
 import FLAccuracyChart from './FLAccuracyChart';
 import FLRoundLog from './FLRoundLog';
+import FLTimelinePanel from './FLTimelinePanel';
 
 export default function FLDrillDownView() {
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
@@ -62,6 +63,22 @@ export default function FLDrillDownView() {
       .then(setAllClients)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Hydrate trust state from REST (historical data before any WS traffic)
+    Promise.all([
+      flApi.trustScores().catch(() => ({} as Record<string, number>)),
+      flApi.detectionRounds().catch(() => []),
+      flApi.flaggedClients().catch(() => []),
+    ]).then(([scores, rounds, flagged]) => {
+      useLiveStore.getState().hydrateTrustState(scores, rounds, flagged);
+    });
+
+    // Hydrate enforcement status from REST
+    flApi.enforcementStatus()
+      .then((enforcement) => {
+        useLiveStore.getState().hydrateEnforcementStatus(enforcement);
+      })
+      .catch(() => {});
   }, []);
 
   // Also refresh client list when training starts/stops or round changes
@@ -77,6 +94,7 @@ export default function FLDrillDownView() {
     useLiveStore.getState().clearFLRoundResults();
     useLiveStore.getState().clearFLClientRoundHistory();
     useLiveStore.getState().clearSecurityEvents();
+    useLiveStore.getState().clearTrustScores();
   }, [setViewMode, setDrilldownServerId]);
 
   // Keyboard: Escape to go back
@@ -183,16 +201,17 @@ export default function FLDrillDownView() {
             <FLClientProgressList clients={clients} />
           </aside>
 
-          {/* CENTER: Chart + Round Log */}
+          {/* CENTER: Chart + Round Log + Security Event Timeline */}
           <main
             className="flex-1 flex flex-col gap-5 overflow-y-auto min-w-0"
             style={{ padding: '16px 20px' }}
           >
             <FLAccuracyChart />
             <FLRoundLog />
+            <FLTimelinePanel />
           </main>
 
-          {/* RIGHT PANEL: Security + Output Timeline */}
+          {/* RIGHT PANEL: Trust Scores + Certificates */}
           <aside
             className="shrink-0 flex flex-col overflow-hidden"
             style={{
@@ -201,15 +220,19 @@ export default function FLDrillDownView() {
               borderLeft: '1px solid var(--n8n-card-border)',
             }}
           >
-            {/* Top: Security indicators + trust scores (scrollable, collapsible) */}
+            {/* Top: Trust scores + flagged events (scrollable, capped at 50%) */}
             <div
               className="shrink-0 overflow-y-auto"
-              style={{ padding: '16px 14px', maxHeight: '40%', borderBottom: '1px solid var(--n8n-card-border)' }}
+              style={{
+                padding: '16px 14px',
+                borderBottom: '1px solid var(--n8n-card-border)',
+                maxHeight: '50%',
+              }}
             >
-              <FLSecurityPanel securityFeatures={serverData?.securityFeatures} />
+              <FLSecurityPanel />
             </div>
 
-            {/* Bottom: Live security event timeline + certificates */}
+            {/* Bottom: Certificates */}
             <div className="flex-1 min-h-0 overflow-hidden">
               <FLOutputPanel />
             </div>

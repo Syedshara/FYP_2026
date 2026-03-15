@@ -56,7 +56,7 @@ export default function FLRoundLog() {
   ].sort((a, b) => b.round_number - a.round_number);
 
   return (
-    <div className="fl-vis-card">
+    <div className="fl-vis-card shrink-0">
       {/* Card header — title lives inside the card, same as Topology */}
       <div className="fl-vis-card-header">
         <List size={13} style={{ color: 'var(--n8n-text-muted)', flexShrink: 0 }} />
@@ -70,7 +70,7 @@ export default function FLRoundLog() {
           <p className="fl-empty-state-text">No rounds completed yet</p>
         </div>
       ) : (
-        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+        <div style={{ maxHeight: 280, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'var(--n8n-card-border) transparent' }}>
           {/* Sticky column header */}
           <div
             className="grid gap-2 text-[10px] font-semibold uppercase tracking-wider"

@@ -101,13 +101,34 @@ export const flApi = {
 
   // Trust / Detection / Security
   trustScores: () =>
-    api.get<Record<string, number>>('/fl/trust_scores').then((r) => r.data),
+    api.get<{ trust_scores: Record<string, number> }>('/fl/trust_scores')
+      .then((r) => r.data.trust_scores),
+
+  resetTrustScores: () =>
+    api.post<{ status: string; message: string }>('/fl/trust_scores/reset')
+      .then((r) => r.data),
 
   detectionRounds: () =>
-    api.get<DetectionRound[]>('/fl/detection_rounds').then((r) => r.data),
+    api.get<{ rounds: Array<{ round_number: number; scores: Record<string, number>; flagged: string[]; timestamp?: string }> }>('/fl/detection_rounds')
+      .then((r) => r.data.rounds.map((row) => ({
+        round: row.round_number,
+        scores: row.scores,
+        flagged: row.flagged,
+        timestamp: row.timestamp,
+      }))),
 
   flaggedClients: () =>
-    api.get<FlaggedClientEvent[]>('/fl/flagged_clients').then((r) => r.data),
+    api.get<{ flagged: Array<{ client_id: string; round_number: number; abnormality: number; timestamp?: string }> }>('/fl/flagged_clients')
+      .then((r) => r.data.flagged.map((row) => ({
+        client_id: row.client_id,
+        round: row.round_number,
+        abnormality: row.abnormality,
+        timestamp: row.timestamp,
+      }))),
+
+  enforcementStatus: () =>
+    api.get<{ enforcement: Record<string, string> }>('/fl/enforcement_status')
+      .then((r) => r.data.enforcement as Record<string, import('@/types').ClientEnforcementStatus>),
 
   // Certificates (mTLS)
   certificates: () =>

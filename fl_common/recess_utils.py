@@ -130,6 +130,12 @@ def construct_test_gradient(
             f"({DIRECTION_THRESH}) after {max_attempts} attempts."
         )
 
+    # ── Fix A: Restore original magnitude ─────────────────────────────────
+    # The probe was normalised to unit length for direction perturbation.
+    # Scale it back to the original gradient's magnitude so that the
+    # magnitude comparison in compute_abnormality_components() is meaningful.
+    result_flat = result_flat * orig_norm
+
     # Reconstruct dict with original shapes (use sorted key order to match flatten)
     test_gradient: dict[str, torch.Tensor] = {}
     offset = 0
@@ -142,14 +148,14 @@ def construct_test_gradient(
     return test_gradient
 
 
-def compute_abnormality(
+def compute_abnormality_components(
     test_flat: torch.Tensor,
     response_flat: torch.Tensor,
-) -> float:
-    """Compute an abnormality score in [0, 1] from flat gradient vectors.
+) -> tuple[float, float, float]:
+    """Compute the full abnormality breakdown from flat gradient vectors.
 
-    A score near 0 means the response is benign; a score near 1 means the
-    response is highly anomalous.
+    Returns all three values needed to explain *why* a client received a
+    particular abnormality score.
 
     Score = 0.5 × direction_score + 0.5 × magnitude_score
 
@@ -162,24 +168,27 @@ def compute_abnormality(
             0, 1
         )
 
-    The magnitude score rises when the response norm is substantially larger
-    than the test norm, which is a common signature of gradient amplification
-    attacks.
-
     Args:
         test_flat:     1-D float32 tensor — the (normalised) test gradient.
         response_flat: 1-D float32 tensor — the client's response gradient,
                        flattened to the same length.
 
     Returns:
-        Abnormality score as a Python ``float`` in [0.0, 1.0].
+        ``(abnormality, direction_score, magnitude_score)`` — all Python
+        ``float`` values in [0.0, 1.0].
     """
     norm_test = torch.norm(test_flat).item()
     norm_resp = torch.norm(response_flat).item()
 
-    # Zero-vector edge case → maximally abnormal
+    # ── Fix C: Graceful near-zero handling ───────────────────────────────
+    # Both vectors near zero → no meaningful signal → benign (no penalty).
+    # Only one vector near zero → uncertain → mild concern (0.5).
+    # Previously this returned (1.0, 1.0, 1.0) which unfairly penalized
+    # clients on startup or low-activity rounds.
+    if norm_test < 1e-8 and norm_resp < 1e-8:
+        return 0.0, 0.0, 0.0
     if norm_test < 1e-8 or norm_resp < 1e-8:
-        return 1.0
+        return 0.5, 0.5, 0.5
 
     # Direction score
     cos_sim = F.cosine_similarity(
@@ -190,7 +199,32 @@ def compute_abnormality(
     # Magnitude score
     magnitude_score = max(0.0, min(1.0, (norm_resp / (norm_test + 1e-8) - 1.0) / 2.0))
 
-    return 0.5 * direction_score + 0.5 * magnitude_score
+    abnormality = 0.5 * direction_score + 0.5 * magnitude_score
+    return abnormality, direction_score, magnitude_score
+
+
+def compute_abnormality(
+    test_flat: torch.Tensor,
+    response_flat: torch.Tensor,
+) -> float:
+    """Compute an abnormality score in [0, 1] from flat gradient vectors.
+
+    Backward-compatible wrapper around :func:`compute_abnormality_components`
+    that returns only the combined score.
+
+    A score near 0 means the response is benign; a score near 1 means the
+    response is highly anomalous.
+
+    Args:
+        test_flat:     1-D float32 tensor — the (normalised) test gradient.
+        response_flat: 1-D float32 tensor — the client's response gradient,
+                       flattened to the same length.
+
+    Returns:
+        Abnormality score as a Python ``float`` in [0.0, 1.0].
+    """
+    abnormality, _, _ = compute_abnormality_components(test_flat, response_flat)
+    return abnormality
 
 
 def update_trust_score(
@@ -249,7 +283,7 @@ if __name__ == "__main__":
         "Fake gradient keys must match SELECTED_LAYERS"
     )
 
-    # ── 2. construct_test_gradient ──────────────────────────────────────────
+    # ── 2. construct_test_gradient — direction + magnitude preserved ────────
     test_grad = construct_test_gradient(fake_grad)
 
     orig_flat = flatten_gradient(fake_grad)
@@ -270,28 +304,68 @@ if __name__ == "__main__":
         f"Cosine similarity {cos_sim:.6f} < DIRECTION_THRESH {DIRECTION_THRESH}"
     )
 
-    # ── 3. compute_abnormality ──────────────────────────────────────────────
-    # Identical normalised vectors → score ≈ 0
-    unit_vec = orig_flat / torch.norm(orig_flat)
-    same_score = compute_abnormality(unit_vec, unit_vec)
+    # Fix A validation: probe magnitude ≈ original magnitude (not 1.0)
+    orig_norm = torch.norm(orig_flat).item()
+    probe_norm = torch.norm(test_flat).item()
+    mag_ratio = probe_norm / (orig_norm + 1e-8)
+    print(f"  Probe magnitude: orig_norm={orig_norm:.4f}  probe_norm={probe_norm:.4f}  ratio={mag_ratio:.4f}")
+    assert 0.9 < mag_ratio < 1.1, (
+        f"Probe norm should be ≈ original norm, got ratio={mag_ratio:.4f} "
+        f"(orig={orig_norm:.4f}, probe={probe_norm:.4f})"
+    )
+
+    # ── 3. compute_abnormality — benign client (realistic simulation) ───────
+    # Simulate what Fix B does server-side: compare Δ_i vs probe (≈ avg(Δ))
+    # A benign client's Δ_i should be close in direction and magnitude to avg(Δ)
+    # Note: randn_like produces a vector with expected norm ≈ sqrt(n) ≈ orig_norm,
+    # so multiplying by 0.1 gives noise with ~10% of the gradient's norm.
+    benign_delta = orig_flat + torch.randn_like(orig_flat) * 0.1
+    benign_score, benign_dir, benign_mag = compute_abnormality_components(test_flat, benign_delta)
+    print(f"  Benign client:  abnormality={benign_score:.4f}  dir={benign_dir:.4f}  mag={benign_mag:.4f}")
+    assert benign_score < 0.3, (
+        f"Benign client (similar direction+magnitude) should have abnormality < 0.3, got {benign_score:.6f}"
+    )
+
+    # Identical vectors → score ≈ 0
+    same_score = compute_abnormality(orig_flat, orig_flat)
+    print(f"  Identical vecs: abnormality={same_score:.4f}")
     assert same_score < 0.1, (
         f"Identical vectors should yield score < 0.1, got {same_score:.6f}"
     )
 
     # Orthogonal vectors → large direction divergence → score > 0.4
-    n = unit_vec.numel()
+    n = orig_flat.numel()
     orth_vec = torch.randn(n)
-    # Project out the component along unit_vec to make truly orthogonal
-    orth_vec = orth_vec - (orth_vec @ unit_vec) * unit_vec
+    unit_orig = orig_flat / orig_norm
+    orth_vec = orth_vec - (orth_vec @ unit_orig) * unit_orig
     orth_norm = torch.norm(orth_vec).item()
     if orth_norm > 1e-8:
-        orth_vec = orth_vec / orth_norm
-    orth_score = compute_abnormality(unit_vec, orth_vec)
+        orth_vec = orth_vec / orth_norm * orig_norm  # same magnitude, perpendicular direction
+    orth_score, orth_dir, orth_mag = compute_abnormality_components(test_flat, orth_vec)
+    print(f"  Orthogonal:     abnormality={orth_score:.4f}  dir={orth_dir:.4f}  mag={orth_mag:.4f}")
     assert orth_score > 0.4, (
         f"Orthogonal vectors should yield score > 0.4, got {orth_score:.6f}"
     )
 
-    # ── 4. update_trust_score — decay to below FLAG_THRESHOLD ───────────────
+    # ── 4. Fix C validation: near-zero edge cases ───────────────────────────
+    zero_vec = torch.zeros(100)
+    nonzero_vec = torch.randn(100)
+
+    # Both zero → benign (no signal)
+    a, d, m = compute_abnormality_components(zero_vec, zero_vec)
+    print(f"  Both zero:      abnormality={a:.4f}  dir={d:.4f}  mag={m:.4f}")
+    assert a == 0.0 and d == 0.0 and m == 0.0, (
+        f"Both-zero should return (0,0,0), got ({a}, {d}, {m})"
+    )
+
+    # One zero → uncertain (0.5)
+    a, d, m = compute_abnormality_components(zero_vec, nonzero_vec)
+    print(f"  One zero:       abnormality={a:.4f}  dir={d:.4f}  mag={m:.4f}")
+    assert a == 0.5 and d == 0.5 and m == 0.5, (
+        f"One-zero should return (0.5,0.5,0.5), got ({a}, {d}, {m})"
+    )
+
+    # ── 5. update_trust_score — decay to below FLAG_THRESHOLD ───────────────
     score = 1.0
     for _ in range(20):
         score = update_trust_score(score, abnormality=1.0)
@@ -300,8 +374,17 @@ if __name__ == "__main__":
         f"should be < FLAG_THRESHOLD ({FLAG_THRESHOLD})"
     )
 
-    # ── 5. is_flagged ────────────────────────────────────────────────────────
+    # Benign trust: 20 rounds of low abnormality → trust stays high
+    score_benign = 1.0
+    for _ in range(20):
+        score_benign = update_trust_score(score_benign, abnormality=0.1)
+    print(f"  Benign trust after 20 rounds: {score_benign:.4f}")
+    assert score_benign > 0.85, (
+        f"After 20 rounds of low abnormality, trust should stay > 0.85, got {score_benign:.6f}"
+    )
+
+    # ── 6. is_flagged ────────────────────────────────────────────────────────
     assert is_flagged(0.29) is True,  "0.29 should be flagged"
     assert is_flagged(0.31) is False, "0.31 should NOT be flagged"
 
-    print("ALL RECESS TESTS PASSED")
+    print("\nALL RECESS TESTS PASSED ✓")

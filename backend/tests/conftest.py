@@ -27,6 +27,35 @@ for mod_name in ("torch", "torch.nn", "numpy", "joblib"):
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
 
+# numpy.__version__ must be a real string — pandas accesses it as a dunder
+# attribute and MagicMock blocks those by default.
+sys.modules["numpy"].__version__ = "1.24.0"
+
+# ── Mock Docker / Redis / FL deps that are unavailable in CI ─
+for mod_name in (
+    "docker",
+    "docker.errors",
+    "docker.models",
+    "docker.models.containers",
+    "redis",
+    "redis.asyncio",
+    "flwr",
+    "flwr.server",
+    "flwr.common",
+    "tenseal",
+    # pandas C-extensions are not built in the test venv — mock the whole package
+    "pandas",
+    "pandas.core",
+    "pandas.core.frame",
+    "pandas.compat",
+    "pandas.compat.numpy",
+    "sklearn",
+    "sklearn.preprocessing",
+    "sklearn.model_selection",
+):
+    if mod_name not in sys.modules:
+        sys.modules[mod_name] = MagicMock()
+
 # ── Patch settings BEFORE any app imports ────────────────
 import app.config as _cfg
 

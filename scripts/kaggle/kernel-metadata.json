@@ -1,0 +1,13 @@
+{
+  "id": "syedsharashree/train-cvae-fyp-ids-synthetic-traffic-generator",
+  "title": "Train CVAE — FYP IDS Synthetic Traffic Generator",
+  "code_file": "train_cvae.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["syedsharashree/cicids2017-full-15class"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

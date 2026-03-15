@@ -246,13 +246,35 @@ export interface SecurityStatus {
 }
 
 // ── WebSocket message payloads ──
+export interface TrustScoreComponents {
+  abnormality: number;
+  direction_score: number;
+  magnitude_score: number;
+}
+
 export interface ClientTrustUpdatePayload {
   scores: Record<string, number>;   // clientId → score
   round: number;
+  flagged?: string[];
+  components?: Record<string, TrustScoreComponents>;
 }
 
 export interface ClientFlaggedPayload {
   clientId: string;
   round: number;
   abnormality: number;
+  timestamp?: string;
+}
+
+// ── Aggregation Enforcement ──
+
+/** Per-client trust enforcement tier decided at aggregation time. */
+export type ClientEnforcementStatus = 'included' | 'downweighted' | 'excluded';
+
+export interface AggregationEnforcementPayload {
+  round: number;
+  /** client_id → enforcement tier */
+  enforcement: Record<string, ClientEnforcementStatus>;
+  excluded_count: number;
+  downweighted_count: number;
 }

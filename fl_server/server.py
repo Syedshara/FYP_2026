@@ -54,9 +54,10 @@ from fl_common.vss_utils import split_key, proactive_refresh
 from fl_common.signing_utils import verify_gradient
 from fl_common.recess_utils import (
     flatten_gradient,
-    compute_abnormality,
+    compute_abnormality_components,
     construct_test_gradient,
     update_trust_score,
+    FLAG_THRESHOLD,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
@@ -224,6 +225,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         # ── Last aggregated gradient (for RECESS probing) ──
         self._last_agg_gradient: Optional[Dict[str, torch.Tensor]] = None
 
+        # ── Current RECESS probe sent to clients this detection round ──────
+        self._current_probe: Optional[Dict[str, torch.Tensor]] = None
+
         # ── Client public keys (Ed25519 PEM) ───────────────
         self._client_public_keys: Dict[str, bytes] = _load_client_public_keys()
 
@@ -264,6 +268,20 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         nonce = generate_round_nonce(self._session_id, server_round)
         self._round_nonces[server_round] = nonce
 
+        # ── Option B: load persisted trust scores on round 1 ──────────────
+        # By round 1 the backend is guaranteed to be running (it spawned us).
+        # This re-hydrates _trust_scores with any scores accumulated during
+        # previous training sessions that were persisted to the DB.
+        if server_round == 1:
+            try:
+                resp = _get_http().get("/api/v1/internal/fl/trust_scores")
+                persisted = resp.json().get("trust_scores", {})
+                if persisted:
+                    self._trust_scores.update(persisted)
+                    log.info("Loaded persisted trust scores from backend: %s", persisted)
+            except Exception as exc:
+                log.warning("Could not load trust scores from backend (non-fatal): %s", exc)
+
         is_detect = server_round % RECESS_INTERVAL == 0
         config: Dict[str, Scalar] = {
             "server_round": server_round,
@@ -276,6 +294,30 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             "round_nonce": nonce,
             "detect": str(is_detect).lower(),
         }
+
+        # ── Construct and embed RECESS probe for detection rounds ──────────
+        # The probe is a noisy version of the last aggregated delta.
+        # Clients ignore it (the comparison happens server-side), but embedding
+        # it makes the config self-documenting and future-proofs client-side use.
+        if is_detect and self._last_agg_gradient is not None:
+            try:
+                probe_dict = construct_test_gradient(self._last_agg_gradient)
+                self._current_probe = probe_dict
+                probe_flat = flatten_gradient(probe_dict)
+                config["recess_probe_b64"] = base64.b64encode(
+                    probe_flat.numpy().tobytes()
+                ).decode("ascii")
+                log.debug(
+                    "RECESS probe constructed and embedded (%d elements)", probe_flat.numel()
+                )
+            except Exception as exc:
+                log.warning("Failed to construct RECESS probe: %s — proceeding without probe", exc)
+                self._current_probe = None
+        elif is_detect:
+            # Round 1 RECESS — no prior delta yet, probe will be None
+            self._current_probe = None
+            log.debug("RECESS detection round %d — no prior gradient, probe skipped", server_round)
+
         fit_ins = FitIns(parameters, config)
         sample_size = max(self.min_fit_clients, MIN_FIT_CLIENTS)
         clients = client_manager.sample(
@@ -317,13 +359,25 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             "message": f"Aggregating {num_clients} client updates (HE={self.use_he})",
         })
 
+        # Snapshot the model weights BEFORE aggregation so we can compute deltas after
+        pre_agg_state: Dict[str, torch.Tensor] = {}
+        try:
+            state = self.global_model.state_dict()
+            pre_agg_state = {
+                key: state[key].cpu().detach().clone()
+                for key in SELECTED_LAYERS
+                if key in state
+            }
+        except Exception as exc:
+            log.warning("Could not snapshot pre-agg state: %s", exc)
+
         if self.use_he:
             params, metrics = self._aggregate_he(rnd, results)
         else:
             params, metrics = self._aggregate_plain(rnd, results)
 
-        # Cache last aggregated gradient for RECESS probing
-        self._update_last_agg_gradient()
+        # Cache last aggregated gradient delta (post − pre) for RECESS probing
+        self._update_last_agg_gradient(pre_agg_state)
 
         elapsed = time.time() - t0
         metrics["aggregation_time_sec"] = float(elapsed)
@@ -364,6 +418,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         trust_updates: Dict[str, float] = {}
         flagged_in_round: List[str] = []
         sec_events: List[dict] = []  # batch security events
+        components: Dict[str, dict] = {}  # per-client abnormality breakdown
 
         for proxy, fit_res in results:
             m = fit_res.metrics or {}
@@ -428,14 +483,18 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 continue
 
             # ── 5. Build test gradient flat vector ────────
-            if self._last_agg_gradient is not None:
+            # Use the pre-constructed RECESS probe (built from the aggregation delta
+            # in configure_fit) so that test_flat and response_flat are aligned in
+            # both length and semantic meaning.
+            if self._current_probe is not None:
                 try:
-                    test_flat = flatten_gradient(self._last_agg_gradient)
+                    test_flat = flatten_gradient(self._current_probe)
                 except Exception as exc:
-                    log.warning("Could not flatten last agg gradient: %s", exc)
+                    log.warning("Could not flatten RECESS probe: %s — using response as reference", exc)
                     test_flat = response_flat.clone()
             else:
-                # No prior round gradient — use the response itself as neutral reference
+                # No probe available (round 1 or probe construction failed) —
+                # use the response itself as a neutral reference (abnormality ≈ 0)
                 test_flat = response_flat.clone()
 
             # Align lengths (truncate / pad to shorter)
@@ -443,12 +502,52 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             test_flat = test_flat[:min_len]
             response_flat = response_flat[:min_len]
 
+            # ── Fix B: Reconstruct true client update Δ_i ─────────────
+            # Client returns: local_params − global_new = Δ_i − avg(Δ)
+            # We recover Δ_i = response + avg(Δ) so that the comparison
+            # is between Δ_i and the probe (≈ avg(Δ)), which are
+            # semantically aligned.  Without this, response and probe
+            # are geometrically orthogonal → cos_sim ≈ 0 always.
+            if self._last_agg_gradient is not None and self._current_probe is not None:
+                try:
+                    agg_delta_flat = flatten_gradient(self._last_agg_gradient)[:min_len]
+                    response_flat = response_flat + agg_delta_flat
+                except Exception as exc:
+                    log.warning("Could not reconstruct Δ_i for %s: %s", cid, exc)
+
+            # ── Diagnostic checkpoint 1: probe norm ──────────────
+            probe_norm = torch.norm(test_flat).item()
+            resp_norm = torch.norm(response_flat).item()
+            log.info(
+                "RECESS diag [%s] probe_norm=%.4f  resp_norm=%.4f",
+                cid, probe_norm, resp_norm,
+            )
+
             # ── 6. Compute abnormality score ───────────────
             try:
-                abnormality = compute_abnormality(test_flat, response_flat)
+                abnormality, direction_score, magnitude_score = compute_abnormality_components(test_flat, response_flat)
             except Exception as exc:
-                log.warning("Round %d — client %s: compute_abnormality error: %s", rnd, cid, exc)
-                abnormality = 1.0
+                log.warning("Round %d — client %s: compute_abnormality_components error: %s", rnd, cid, exc)
+                abnormality, direction_score, magnitude_score = 1.0, 1.0, 1.0
+
+            # ── Diagnostic checkpoint 2: cos_sim & magnitude ratio ──
+            _cos_sim = torch.nn.functional.cosine_similarity(
+                test_flat.unsqueeze(0), response_flat.unsqueeze(0)
+            ).item() if probe_norm > 1e-8 and resp_norm > 1e-8 else 0.0
+            _mag_ratio = resp_norm / (probe_norm + 1e-8)
+            log.info(
+                "RECESS diag [%s] cos_sim=%.4f  mag_ratio=%.4f  "
+                "dir_score=%.4f  mag_score=%.4f  abnormality=%.4f",
+                cid, _cos_sim, _mag_ratio,
+                direction_score, magnitude_score, abnormality,
+            )
+
+            # Store per-client components for detection_round POST
+            components[cid] = {
+                "abnormality": float(abnormality),
+                "direction_score": float(direction_score),
+                "magnitude_score": float(magnitude_score),
+            }
 
             # ── 7. Update trust score ──────────────────────
             current = self._trust_scores.get(cid, 1.0)
@@ -484,6 +583,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     "round": rnd,
                     "scores": {cid: float(score) for cid, score in trust_updates.items()},
                     "flagged": flagged_in_round,
+                    "components": components,
                 },
             )
 
@@ -515,17 +615,22 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         except Exception as exc:
             log.error("VSS key refresh failed: %s", exc)
 
-    def _update_last_agg_gradient(self) -> None:
-        """Cache the current global model state as the last aggregated gradient."""
+    def _update_last_agg_gradient(self, pre_agg_state: Dict[str, torch.Tensor]) -> None:
+        """Cache the aggregation delta (post − pre) for SELECTED_LAYERS as the last gradient.
+
+        Using the delta rather than absolute weights gives RECESS a meaningful signal:
+        a benign client should produce a response gradient proportional to this delta,
+        while a poisoned client's response will deviate in direction and/or magnitude.
+        """
         try:
-            state = self.global_model.state_dict()
+            post = self.global_model.state_dict()
             self._last_agg_gradient = {
-                key: state[key].cpu().detach().clone()
+                key: (post[key] - pre_agg_state[key]).cpu().detach().clone()
                 for key in SELECTED_LAYERS
-                if key in state
+                if key in post and key in pre_agg_state
             }
         except Exception as exc:
-            log.warning("Could not cache last agg gradient: %s", exc)
+            log.warning("Could not compute last agg gradient delta: %s", exc)
 
     def _report_round(
         self,
@@ -589,95 +694,182 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
     # ── Plain FedAvg ─────────────────────────────────────
 
+    def _build_trust_weights(
+        self, results
+    ) -> tuple[list[tuple[list, float, str]], dict[str, str], float]:
+        """Compute per-client effective weights from trust scores.
+
+        Returns:
+            active:      list of (ndarrays, effective_weight, client_id) — excluded clients omitted.
+            enforcement: dict[client_id → 'included'|'downweighted'|'excluded'].
+            total_weight: sum of all effective weights (for normalisation).
+
+        Classification:
+            trust >= 0.5            → included      (effective_weight = trust × num_examples)
+            0.3 <= trust < 0.5      → downweighted  (effective_weight = trust × num_examples)
+            trust < FLAG_THRESHOLD  → excluded       (weight = 0, not in active list)
+        """
+        active: list[tuple[list, float, str]] = []
+        enforcement: dict[str, str] = {}
+        total_weight: float = 0.0
+
+        for proxy, fit_res in results:
+            m = fit_res.metrics or {}
+            cid = str(m.get("client_id", getattr(proxy, "cid", f"unknown_{id(proxy)}")))
+            trust = self._trust_scores.get(cid, 1.0)
+
+            if trust < FLAG_THRESHOLD:
+                enforcement[cid] = "excluded"
+                log.info("Aggregation — client %s excluded (trust=%.3f < %.2f)", cid, trust, FLAG_THRESHOLD)
+            else:
+                ndarrays = parameters_to_ndarrays(fit_res.parameters)
+                eff_weight = trust * fit_res.num_examples
+                active.append((ndarrays, eff_weight, cid))
+                total_weight += eff_weight
+                enforcement[cid] = "downweighted" if trust < 0.5 else "included"
+
+        return active, enforcement, total_weight
+
+    def _post_enforcement(self, rnd: int, enforcement: dict[str, str]) -> None:
+        """POST aggregation enforcement actions to the backend."""
+        excluded = sum(1 for v in enforcement.values() if v == "excluded")
+        downweighted = sum(1 for v in enforcement.values() if v == "downweighted")
+        if excluded > 0 or downweighted > 0:
+            log.info(
+                "Round %d — enforcement: %d excluded, %d downweighted",
+                rnd, excluded, downweighted,
+            )
+        _post_to_backend(
+            "/api/v1/fl/aggregation_enforcement",
+            {
+                "round": rnd,
+                "enforcement": enforcement,
+                "excluded_count": excluded,
+                "downweighted_count": downweighted,
+            },
+        )
+
     def _aggregate_plain(self, server_round, results):
-        weights_results = [
-            (parameters_to_ndarrays(r.parameters), r.num_examples) for _, r in results
-        ]
-        total = sum(n for _, n in weights_results)
-        num_layers = len(weights_results[0][0])
+        active, enforcement, total_weight = self._build_trust_weights(results)
+
+        # All clients excluded — keep current global model unchanged
+        if total_weight == 0.0 or not active:
+            log.warning(
+                "Round %d — all clients excluded by trust enforcement; "
+                "skipping aggregation, keeping current model",
+                server_round,
+            )
+            self._post_enforcement(server_round, enforcement)
+            current_params = ndarrays_to_parameters(self._get_global_ndarrays())
+            return current_params, {"aggregation": "fedavg_plain_skipped_all_excluded"}
+
+        num_layers = len(active[0][0])
         avg = []
         for i in range(num_layers):
-            layer_sum = np.zeros_like(weights_results[0][0][i])
-            for layers, n in weights_results:
-                layer_sum += layers[i] * (n / total)
-            avg.append(layer_sum)
+            layer_sum = np.zeros_like(active[0][0][i], dtype=np.float64)
+            for ndarrays, eff_weight, _cid in active:
+                layer_sum += ndarrays[i].astype(np.float64) * (eff_weight / total_weight)
+            avg.append(layer_sum.astype(np.float32))
 
         self._set_global_ndarrays(avg)
+        self._post_enforcement(server_round, enforcement)
         return ndarrays_to_parameters(avg), {"aggregation": "fedavg_plain"}
 
     # ── HE FedAvg ────────────────────────────────────────
 
     def _aggregate_he(self, server_round, results):
         """
-        HE-based aggregation using CKKS. Falls back to plain FedAvg on any error
-        (TenSEAL failures are common on low-memory/low-power dev machines).
+        HE-based aggregation using CKKS with trust-weighted deltas.
+        Falls back to plain FedAvg on any error (TenSEAL failures are common on
+        low-memory/low-power dev machines).
+
+        Non-selected layers: trust-weighted plain average.
+        Selected (CKKS) layers: each client's encrypted delta is scaled by
+        (effective_weight / total_weight) before summing, so excluded clients
+        contribute zero and downweighted clients contribute proportionally.
 
         NOTE (Phase 2A — deferred):
         Currently decrypts via ``enc_agg[key].decrypt()`` using the server's own
-        CKKS secret key.  Full VSS integration would call ``threshold_decrypt()``
-        from ``fl_common/vss_utils.py`` which requires client shares, nonces, and
-        commitments.  However the Flower FitRes protocol does not carry those
-        fields today.  Wiring them in requires either:
-          a) extending ``fit()`` return metrics to include VSS shares per layer, or
-          b) a side-channel (HTTP POST from clients to server with share data).
-        Until that plumbing is done, the VSS ceremony runs at init (key-gen +
-        commitment distribution) but threshold decryption is not used.
+        CKKS secret key.  Full VSS threshold decryption is planned but deferred
+        until the Flower FitRes protocol carries VSS share fields.
         """
         try:
             import tenseal as ts
 
-            num_clients = len(results)
+            active, enforcement, total_weight = self._build_trust_weights(results)
+
+            # All clients excluded — keep current global model unchanged
+            if total_weight == 0.0 or not active:
+                log.warning(
+                    "Round %d — all clients excluded (HE path); "
+                    "skipping aggregation, keeping current model",
+                    server_round,
+                )
+                self._post_enforcement(server_round, enforcement)
+                current_params = ndarrays_to_parameters(self._get_global_ndarrays())
+                return current_params, {"aggregation": "fedavg_he_skipped_all_excluded"}
+
+            num_active = len(active)
             global_state = self.global_model.state_dict()
             keys = list(global_state.keys())
 
-            weights_results = [
-                (parameters_to_ndarrays(r.parameters), r.num_examples) for _, r in results
-            ]
-            total_examples = sum(n for _, n in weights_results)
-
-            # Plain FedAvg for non-selected layers
+            # ── Plain trust-weighted average for non-selected layers ──
             new_ndarrays = []
             for i, key in enumerate(keys):
                 if key not in SELECTED_LAYERS:
-                    layer_sum = np.zeros_like(weights_results[0][0][i])
-                    for layers, n in weights_results:
-                        layer_sum += layers[i] * (n / total_examples)
-                    new_ndarrays.append(layer_sum)
+                    layer_sum = np.zeros_like(active[0][0][i], dtype=np.float64)
+                    for ndarrays, eff_weight, _cid in active:
+                        layer_sum += ndarrays[i].astype(np.float64) * (eff_weight / total_weight)
+                    new_ndarrays.append(layer_sum.astype(np.float32))
                 else:
                     new_ndarrays.append(global_state[key].cpu().numpy())
 
-            # HE aggregation for selected layers
-            _emit_security_event("he_encrypt", server_round, detail=f"Encrypting deltas for {len(SELECTED_LAYERS)} layers from {num_clients} clients")
+            # ── HE aggregation for selected layers ──
+            _emit_security_event(
+                "he_encrypt", server_round,
+                detail=f"Encrypting deltas for {len(SELECTED_LAYERS)} layers from {num_active} active clients",
+            )
 
             encrypted_deltas = []
-            shapes = {}
-            for layers, _n in weights_results:
-                client_enc = {}
+            shapes: dict[str, tuple] = {}
+            for ndarrays, eff_weight, _cid in active:
+                w = eff_weight / total_weight  # normalised weight
+                client_enc: dict = {}
                 for i, key in enumerate(keys):
                     if key in SELECTED_LAYERS:
-                        delta = layers[i] - global_state[key].cpu().numpy()
+                        delta = ndarrays[i] - global_state[key].cpu().numpy()
                         delta = np.clip(delta, -10.0, 10.0).astype(np.float64)
                         delta = np.nan_to_num(delta, nan=0.0, posinf=0.0, neginf=0.0)
                         shapes[key] = delta.shape
-                        client_enc[key] = ts.ckks_vector(self.ckks_ctx, delta.flatten().tolist())
+                        # Scale delta by normalised trust weight before encrypting
+                        scaled = (delta * w).flatten().tolist()
+                        client_enc[key] = ts.ckks_vector(self.ckks_ctx, scaled)
                 encrypted_deltas.append(client_enc)
 
-            _emit_security_event("he_aggregate", server_round, detail=f"Summing {num_clients} encrypted delta sets (CKKS poly={HE_POLY_MODULUS})")
+            _emit_security_event(
+                "he_aggregate", server_round,
+                detail=f"Summing {num_active} trust-weighted encrypted delta sets (CKKS poly={HE_POLY_MODULUS})",
+            )
 
             enc_agg = encrypted_sum(encrypted_deltas)
 
-            _emit_security_event("he_decrypt", server_round, detail=f"Decrypting aggregated {len(enc_agg)} layers")
+            _emit_security_event(
+                "he_decrypt", server_round,
+                detail=f"Decrypting aggregated {len(enc_agg)} layers",
+            )
 
             for key in enc_agg:
                 flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)
                 flat = np.nan_to_num(flat, nan=0.0, posinf=0.0, neginf=0.0)
                 shape = shapes[key]
                 num_el = int(np.prod(shape))
-                delta_avg = flat[:num_el].reshape(shape) / num_clients
+                # Already weighted — sum is the final delta (no /num_clients needed)
+                delta_agg = flat[:num_el].reshape(shape)
                 idx = keys.index(key)
-                new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_avg
+                new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_agg
 
             self._set_global_ndarrays(new_ndarrays)
+            self._post_enforcement(server_round, enforcement)
             return (
                 ndarrays_to_parameters(new_ndarrays),
                 {

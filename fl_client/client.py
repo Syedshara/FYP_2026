@@ -41,7 +41,7 @@ from torch.utils.data import Dataset, DataLoader
 
 # ── shared code ──────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG
+from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG, SELECTED_LAYERS
 from fl_common import signing_utils, recess_utils
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
@@ -576,6 +576,10 @@ def run_train_mode():
                 self.model.state_dict().keys(), local_params, temp_global_params
             ):
                 gradient_dict[key] = torch.tensor(local_val) - torch.tensor(global_val)
+
+            # Filter to SELECTED_LAYERS only — must match what the server caches in
+            # _last_agg_gradient / _current_probe to avoid length-mismatch in RECESS.
+            gradient_dict = {k: v for k, v in gradient_dict.items() if k in SELECTED_LAYERS}
 
             # Flatten local gradient to bytes for the RECESS response
             local_gradient_bytes = self._serialise_gradient(gradient_dict)

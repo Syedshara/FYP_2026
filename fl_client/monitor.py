@@ -44,6 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG
 from replay_simulator import ReplaySimulator, WINDOW_SIZE, NUM_FEATURES
 from synthetic_generator import SyntheticGenerator
+from cvae_generator import CVAEGenerator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("monitor")
@@ -60,6 +61,13 @@ REPLAY_SHUFFLE   = os.environ.get("REPLAY_SHUFFLE", "true").lower() in ("true", 
 SCENARIO_BASE    = os.environ.get("SCENARIO_DIR", "/app/scenarios")
 DATA_DIR         = os.environ.get("DATA_PATH", "/app/data")
 MAX_DURATION     = int(os.environ.get("MAX_DURATION", "0"))
+
+# ── CVAE generator env vars (set by attack-node / traffic-node API) ──
+USE_CVAE         = os.environ.get("USE_CVAE", "").lower() in ("true", "1", "yes")
+ATTACK_CLASS_ID  = int(os.environ.get("ATTACK_CLASS_ID", "0"))
+ATTACK_RATIO     = float(os.environ.get("ATTACK_RATIO", "0.7"))
+# When set, restrict monitoring to this single device (attack/traffic-node mode)
+TARGET_DEVICE_ID = os.environ.get("DEVICE_ID", "")
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SEQ_LEN   = DEFAULT_CONFIG["SEQUENCE_LENGTH"]
@@ -253,9 +261,17 @@ async def monitor_loop(stop_event: asyncio.Event | None = None):
     model = load_model()
 
     # ── Determine data source ────────────────────
-    # Use SyntheticGenerator for scenario-based simulation (infinite supply),
-    # fall back to ReplaySimulator only for client_data mode.
-    if SCENARIO and SCENARIO != "client_data":
+    # Priority: USE_CVAE > SCENARIO > client_data (replay)
+    if USE_CVAE:
+        simulator = CVAEGenerator(
+            class_id=ATTACK_CLASS_ID,
+            attack_ratio=ATTACK_RATIO,
+        )
+        log.info(
+            "Using CVAE generator: class_id=%d  attack_ratio=%.0f%%",
+            ATTACK_CLASS_ID, ATTACK_RATIO * 100,
+        )
+    elif SCENARIO and SCENARIO != "client_data":
         profiles_path = os.path.join(SCENARIO_BASE, "_profiles.json")
         simulator = SyntheticGenerator(
             scenario=SCENARIO,
@@ -318,6 +334,19 @@ async def monitor_loop(stop_event: asyncio.Event | None = None):
             )
             return
 
+        # ── Filter to single device if DEVICE_ID is set (attack/traffic-node mode) ─
+        if TARGET_DEVICE_ID:
+            filtered = [d for d in devices if str(d["id"]) == TARGET_DEVICE_ID]
+            if not filtered:
+                log.error(
+                    "Target device '%s' not found among client '%s' devices: %s",
+                    TARGET_DEVICE_ID, CLIENT_ID,
+                    [str(d["id"])[:8] for d in devices],
+                )
+                return
+            devices = filtered
+            log.info("Targeting single device: %s", devices[0].get("name", TARGET_DEVICE_ID[:8]))
+
         log.info("Monitoring %d device(s): %s",
                  len(devices),
                  ", ".join(d.get("name", str(d["id"])[:8]) for d in devices))
@@ -336,7 +365,12 @@ async def monitor_loop(stop_event: asyncio.Event | None = None):
             if cycle % 30 == 0:
                 refreshed = await fetch_devices(http, client_db_id)
                 if refreshed:
-                    devices = refreshed
+                    # Re-apply DEVICE_ID filter so attack/traffic-node targeting
+                    # is not lost after the periodic refresh.
+                    if TARGET_DEVICE_ID:
+                        refreshed = [d for d in refreshed if str(d["id"]) == TARGET_DEVICE_ID]
+                    if refreshed:
+                        devices = refreshed
 
             # Exhaustion check (non‑loop mode)
             if simulator.exhausted:

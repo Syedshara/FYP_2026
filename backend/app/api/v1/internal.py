@@ -377,6 +377,10 @@ async def fl_status_change(
     """
     if body.status == "started":
         msg_type = WSMessageType.TRAINING_START
+        # Re-hydrate in-memory trust scores from DB so the new session inherits
+        # any scores that were accumulated (and persisted) by prior sessions.
+        await fl_service.load_trust_scores_from_db(db)
+        log.info("Trust scores loaded from DB for new training session")
     elif body.status == "completed":
         msg_type = WSMessageType.TRAINING_STOP
     else:
@@ -502,3 +506,14 @@ async def fl_security_events_batch(events: List[SecurityEventIn]):
         }))
     log.debug("Security events batch: %d events", len(events))
     return {"ok": True, "count": len(events)}
+
+
+@router.get("/fl/trust_scores")
+async def get_fl_trust_scores_internal():
+    """Return current in-memory trust scores for the FL server to fetch.
+
+    No auth — protected by Docker network isolation (internal only).
+    Called by the FL server at the start of round 1 to re-hydrate its own
+    _trust_scores dict with scores persisted from previous training sessions.
+    """
+    return {"trust_scores": fl_service.get_trust_scores()}

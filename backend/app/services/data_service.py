@@ -4,7 +4,8 @@ Client training data service — generates training data for FL clients.
 Supports two data sources:
   - CIC-IDS2017: Reads real CSV network traffic data, cleans, scales, creates
     sliding windows. Respects traffic_type (benign=only BENIGN rows, mixed=all).
-  - Synthetic: Generates random sequences with configurable class balance.
+  - Synthetic: Generates CVAE-based realistic traffic sequences when
+    model/cvae_decoder.pt is available, or falls back to random noise.
 
 Data layout:
     /app/client_data/<client_id>/
@@ -34,6 +35,10 @@ log = logging.getLogger(__name__)
 CLIENT_DATA_ROOT = "/app/client_data"
 DATASET_DIR = "/app/datasets/cicids2017"
 SCALER_PATH = "/app/models/standard_scaler.pkl"
+
+# CVAE artifacts (produced by Kaggle training, mounted via ./model:/app/models)
+CVAE_DECODER_PATH = "/app/models/cvae_decoder.pt"
+CVAE_SCALER_PATH = "/app/models/cvae_scaler.pkl"
 
 # CIC-IDS2017 data dimensions
 SEQ_LEN = 10
@@ -296,17 +301,133 @@ def _get_source_client(exclude: str = "") -> Optional[str]:
 
 
 def _generate_synthetic_data(target_dir: str, traffic_type: str = "mixed") -> dict:
-    """Create random synthetic traffic data in CIC-IDS2017 format.
+    """Generate synthetic traffic data in CIC-IDS2017 format.
 
-    WARNING: This generates uniform-random noise (np.random.rand), NOT
-    realistic network traffic.  The model cannot learn meaningful patterns
-    from this data.  It exists only as a last-resort fallback when no real
-    data or existing client data is available.
+    Strategy (in priority order):
+      1. CVAE-based generation — uses trained decoder (cvae_decoder.pt) to
+         produce statistically realistic traffic sequences conditioned on
+         attack class.  Requires cvae_decoder.pt and cvae_scaler.pkl to be
+         present in /app/models/.
+      2. Random noise fallback — uniform np.random.rand().  Only used when
+         CVAE artifacts are absent (e.g. before Kaggle training completes).
+    """
+    if os.path.exists(CVAE_DECODER_PATH) and os.path.exists(CVAE_SCALER_PATH):
+        return _generate_cvae_data(target_dir, traffic_type)
+    return _generate_random_fallback(target_dir, traffic_type)
+
+
+def _generate_cvae_data(target_dir: str, traffic_type: str = "mixed") -> dict:
+    """Generate realistic synthetic traffic using the trained CVAE decoder."""
+    try:
+        import torch
+        import torch.nn.functional as F
+        from fl_common.cvae import CVAEDecoder, NUM_CLASSES
+    except ImportError as exc:
+        log.warning("CVAE import failed (%s) — falling back to random noise", exc)
+        return _generate_random_fallback(target_dir, traffic_type)
+
+    log.info("CVAE synthesis — loading decoder from %s", CVAE_DECODER_PATH)
+
+    try:
+        decoder = CVAEDecoder()
+        state = torch.load(CVAE_DECODER_PATH, map_location="cpu")
+        decoder.load_state_dict(state)
+        decoder.eval()
+
+        scaler = joblib.load(CVAE_SCALER_PATH)
+    except Exception as exc:
+        log.warning("Failed to load CVAE artifacts (%s) — falling back to random noise", exc)
+        return _generate_random_fallback(target_dir, traffic_type)
+
+    # Class IDs to sample: 0=benign, 1-14=attacks
+    # benign-only mode uses only class 0; mixed uses all 15 classes (weighted)
+    if traffic_type == "benign":
+        class_ids = [0]
+        class_weights = [1.0]
+    else:
+        # Approx 70% benign, 30% spread across attack classes — mimics real traffic
+        class_ids = list(range(NUM_CLASSES))
+        class_weights = [70.0] + [2.0] * 14  # benign heavy, attacks equal
+
+    os.makedirs(target_dir, exist_ok=True)
+    total_samples = 0
+
+    with torch.no_grad():
+        for chunk_idx in range(SYNTHETIC_NUM_CHUNKS):
+            n = SYNTHETIC_CHUNK_ROWS
+
+            # Sample class IDs proportionally
+            probs = np.array(class_weights, dtype=np.float64)
+            probs /= probs.sum()
+            sampled_classes = np.random.choice(class_ids, size=n, p=probs)
+
+            # Batch generate by class to avoid per-sample forward passes
+            x_chunks: list[np.ndarray] = []
+            y_chunks: list[np.ndarray] = []
+
+            for cls in np.unique(sampled_classes):
+                mask = sampled_classes == cls
+                count = int(mask.sum())
+
+                z = torch.randn(count, 128)
+                cond = F.one_hot(
+                    torch.full((count,), int(cls), dtype=torch.long),
+                    num_classes=NUM_CLASSES,
+                ).float()
+                generated = decoder(z, cond).numpy()  # (count, 10, 78)
+
+                # Inverse-scale to approximate real-valued features
+                # (reshape to 2D for scaler, then back to windows)
+                flat = generated.reshape(-1, NUM_FEATURES)
+                flat = scaler.inverse_transform(flat).astype(np.float32)
+                # Re-scale with standard_scaler.pkl if available (FL pipeline expects it)
+                if os.path.exists(SCALER_PATH):
+                    try:
+                        fl_scaler = joblib.load(SCALER_PATH)
+                        flat = fl_scaler.transform(flat).astype(np.float32)
+                    except Exception as e:
+                        log.warning("standard_scaler transform failed: %s", e)
+                generated = flat.reshape(count, SEQ_LEN, NUM_FEATURES)
+
+                x_chunks.append(generated)
+                # Binary label: 0 = benign, 1 = attack
+                binary_label = 0 if cls == 0 else 1
+                y_chunks.append(np.full(count, binary_label, dtype=np.int64))
+
+            x_all = np.concatenate(x_chunks, axis=0)
+            y_all = np.concatenate(y_chunks, axis=0)
+
+            # Shuffle to mix classes within chunk
+            perm = np.random.permutation(len(x_all))
+            np.save(os.path.join(target_dir, f"X_seq_chunk_{chunk_idx}.npy"), x_all[perm])
+            np.save(os.path.join(target_dir, f"y_seq_chunk_{chunk_idx}.npy"), y_all[perm])
+            total_samples += len(x_all)
+
+    attack_pct = 0.0 if traffic_type == "benign" else 30.0
+    log.info(
+        "CVAE generated %d chunks (%d samples, type=%s, ~%.0f%% attack) in %s",
+        SYNTHETIC_NUM_CHUNKS, total_samples, traffic_type, attack_pct, target_dir,
+    )
+    return {
+        "created": True,
+        "source": "synthetic",
+        "data_quality": "synthetic_cvae",
+        "chunks": SYNTHETIC_NUM_CHUNKS,
+        "total_samples": total_samples,
+        "path": target_dir,
+    }
+
+
+def _generate_random_fallback(target_dir: str, traffic_type: str = "mixed") -> dict:
+    """Last-resort fallback: uniform-random noise (np.random.rand).
+
+    WARNING: This data is NOT realistic network traffic. The model cannot
+    learn meaningful patterns from it. Use CIC-IDS2017 or CVAE data instead.
     """
     log.warning(
-        "SYNTHETIC FALLBACK — generating random noise data in %s. "
-        "This data is NOT usable for real training.  Ensure CIC-IDS2017 "
-        "CSVs are mounted at %s or that existing client data is available.",
+        "RANDOM NOISE FALLBACK — generating uniform-random data in %s. "
+        "This data is NOT usable for real training. Ensure CIC-IDS2017 "
+        "CSVs are mounted at %s or that CVAE artifacts are in /app/models/.",
         target_dir, DATASET_DIR,
     )
     os.makedirs(target_dir, exist_ok=True)
@@ -318,13 +439,12 @@ def _generate_synthetic_data(target_dir: str, traffic_type: str = "mixed") -> di
         if traffic_type == "benign":
             y = np.zeros(n, dtype=np.int64)
         else:
-            # Mixed: ~80% benign (0), ~20% attack (1)
             y = (np.random.rand(n) < 0.2).astype(np.int64)
         np.save(os.path.join(target_dir, f"X_seq_chunk_{i}.npy"), x)
         np.save(os.path.join(target_dir, f"y_seq_chunk_{i}.npy"), y)
         total_samples += n
 
-    log.info("Generated %d synthetic chunks (%d samples, type=%s) in %s",
+    log.info("Generated %d random noise chunks (%d samples, type=%s) in %s",
              SYNTHETIC_NUM_CHUNKS, total_samples, traffic_type, target_dir)
     return {
         "created": True,
@@ -357,6 +477,13 @@ def generate_client_data(
     Returns dict with: created, source, chunks, total_samples, path.
     """
     target_dir = os.path.join(CLIENT_DATA_ROOT, client_id.lower())
+
+    # Remove a dangling symlink (exists as a symlink but its target is gone).
+    # os.path.isdir() returns False for dangling symlinks, causing os.makedirs()
+    # to raise FileExistsError even with exist_ok=True.
+    if os.path.islink(target_dir) and not os.path.exists(target_dir):
+        os.unlink(target_dir)
+        log.info("Removed dangling symlink for client %s: %s", client_id, target_dir)
 
     # Delete existing data if force regeneration requested
     if force and os.path.isdir(target_dir):

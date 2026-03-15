@@ -55,6 +55,7 @@ pgdata/
 data/
 *.csv
 *.parquet
+datasets/cicids2017/dataset-metadata.json
 
 # ──────────────────────────────────────
 # Logs

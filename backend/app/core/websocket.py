@@ -166,6 +166,8 @@ class WSMessageType:
     # ── Attack engine events ────────────────────────────
     ATTACK_STATUS         = "attack_status"           # attack run status change
     ATTACK_RESULT         = "attack_result"           # attack run completed with results
+    # ── Aggregation enforcement ─────────────────────────
+    AGGREGATION_ENFORCEMENT = "aggregation_enforcement"  # per-round trust enforcement decisions
 
 
 def build_ws_message(msg_type: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
