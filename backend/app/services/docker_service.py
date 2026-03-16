@@ -134,8 +134,20 @@ def create_client_container(
 
     log.info("Creating container %s (image=%s)", container_name, FL_CLIENT_IMAGE)
 
-    # Remove stale container with same name (if any)
-    _remove_if_exists(container_name)
+    # Remove stale container with same name (if any).
+    # If the existing container is running in TRAIN mode, the guard will
+    # raise RuntimeError — return the live container instead of replacing it.
+    try:
+        _remove_if_exists(container_name)
+    except RuntimeError:
+        existing = get_container_by_name(container_name)
+        if existing:
+            log.info(
+                "Returning existing TRAIN container %s instead of recreating",
+                container_name,
+            )
+            return _to_info(existing)
+        raise  # shouldn't happen — re-raise if container vanished
 
     container = dk.containers.create(
         image=FL_CLIENT_IMAGE,
@@ -311,7 +323,7 @@ def start_fl_server(
     log.info("Starting FL server container (rounds=%d, clients=%d, HE=%s)",
              num_rounds, min_clients, use_he)
 
-    _remove_if_exists(FL_SERVER_CONTAINER)
+    _remove_if_exists(FL_SERVER_CONTAINER, protect_training=False)
 
     container = dk.containers.create(
         image=FL_SERVER_IMAGE,
@@ -470,11 +482,30 @@ def _to_info(container) -> ContainerInfo:
     )
 
 
-def _remove_if_exists(name: str) -> None:
-    """Remove a container by name if it exists (cleanup stale runs)."""
+def _remove_if_exists(name: str, *, protect_training: bool = True) -> None:
+    """
+    Remove a container by name if it exists (cleanup stale runs).
+
+    When protect_training=True (default), refuses to remove a running
+    container in TRAIN mode.  This prevents the workspace auto-save
+    background task from accidentally killing active training containers.
+    """
     dk = _get_docker()
     try:
         old = dk.containers.get(name)
+        if protect_training and old.status == "running":
+            env_list: list[str] = old.attrs.get("Config", {}).get("Env") or []
+            for entry in env_list:
+                if entry == "MODE=TRAIN":
+                    log.warning(
+                        "Refusing to remove running TRAIN container %s — "
+                        "call with protect_training=False to override",
+                        name,
+                    )
+                    raise RuntimeError(
+                        f"Container {name} is running in TRAIN mode; "
+                        f"cannot remove during active training"
+                    )
         old.remove(force=True)
         log.info("Removed stale container %s", name)
     except NotFound:

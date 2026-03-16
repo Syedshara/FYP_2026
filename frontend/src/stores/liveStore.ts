@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import type { ClientTrustUpdatePayload, ClientFlaggedPayload, TrustScoreComponents, ClientEnforcementStatus, AggregationEnforcementPayload } from '../types/index';
+import type { ClientTrustUpdatePayload, ClientFlaggedPayload, TrustScoreComponents, ClientEnforcementStatus, AggregationEnforcementPayload, GradientStats } from '../types/index';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -108,13 +108,18 @@ export type SecurityEventKind =
   | 'recess_detect'
   | 'recess_flag'
   | 'round_start'
-  | 'round_complete';
+  | 'round_complete'
+  | 'global_dispatch'
+  | 'client_update'
+  | 'model_updated';
 
 export interface SecurityEvent {
   kind: SecurityEventKind;
   round: number;
   clientId?: string;
   detail?: string;
+  /** Structured metrics payload — present on HE events (he_encrypt, he_aggregate, he_decrypt). */
+  data?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -140,8 +145,20 @@ interface LiveState {
   setFLGlobalProgress: (progress: FLGlobalProgress) => void;
 
   // FL round results (accumulated during training)
-  flRoundResults: Array<{ round: number; loss: number | null; accuracy: number | null }>;
-  addFLRoundResult: (round: number, loss: number | null, accuracy: number | null) => void;
+  flRoundResults: Array<{
+    round: number;
+    loss: number | null;
+    accuracy: number | null;
+    gradient_stats?: GradientStats;
+    client_metrics?: Array<{ client_id: string; local_loss: number; local_accuracy: number; num_samples: number }>;
+  }>;
+  addFLRoundResult: (
+    round: number,
+    loss: number | null,
+    accuracy: number | null,
+    gradient_stats?: GradientStats,
+    client_metrics?: Array<{ client_id: string; local_loss: number; local_accuracy: number; num_samples: number }>,
+  ) => void;
   clearFLRoundResults: () => void;
 
   // FL per-client round history (for multi-line charts)
@@ -234,9 +251,9 @@ export const useLiveStore = create<LiveState>()((set) => ({
 
   // ── FL Round Results ──
   flRoundResults: [],
-  addFLRoundResult: (round, loss, accuracy) =>
+  addFLRoundResult: (round, loss, accuracy, gradient_stats, client_metrics) =>
     set((state) => ({
-      flRoundResults: [...state.flRoundResults, { round, loss, accuracy }],
+      flRoundResults: [...state.flRoundResults, { round, loss, accuracy, gradient_stats, client_metrics }],
     })),
   clearFLRoundResults: () =>
     set({ flRoundResults: [] }),

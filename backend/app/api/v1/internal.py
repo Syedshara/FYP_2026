@@ -7,6 +7,7 @@ They are NOT exposed to the frontend.
 - GET  /client/by-client-id/{client_id}  — resolve client_id string → DB record
 - POST /client/register                  — auto-register a new FL client
 - GET  /client/{pk}/devices              — list devices for a client
+- POST /device/create                    — auto-create a virtual device for a client
 - POST /predictions                      — save a prediction result
 - POST /fl/progress                      — FL training progress update (broadcast via WS)
 - POST /fl/round                         — completed round + per-client metrics
@@ -50,6 +51,16 @@ class InternalDeviceOut(BaseModel):
     device_type: str
     status: str
     model_config = {"from_attributes": True}
+
+
+class InternalDeviceCreate(BaseModel):
+    name: str
+    device_type: str = "sensor"
+    protocol: str = "tcp"
+    port: int = 0
+    traffic_source: str = "simulated"
+    client_id: int
+    description: Optional[str] = None
 
 
 class InternalPredictionCreate(BaseModel):
@@ -109,6 +120,8 @@ class FLRoundIn(BaseModel):
     global_loss: Optional[float] = None
     global_accuracy: Optional[float] = None
     client_metrics: Optional[List[FLClientMetricIn]] = None
+    # Per-layer gradient statistics computed from in-memory tensors (not persisted to DB)
+    gradient_stats: Optional[dict] = None
 
 
 class FLClientMetricIn(BaseModel):
@@ -156,6 +169,46 @@ async def list_client_devices(
     """List all devices belonging to a specific FL client (no auth)."""
     devices = await device_service.get_all_devices(db, client_id=client_pk)
     return devices
+
+
+@router.post("/device/create", response_model=InternalDeviceOut, status_code=201)
+async def internal_create_device(
+    body: InternalDeviceCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto-create a virtual device linked to an FL client.
+    Called by monitor containers when they find no devices registered.
+    If a device with the same name already exists, returns it instead of erroring.
+    """
+    from app.core.exceptions import ConflictException
+
+    try:
+        device = await device_service.create_device(
+            db,
+            name=body.name,
+            device_type=body.device_type,
+            protocol=body.protocol,
+            port=body.port,
+            traffic_source=body.traffic_source,
+            description=body.description,
+            client_id=body.client_id,
+        )
+        log.info(
+            "Auto-created virtual device '%s' for client_id=%d",
+            body.name, body.client_id,
+        )
+        return device
+    except ConflictException:
+        # Device name already exists — fetch it and return the first match for this client
+        existing = await device_service.get_all_devices(db, client_id=body.client_id)
+        if existing:
+            log.info(
+                "Device '%s' already exists for client_id=%d — returning existing",
+                body.name, body.client_id,
+            )
+            return existing[0]
+        raise HTTPException(status_code=409, detail=f"Device name '{body.name}' already taken by another client")
 
 
 # ── Auto‑register client (called by monitor containers) ──
@@ -356,6 +409,7 @@ async def fl_round_complete(
         "global_loss": body.global_loss,
         "global_accuracy": body.global_accuracy,
         "client_metrics": client_data,
+        "gradient_stats": body.gradient_stats,
     }))
 
     log.info(
@@ -421,6 +475,7 @@ class SecurityEventIn(BaseModel):
     round: int
     client_id: Optional[str] = None
     detail: Optional[str] = None
+    data: Optional[dict] = None  # structured metrics (HE timing, per-layer norms, etc.)
 
 
 @router.post("/attack-run-status", status_code=200)
@@ -483,6 +538,7 @@ async def fl_security_event(body: SecurityEventIn):
         "round": body.round,
         "client_id": body.client_id,
         "detail": body.detail,
+        "data": body.data,
     }))
     log.debug(
         "Security event: kind=%s round=%d client=%s",
@@ -503,6 +559,7 @@ async def fl_security_events_batch(events: List[SecurityEventIn]):
             "round": body.round,
             "client_id": body.client_id,
             "detail": body.detail,
+            "data": body.data,
         }))
     log.debug("Security events batch: %d events", len(events))
     return {"ok": True, "count": len(events)}

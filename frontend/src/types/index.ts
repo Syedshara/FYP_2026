@@ -252,6 +252,20 @@ export interface TrustScoreComponents {
   magnitude_score: number;
 }
 
+// ── FL Gradient Statistics (carried in fl_round WS message, not persisted) ──
+export interface GradientStats {
+  /** Per-layer L2 norm of global weights dispatched to clients before this round */
+  dispatch_norms?: Record<string, number>;
+  /** Per-layer L2 norm of the aggregated delta (post − pre aggregation) */
+  delta_norms?: Record<string, number>;
+  /** Per-layer mean of the aggregated delta (positive = weights grew) */
+  delta_means?: Record<string, number>;
+  /** Per-layer L2 norm of global weights after this round's aggregation */
+  post_norms?: Record<string, number>;
+  /** Sum of all delta norms — convergence proxy (should shrink each round) */
+  total_delta?: number;
+}
+
 export interface ClientTrustUpdatePayload {
   scores: Record<string, number>;   // clientId → score
   round: number;

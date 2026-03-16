@@ -134,10 +134,29 @@ async def _auto_register_and_cleanup(
     Background task:
     1. Idempotently register canvas Client nodes as FL clients.
     2. Remove orphaned FL clients whose canvas_node_id no longer exists on canvas.
+
+    IMPORTANT: Skipped entirely when FL training is active to avoid destroying
+    running client containers (race condition with workspace auto-save).
     """
     from app.database import async_session
 
     async with async_session() as db:
+        # Guard: skip when FL training is active — the background task would
+        # otherwise recreate containers (auto_start=False) that replace the
+        # running TRAIN-mode containers, killing the training session.
+        all_existing = await fl_service.get_all_fl_clients(db)
+        if any(c.status == "training" for c in all_existing):
+            log.debug("FL training active — skipping auto-register/cleanup")
+            return
+
+        # Also check if the FL server container is running (covers the window
+        # between start_training updating clients and FL completion).
+        from app.services import docker_service
+        server_info = docker_service.get_fl_server_status()
+        if server_info and server_info.status == "running":
+            log.debug("FL server running — skipping auto-register/cleanup")
+            return
+
         # Register new client nodes
         for canvas_node_id, label in client_nodes:
             client_id = canvas_node_id.replace("-", "_")

@@ -1,0 +1,12 @@
+{
+  "history_entries": 4,
+  "min_round": 1,
+  "max_round": 4,
+  "rounds_present": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "avg_aggregation_time_sec": 0.0990753173828125
+}

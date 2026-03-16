@@ -398,7 +398,7 @@ async def start_simulation(
             }
 
             container_name = f"iot_ids_sim_{cid.lower()}"
-            docker_service._remove_if_exists(container_name)
+            docker_service._remove_if_exists(container_name, protect_training=False)
 
             dk = docker_service._get_docker()
             container = dk.containers.create(
@@ -604,7 +604,7 @@ async def start_attack_node_sim(
         }
 
         try:
-            docker_service._remove_if_exists(container_name)
+            docker_service._remove_if_exists(container_name, protect_training=False)
             dk = docker_service._get_docker()
             container = dk.containers.create(
                 image=docker_service.FL_CLIENT_IMAGE,
@@ -806,7 +806,7 @@ async def start_traffic_node_sim(
         }
 
         try:
-            docker_service._remove_if_exists(container_name)
+            docker_service._remove_if_exists(container_name, protect_training=False)
             dk = docker_service._get_docker()
             container = dk.containers.create(
                 image=docker_service.FL_CLIENT_IMAGE,

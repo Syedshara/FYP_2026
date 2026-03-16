@@ -76,28 +76,11 @@ EXTEOF
     rm -f "$CERTS_DIR/server.csr" "$CERTS_DIR/server_ext.cnf"
     echo "   [+] FL server certificate created (SANs: iot_ids_fl_server, fl_server, localhost)"
 
-    # ── 3. FL Client mTLS certificates + Ed25519 signing keys ────────────
-    for CLIENT_NAME in Bank_A Bank_B Bank_C; do
-        # RSA mTLS cert
-        openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
-            -out "$CERTS_DIR/${CLIENT_NAME}.key" 2>/dev/null
-        openssl req -new -key "$CERTS_DIR/${CLIENT_NAME}.key" \
-            -out "$CERTS_DIR/${CLIENT_NAME}.csr" \
-            -subj "/CN=${CLIENT_NAME}/O=IoT IDS Platform/C=MY" 2>/dev/null
-        openssl x509 -req -days 3650 \
-            -in "$CERTS_DIR/${CLIENT_NAME}.csr" \
-            -CA "$CERTS_DIR/ca.crt" -CAkey "$CERTS_DIR/ca.key" -CAcreateserial \
-            -out "$CERTS_DIR/${CLIENT_NAME}.crt" 2>/dev/null
-        rm -f "$CERTS_DIR/${CLIENT_NAME}.csr"
-
-        # Ed25519 signing keypair
-        openssl genpkey -algorithm ed25519 \
-            -out "$CERTS_DIR/${CLIENT_NAME}_ed25519.pem" 2>/dev/null
-        openssl pkey -in "$CERTS_DIR/${CLIENT_NAME}_ed25519.pem" -pubout \
-            -out "$CERTS_DIR/client_keys/${CLIENT_NAME}.pub.pem" 2>/dev/null
-
-        echo "   [+] ${CLIENT_NAME} certificates and signing keys created"
-    done
+    # ── 3. FL client certs/keys are generated dynamically ─────────────────
+    # Static client provisioning is intentionally removed.
+    # New FL clients (canvas/DB-driven) get their mTLS cert + Ed25519 keys
+    # from backend/app/services/fl_service.py::_generate_client_keys().
+    echo "   [+] Dynamic FL client certificate provisioning enabled"
 
     # Restrict permissions — private keys should not be world-readable
     chmod 600 "$CERTS_DIR"/*.key "$CERTS_DIR"/*.pem 2>/dev/null || true

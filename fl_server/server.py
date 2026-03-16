@@ -117,13 +117,19 @@ def _emit_security_event(
     round_num: int,
     client_id: Optional[str] = None,
     detail: Optional[str] = None,
+    data: Optional[dict] = None,
 ) -> None:
-    """Fire-and-forget a single security event to the backend for WS broadcast."""
+    """Fire-and-forget a single security event to the backend for WS broadcast.
+
+    ``data`` carries structured payload (e.g. per-layer metrics for HE events)
+    so the frontend can render rich detail beyond the plain ``detail`` string.
+    """
     _post_to_backend("/api/v1/internal/fl/security-event", {
         "kind": kind,
         "round": round_num,
         "client_id": client_id,
         "detail": detail,
+        "data": data,
     })
 
 
@@ -329,6 +335,41 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         _emit_security_event("round_start", server_round, detail=f"clients={len(clients)} detect={is_detect}")
         _emit_security_event("nonce_issued", server_round, detail=nonce[:16] + "...")
 
+        # Emit global_dispatch — global model weight norms + prior round metrics
+        try:
+            state = self.global_model.state_dict()
+            dispatch_layer_data = [
+                {
+                    "layer": key,
+                    "weight_norm": round(float(state[key].norm().item()), 6),
+                }
+                for key in SELECTED_LAYERS
+                if key in state
+            ]
+            prior = self.round_metrics[-1] if self.round_metrics else None
+            _emit_security_event(
+                "global_dispatch", server_round,
+                detail=(
+                    f"Dispatching global model to {len(clients)} "
+                    f"client{'s' if len(clients) != 1 else ''}"
+                    + (
+                        f" | prev loss={prior['global_loss']:.4f}"
+                        f" acc={prior['global_accuracy']:.4f}"
+                        if prior and "global_loss" in prior and "global_accuracy" in prior
+                        else " | initial model"
+                    )
+                ),
+                data={
+                    "num_clients": len(clients),
+                    "layers": dispatch_layer_data,
+                    "prior_round": prior["round"] if prior else None,
+                    "prior_loss": round(float(prior["global_loss"]), 6) if prior and "global_loss" in prior else None,
+                    "prior_accuracy": round(float(prior["global_accuracy"]), 6) if prior and "global_accuracy" in prior else None,
+                },
+            )
+        except Exception as exc:
+            log.warning("Could not emit global_dispatch for round %d: %s", server_round, exc)
+
         return [(client, fit_ins) for client in clients]
 
     def aggregate_fit(self, server_round, results, failures):
@@ -371,6 +412,46 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         except Exception as exc:
             log.warning("Could not snapshot pre-agg state: %s", exc)
 
+        # Emit per-client gradient update events (one event per client)
+        try:
+            state = self.global_model.state_dict()
+            keys = list(state.keys())
+            for proxy, fit_res in results:
+                m = fit_res.metrics or {}
+                cid = str(m.get("client_id", getattr(proxy, "cid", "unknown")))
+                client_loss = float(m.get("loss", 0.0))
+                client_acc = float(m.get("accuracy", 0.0))
+                client_samples = int(fit_res.num_examples)
+                # Compute per-layer gradient norms ‖Δ‖₂ = ‖W_client − W_global‖₂
+                ndarrays = parameters_to_ndarrays(fit_res.parameters)
+                layer_data = []
+                for i, key in enumerate(keys):
+                    if key in SELECTED_LAYERS and i < len(ndarrays):
+                        delta = ndarrays[i].astype(np.float64) - state[key].cpu().numpy().astype(np.float64)
+                        layer_data.append({
+                            "layer": key,
+                            "delta_norm": round(float(np.linalg.norm(delta)), 6),
+                        })
+                total_delta = round(sum(ld["delta_norm"] for ld in layer_data), 6)
+                _emit_security_event(
+                    "client_update", rnd,
+                    client_id=cid,
+                    detail=(
+                        f"loss={client_loss:.4f} acc={client_acc:.4f} "
+                        f"samples={client_samples} total‖Δ‖₂={total_delta:.4f}"
+                    ),
+                    data={
+                        "client_id": cid,
+                        "loss": round(client_loss, 6),
+                        "accuracy": round(client_acc, 6),
+                        "num_samples": client_samples,
+                        "layers": layer_data,
+                        "total_delta_norm": total_delta,
+                    },
+                )
+        except Exception as exc:
+            log.warning("Could not emit client_update events for round %d: %s", rnd, exc)
+
         if self.use_he:
             params, metrics = self._aggregate_he(rnd, results)
         else:
@@ -387,7 +468,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         self.round_metrics.append({"round": rnd, **metrics})
 
         # Report completed round to backend (persists + broadcasts via WS)
-        self._report_round(rnd, num_clients, results, elapsed, metrics)
+        self._report_round(rnd, num_clients, results, elapsed, metrics, pre_agg_state)
 
         return params, metrics
 
@@ -639,6 +720,7 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         results,
         duration: float,
         agg_metrics: dict,
+        pre_agg_state: Optional[Dict[str, torch.Tensor]] = None,
     ) -> None:
         """POST round + per-client metrics to the backend internal API."""
         # Collect per-client metrics
@@ -671,6 +753,56 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         global_loss = weighted_loss / max(total_samples, 1)
         global_accuracy = weighted_acc / max(total_samples, 1)
 
+        # ── Compute gradient statistics from already-in-memory tensors ──────
+        # dispatch_norms : ‖W‖₂ of the weights that were sent to clients
+        # delta_norms    : ‖Δ‖₂ per layer (post − pre, already in _last_agg_gradient)
+        # delta_means    : mean(Δ) per layer (sign indicates direction of update)
+        # post_norms     : ‖W‖₂ after this round's aggregation
+        # total_delta    : Σ‖Δ‖₂ across all selected layers (convergence proxy)
+        gradient_stats: Optional[dict] = None
+        try:
+            post_state = self.global_model.state_dict()
+            dispatch_norms: dict = {}
+            post_norms: dict = {}
+            delta_norms: dict = {}
+            delta_means: dict = {}
+
+            if pre_agg_state:
+                for layer in SELECTED_LAYERS:
+                    if layer in pre_agg_state:
+                        dispatch_norms[layer] = round(
+                            float(pre_agg_state[layer].norm().item()), 6
+                        )
+                    if layer in post_state:
+                        post_norms[layer] = round(
+                            float(post_state[layer].norm().item()), 6
+                        )
+
+            if self._last_agg_gradient:
+                for layer, delta in self._last_agg_gradient.items():
+                    delta_norms[layer] = round(float(delta.norm().item()), 6)
+                    delta_means[layer] = round(float(delta.mean().item()), 8)
+
+            gradient_stats = {
+                "dispatch_norms": dispatch_norms,
+                "delta_norms": delta_norms,
+                "delta_means": delta_means,
+                "post_norms": post_norms,
+                "total_delta": round(sum(delta_norms.values()), 6),
+            }
+        except Exception as exc:
+            log.warning("Could not compute gradient_stats for round %d: %s", server_round, exc)
+
+        if gradient_stats:
+            log.info(
+                "Round %d gradient_stats: layers=%s total_delta=%.6f",
+                server_round,
+                list(gradient_stats.get("delta_norms", {}).keys()),
+                gradient_stats.get("total_delta", 0.0),
+            )
+        else:
+            log.warning("Round %d: gradient_stats is None — check pre_agg_state and _last_agg_gradient", server_round)
+
         round_payload = {
             "round_number": server_round,
             "total_rounds": ROUNDS,
@@ -682,9 +814,36 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             "global_loss": global_loss,
             "global_accuracy": global_accuracy,
             "client_metrics": client_metrics,
+            "gradient_stats": gradient_stats,
         }
 
         _post_to_backend("/api/v1/internal/fl/round", round_payload)
+
+        # Emit model_updated security event (per-layer norms + delta + global metrics)
+        if gradient_stats:
+            mu_layers = []
+            for layer in SELECTED_LAYERS:
+                pn = gradient_stats["post_norms"].get(layer)
+                dn = gradient_stats["delta_norms"].get(layer)
+                if pn is not None:
+                    mu_layers.append({
+                        "layer": layer,
+                        "weight_norm": pn,
+                        "delta_from_prior": dn if dn is not None else 0.0,
+                    })
+            _emit_security_event(
+                "model_updated", server_round,
+                detail=(
+                    f"loss={global_loss:.4f} acc={global_accuracy:.4f} "
+                    f"total_delta={gradient_stats['total_delta']:.6f}"
+                ),
+                data={
+                    "global_loss": round(global_loss, 6),
+                    "global_accuracy": round(global_accuracy, 6),
+                    "total_delta": gradient_stats["total_delta"],
+                    "layers": mu_layers,
+                },
+            )
 
         # Emit round_complete security event
         _emit_security_event(
@@ -825,13 +984,13 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     new_ndarrays.append(global_state[key].cpu().numpy())
 
             # ── HE aggregation for selected layers ──
-            _emit_security_event(
-                "he_encrypt", server_round,
-                detail=f"Encrypting deltas for {len(SELECTED_LAYERS)} layers from {num_active} active clients",
-            )
 
+            # ── Phase 1: Encrypt — collect per-layer delta norms + cipher sizes ──
+            t_enc_start = time.time()
             encrypted_deltas = []
             shapes: dict[str, tuple] = {}
+            enc_layer_data: list[dict] = []  # per-layer metrics for the security event
+
             for ndarrays, eff_weight, _cid in active:
                 w = eff_weight / total_weight  # normalised weight
                 client_enc: dict = {}
@@ -843,20 +1002,69 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                         shapes[key] = delta.shape
                         # Scale delta by normalised trust weight before encrypting
                         scaled = (delta * w).flatten().tolist()
-                        client_enc[key] = ts.ckks_vector(self.ckks_ctx, scaled)
+                        cipher = ts.ckks_vector(self.ckks_ctx, scaled)
+                        client_enc[key] = cipher
+                        # Measure only once (first client per layer) to avoid redundant serialise calls
+                        if len(encrypted_deltas) == 0:
+                            try:
+                                serialised = cipher.serialize()
+                                cipher_kb = round(len(serialised) / 1024, 1)
+                                cipher_hex = serialised[:32].hex()
+                            except Exception:
+                                cipher_kb = None
+                                cipher_hex = None
+                            enc_layer_data.append({
+                                "layer": key,
+                                "delta_norm": round(float(np.linalg.norm(delta)), 6),
+                                "cipher_kb": cipher_kb,
+                                "cipher_hex": cipher_hex,
+                            })
                 encrypted_deltas.append(client_enc)
+
+            enc_time = round(time.time() - t_enc_start, 3)
+            total_cipher_kb = round(
+                sum(ld["cipher_kb"] for ld in enc_layer_data if ld["cipher_kb"] is not None)
+                * num_active,
+                1,
+            )
+            enc_detail = (
+                f"{len(SELECTED_LAYERS)} layers | {num_active} client{'s' if num_active != 1 else ''} | "
+                f"enc={enc_time}s | {total_cipher_kb} KB total"
+            )
+            _emit_security_event(
+                "he_encrypt", server_round,
+                detail=enc_detail,
+                data={
+                    "num_layers": len(SELECTED_LAYERS),
+                    "num_clients": num_active,
+                    "enc_time_sec": enc_time,
+                    "total_cipher_kb": total_cipher_kb,
+                    "layers": enc_layer_data,
+                },
+            )
+
+            # ── Phase 2: Aggregate (HE sum) ──
+            t_agg_start = time.time()
+            enc_agg = encrypted_sum(encrypted_deltas)
+            agg_time = round(time.time() - t_agg_start, 3)
 
             _emit_security_event(
                 "he_aggregate", server_round,
-                detail=f"Summing {num_active} trust-weighted encrypted delta sets (CKKS poly={HE_POLY_MODULUS})",
+                detail=(
+                    f"{num_active} client{'s' if num_active != 1 else ''} × {len(enc_agg)} layers | "
+                    f"agg={agg_time}s | CKKS poly={HE_POLY_MODULUS}"
+                ),
+                data={
+                    "num_clients": num_active,
+                    "num_layers": len(enc_agg),
+                    "agg_time_sec": agg_time,
+                    "he_poly_modulus": HE_POLY_MODULUS,
+                },
             )
 
-            enc_agg = encrypted_sum(encrypted_deltas)
-
-            _emit_security_event(
-                "he_decrypt", server_round,
-                detail=f"Decrypting aggregated {len(enc_agg)} layers",
-            )
+            # ── Phase 3: Decrypt ──
+            t_dec_start = time.time()
+            dec_layer_data: list[dict] = []
 
             for key in enc_agg:
                 flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)
@@ -867,6 +1075,24 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 delta_agg = flat[:num_el].reshape(shape)
                 idx = keys.index(key)
                 new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_agg
+                dec_layer_data.append({
+                    "layer": key,
+                    "delta_agg_norm": round(float(np.linalg.norm(delta_agg)), 6),
+                    "decrypted_preview": [round(float(x), 6) for x in flat[:5].tolist()],
+                })
+
+            dec_time = round(time.time() - t_dec_start, 3)
+            _emit_security_event(
+                "he_decrypt", server_round,
+                detail=(
+                    f"{len(enc_agg)} layers | dec={dec_time}s"
+                ),
+                data={
+                    "num_layers": len(enc_agg),
+                    "dec_time_sec": dec_time,
+                    "layers": dec_layer_data,
+                },
+            )
 
             self._set_global_ndarrays(new_ndarrays)
             self._post_enforcement(server_round, enforcement)

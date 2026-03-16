@@ -9,7 +9,7 @@ import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { flApi } from '@/api/fl';
 import type { WSMessage } from '@/hooks/useWebSocket';
-import type { TrustScoreComponents } from '@/types';
+import type { TrustScoreComponents, GradientStats } from '@/types';
 import type { AggregationEnforcementPayload } from '@/types';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
@@ -162,6 +162,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         d.round_number as number,
         d.global_loss as number | null,
         d.global_accuracy as number | null,
+        d.gradient_stats as GradientStats | undefined,
+        d.client_metrics as Array<{ client_id: string; local_loss: number; local_accuracy: number; num_samples: number }> | undefined,
       );
       // Update global progress
       const totalRounds = (d.total_rounds ?? d.round_number) as number;
@@ -341,6 +343,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         round: d.round as number,
         clientId: d.client_id as string | undefined,
         detail: d.detail as string | undefined,
+        data: d.data as Record<string, unknown> | undefined,
         timestamp: msg.timestamp ?? new Date().toISOString(),
       });
     }));

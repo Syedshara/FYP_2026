@@ -245,6 +245,55 @@ class TestInternalFLRound:
         assert data["ok"] is True
         assert "round_id" in data
 
+    async def test_fl_round_with_gradient_stats(self, app_client: AsyncClient):
+        """gradient_stats payload is accepted and the round is persisted normally."""
+        gradient_stats = {
+            "dispatch_norms": {
+                "lstm.weight_ih_l0": 12.345678,
+                "lstm.weight_hh_l0": 8.901234,
+                "fc.weight": 3.141592,
+                "fc.bias": 0.271828,
+            },
+            "delta_norms": {
+                "lstm.weight_ih_l0": 0.012345,
+                "lstm.weight_hh_l0": 0.009876,
+                "fc.weight": 0.001234,
+                "fc.bias": 0.000123,
+            },
+            "delta_means": {
+                "lstm.weight_ih_l0": -0.00000123,
+                "lstm.weight_hh_l0": 0.00000456,
+                "fc.weight": -0.00000789,
+                "fc.bias": 0.00000012,
+            },
+            "post_norms": {
+                "lstm.weight_ih_l0": 12.333333,
+                "lstm.weight_hh_l0": 8.891358,
+                "fc.weight": 3.140358,
+                "fc.bias": 0.271705,
+            },
+            "total_delta": 0.023578,
+        }
+        resp = await app_client.post(
+            "/api/v1/internal/fl/round",
+            json={
+                "round_number": 2,
+                "total_rounds": 5,
+                "num_clients": 3,
+                "aggregation_method": "fedavg_he",
+                "he_scheme": "ckks",
+                "duration_seconds": 18.7,
+                "global_loss": 0.27,
+                "global_accuracy": 0.92,
+                "client_metrics": [],
+                "gradient_stats": gradient_stats,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["ok"] is True
+        assert "round_id" in data
+
 
 class TestInternalFLStatus:
     """POST /api/v1/internal/fl/status — training session status change."""

@@ -8,7 +8,7 @@
  */
 
 import { memo, useCallback, useState } from 'react';
-import { Play, Square } from 'lucide-react';
+import { Play, Square, Zap } from 'lucide-react';
 import type { NodeProps } from 'reactflow';
 import { BaseCanvasNode } from './BaseCanvasNode';
 import { trafficNodeApi } from '@/api/nodeSimulation';
@@ -22,8 +22,10 @@ function TrafficSourceNode(props: NodeProps<TrafficSourceNodeData>) {
   const nodes = useWorkspaceStore((s) => s.nodes);
   const edges = useWorkspaceStore((s) => s.edges);
   const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
+  const activeFlServerNodeId = useWorkspaceStore((s) => s.activeFlServerNodeId);
 
   const isRunning = data.status === 'running';
+  const isFlTraining = activeFlServerNodeId != null;
 
   /** Resolve all device IDs connected via traffic-feed edges from this node */
   const resolveTargetDevices = useCallback((): string[] => {
@@ -119,46 +121,70 @@ function TrafficSourceNode(props: NodeProps<TrafficSourceNodeData>) {
         </span>
       )}
 
-      {/* Play / Stop button */}
-      <button
-        className="canvas-node-play-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (isRunning) handleStop();
-          else handlePlay();
-        }}
-        disabled={loading}
-        aria-label={isRunning ? 'Stop traffic' : 'Start traffic'}
-        style={{
-          color: isRunning ? '#d03050' : '#18a058',
-          background: isRunning
-            ? 'rgba(208, 48, 80, 0.12)'
-            : 'rgba(24, 160, 88, 0.12)',
-          border: `1px solid ${isRunning ? 'rgba(208, 48, 80, 0.24)' : 'rgba(24, 160, 88, 0.24)'}`,
-          borderRadius: '4px',
-          padding: '2px 6px',
-          cursor: loading ? 'wait' : 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '3px',
-          fontSize: '10px',
-          fontWeight: 600,
-          marginLeft: '4px',
-          opacity: loading ? 0.6 : 1,
-        }}
-      >
-        {isRunning ? (
-          <>
-            <Square size={10} />
-            Stop
-          </>
-        ) : (
-          <>
-            <Play size={10} />
-            Run
-          </>
-        )}
-      </button>
+      {/* Play / Stop button — disabled during FL training (no real containers) */}
+      {isFlTraining ? (
+        <span
+          className="canvas-node-play-btn"
+          style={{
+            color: '#a78bfa',
+            background: 'rgba(167, 139, 250, 0.12)',
+            border: '1px solid rgba(167, 139, 250, 0.24)',
+            borderRadius: '4px',
+            padding: '2px 6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '10px',
+            fontWeight: 600,
+            marginLeft: '4px',
+            opacity: 0.7,
+            cursor: 'default',
+          }}
+        >
+          <Zap size={10} />
+          FL Active
+        </span>
+      ) : (
+        <button
+          className="canvas-node-play-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isRunning) handleStop();
+            else handlePlay();
+          }}
+          disabled={loading}
+          aria-label={isRunning ? 'Stop traffic' : 'Start traffic'}
+          style={{
+            color: isRunning ? '#d03050' : '#18a058',
+            background: isRunning
+              ? 'rgba(208, 48, 80, 0.12)'
+              : 'rgba(24, 160, 88, 0.12)',
+            border: `1px solid ${isRunning ? 'rgba(208, 48, 80, 0.24)' : 'rgba(24, 160, 88, 0.24)'}`,
+            borderRadius: '4px',
+            padding: '2px 6px',
+            cursor: loading ? 'wait' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '10px',
+            fontWeight: 600,
+            marginLeft: '4px',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {isRunning ? (
+            <>
+              <Square size={10} />
+              Stop
+            </>
+          ) : (
+            <>
+              <Play size={10} />
+              Run
+            </>
+          )}
+        </button>
+      )}
     </BaseCanvasNode>
   );
 }

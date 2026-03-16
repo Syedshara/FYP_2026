@@ -151,6 +151,35 @@ class TestWebSocketBroadcast:
             call_args = mock_broadcast.call_args[0][0]
             assert call_args["type"] == "fl_round"
 
+    async def test_fl_round_gradient_stats_forwarded_in_ws(self, app_client: AsyncClient):
+        """gradient_stats sent by FL server must be forwarded verbatim in the WS broadcast."""
+        gradient_stats = {
+            "dispatch_norms": {"lstm.weight_ih_l0": 12.3},
+            "delta_norms": {"lstm.weight_ih_l0": 0.05},
+            "delta_means": {"lstm.weight_ih_l0": -0.000001},
+            "post_norms": {"lstm.weight_ih_l0": 12.25},
+            "total_delta": 0.05,
+        }
+        with patch("app.core.websocket.ws_manager.broadcast") as mock_broadcast:
+            resp = await app_client.post(
+                "/api/v1/internal/fl/round",
+                json={
+                    "round_number": 3,
+                    "total_rounds": 5,
+                    "num_clients": 2,
+                    "aggregation_method": "fedavg_he",
+                    "global_loss": 0.25,
+                    "global_accuracy": 0.93,
+                    "gradient_stats": gradient_stats,
+                },
+            )
+            assert resp.status_code == 201
+            mock_broadcast.assert_called_once()
+
+            call_args = mock_broadcast.call_args[0][0]
+            assert call_args["type"] == "fl_round"
+            assert call_args["data"]["gradient_stats"] == gradient_stats
+
     async def test_training_status_triggers_ws_broadcast(self, app_client: AsyncClient):
         """Training status change should be broadcast."""
         with patch("app.core.websocket.ws_manager.broadcast") as mock_broadcast:

@@ -408,7 +408,10 @@ export default function LiveDataSync() {
       );
 
       if (feedsRunningDevice && isTraining) {
-        updateNodeData(node.id, { status: 'running' } as Partial<CanvasNodeData>);
+        // Use 'active' (not 'running') — no real Docker containers during FL training.
+        // FL uses pre-generated .npy data; setting 'running' caused 409s when users
+        // clicked Stop on traffic nodes (no containers in _traffic_containers dict).
+        updateNodeData(node.id, { status: 'active' } as Partial<CanvasNodeData>);
       } else if (!isTraining && (d.status === 'active' || d.status === 'running')) {
         updateNodeData(node.id, { status: 'idle' } as Partial<CanvasNodeData>);
       }

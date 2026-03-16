@@ -2,11 +2,21 @@
   {
     "round": 1,
     "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.01905059814453125
+    "aggregation_time_sec": 0.0307004451751709
   },
   {
     "round": 2,
     "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.009333610534667969
+    "aggregation_time_sec": 0.021027088165283203
+  },
+  {
+    "round": 3,
+    "aggregation": "fedavg_plain",
+    "aggregation_time_sec": 0.017954587936401367
+  },
+  {
+    "round": 4,
+    "aggregation": "fedavg_plain",
+    "aggregation_time_sec": 0.015273332595825195
   }
 ]

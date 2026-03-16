@@ -6,8 +6,8 @@
  * Validates canvas topology before allowing training start.
  */
 
-import { useState, useMemo } from 'react';
-import { Play, Square, Loader2, Lock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Play, Square, Loader2, Lock, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
 import { flApi, type FLStartConfig } from '@/api/fl';
 import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -53,6 +53,58 @@ export default function FLTrainingControls() {
   const [isStopping, setIsStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Desync detection: optimistic state set but WS never confirmed training started
+  const activeFlServerNodeId = useWorkspaceStore((s) => s.activeFlServerNodeId);
+  const isDesyncStuck = activeFlServerNodeId != null && !isTraining;
+
+  // ── Shared reset logic (used by manual Reset button + auto-timeout) ──
+  const handleReset = useCallback(async () => {
+    // Best-effort cleanup on backend (ignore errors — may already be stopped)
+    try { await flApi.stop(); } catch { /* noop */ }
+    setActiveFlServerNodeId(null);
+    setError(null);
+    // Revert all topology nodes back to idle
+    if (drilldownServerId) {
+      updateNodeData(drilldownServerId, { status: 'idle', currentRound: 0 });
+    }
+    for (const id of topologyResult.connectedClientNodeIds) {
+      updateNodeData(id, { status: 'idle' });
+    }
+    for (const id of topologyResult.deviceNodeIds) {
+      updateNodeData(id, { status: 'idle' });
+    }
+    for (const id of topologyResult.trafficSourceNodeIds) {
+      updateNodeData(id, { status: 'idle' });
+    }
+  }, [drilldownServerId, setActiveFlServerNodeId, updateNodeData, topologyResult]);
+
+  // ── Fix 2: Auto-recovery timeout (30s) ──
+  // If activeFlServerNodeId was set (optimistic) but isTraining never becomes true,
+  // auto-reset after 30s so the user isn't stuck permanently.
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isDesyncStuck) {
+      timeoutRef.current = setTimeout(() => {
+        console.warn('[FLTrainingControls] Training never confirmed by WS — auto-recovering');
+        setError('Training failed to start — auto-recovered after 30s');
+        handleReset();
+      }, 30_000);
+    } else {
+      // Training confirmed or no active server — clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [isDesyncStuck, handleReset]);
+
   const handleStart = async () => {
     if (!topologyResult.valid) {
       setError('Fix topology errors before starting training.');
@@ -90,8 +142,10 @@ export default function FLTrainingControls() {
       for (const id of topologyResult.trafficSourceNodeIds) {
         updateNodeData(id, { status: 'running' });
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start training');
+    } catch (err: unknown) {
+      // Extract useful error detail from Axios responses
+      const axiosDetail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(axiosDetail ?? (err instanceof Error ? err.message : 'Failed to start training'));
     } finally {
       setIsStarting(false);
     }
@@ -243,6 +297,42 @@ export default function FLTrainingControls() {
           }}
         >
           {error}
+        </div>
+      )}
+
+      {/* Desync warning — optimistic state set but WS never confirmed training */}
+      {isDesyncStuck && (
+        <div
+          className="flex flex-col gap-1.5 px-3 py-2 rounded-lg text-xs"
+          style={{
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
+            <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+              Training may have failed to start
+            </span>
+          </div>
+          <div style={{ color: 'var(--n8n-text-muted)', paddingLeft: 18 }}>
+            Waiting for confirmation... Auto-reset in 30s.
+          </div>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center gap-1 self-start mt-1 px-2.5 py-1 rounded text-xs font-semibold"
+            style={{
+              color: '#f59e0b',
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              cursor: 'pointer',
+              marginLeft: 18,
+            }}
+          >
+            <RotateCcw size={11} />
+            Reset Now
+          </button>
         </div>
       )}
 

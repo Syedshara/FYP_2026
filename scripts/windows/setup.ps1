@@ -94,28 +94,11 @@ subjectAltName = DNS:iot_ids_fl_server,DNS:fl_server,DNS:localhost,IP:127.0.0.1
     Remove-Item "$certsDir\server_ext.cnf" -ErrorAction SilentlyContinue
     Write-Host "   [+] FL server certificate created (SANs: iot_ids_fl_server, fl_server, localhost)" -ForegroundColor Gray
 
-    # ── 3. FL Client mTLS certificates + Ed25519 signing keys ────────────
-    foreach ($clientName in @("Bank_A", "Bank_B", "Bank_C")) {
-        # RSA mTLS cert
-        openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 `
-            -out "$certsDir\$clientName.key" 2>$null
-        openssl req -new -key "$certsDir\$clientName.key" `
-            -out "$certsDir\$clientName.csr" `
-            -subj "/CN=$clientName/O=IoT IDS Platform/C=MY" 2>$null
-        openssl x509 -req -days 3650 `
-            -in "$certsDir\$clientName.csr" `
-            -CA "$certsDir\ca.crt" -CAkey "$certsDir\ca.key" -CAcreateserial `
-            -out "$certsDir\$clientName.crt" 2>$null
-        Remove-Item "$certsDir\$clientName.csr" -ErrorAction SilentlyContinue
-
-        # Ed25519 signing keypair
-        openssl genpkey -algorithm ed25519 `
-            -out "$certsDir\${clientName}_ed25519.pem" 2>$null
-        openssl pkey -in "$certsDir\${clientName}_ed25519.pem" -pubout `
-            -out "$certsDir\client_keys\$clientName.pub.pem" 2>$null
-
-        Write-Host "   [+] $clientName certificates and signing keys created" -ForegroundColor Gray
-    }
+    # ── 3. FL client certs/keys are generated dynamically ─────────────────
+    # Static client provisioning is intentionally removed.
+    # New FL clients (canvas/DB-driven) get their mTLS cert + Ed25519 keys
+    # from backend/app/services/fl_service.py::_generate_client_keys().
+    Write-Host "   [+] Dynamic FL client certificate provisioning enabled" -ForegroundColor Gray
 
     Write-Host "[OK] PKI certificates generated in .\certs\" -ForegroundColor Green
 }

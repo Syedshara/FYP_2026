@@ -2,7 +2,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("all", "backend", "postgres", "redis", "fl_server", "frontend", "fl_client_a", "fl_client_b", "fl_client_c")]
+    [ValidateSet("all", "backend", "postgres", "redis", "fl_server", "frontend", "fl_clients")]
     [string]$Service = "all"
 )
 
@@ -11,9 +11,6 @@ $containers = [ordered]@{
     postgres    = @{ Name = "iot_ids_postgres"; Title = "DB   - PostgreSQL :5432" }
     redis       = @{ Name = "iot_ids_redis"; Title = "CACHE- Redis :6379" }
     fl_server   = @{ Name = "iot_ids_fl_server"; Title = "FL   - Flower Server :8080" }
-    fl_client_a = @{ Name = "iot_ids_fl_client_a"; Title = "FL-A - Client Bank_A" }
-    fl_client_b = @{ Name = "iot_ids_fl_client_b"; Title = "FL-B - Client Bank_B" }
-    fl_client_c = @{ Name = "iot_ids_fl_client_c"; Title = "FL-C - Client Bank_C" }
 }
 
 Write-Host ""
@@ -24,6 +21,8 @@ Write-Host ""
 
 if ($Service -eq "all") {
     $keys = @("backend", "postgres", "redis", "fl_server")
+} elseif ($Service -eq "fl_clients") {
+    $keys = @("fl_clients")
 } else {
     $keys = @($Service)
 }
@@ -32,6 +31,21 @@ $running = @(docker ps --format "{{.Names}}" 2>$null)
 $opened = 0
 
 foreach ($key in $keys) {
+    if ($key -eq "fl_clients") {
+        $clientContainers = @(docker ps --format "{{.Names}}" 2>$null | Where-Object { $_ -like "iot_ids_fl_client_*" })
+        if ($clientContainers.Count -eq 0) {
+            Write-Host "  - Dynamic FL clients           - not running" -ForegroundColor DarkGray
+            continue
+        }
+
+        foreach ($name in $clientContainers) {
+            Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "docker logs $name --tail 200 -f"
+            Write-Host "  + FL   - Dynamic Client $name  - window opened" -ForegroundColor Green
+            $opened++
+        }
+        continue
+    }
+
     if ($key -eq "frontend") {
         $logFile = Get-FrontendLogFile
         if (Test-Path $logFile) {
