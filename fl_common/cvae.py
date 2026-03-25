@@ -267,8 +267,6 @@ class CVAE(nn.Module):
         super().__init__()
         self.encoder = CVAEEncoder(num_features, latent_dim)
         self.decoder = CVAEDecoder(seq_len, num_features, num_classes, latent_dim)
-        # Auxiliary classifier on mu — enforces class-separable latent space
-        # for rare classes (heartbleed: 11 samples, infiltration: 36 samples)
         self.aux_classifier = nn.Linear(latent_dim, num_classes)
 
     @staticmethod

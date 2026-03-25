@@ -324,15 +324,22 @@ async def monitor_loop(stop_event: asyncio.Event | None = None):
         client_db_id = client_info["id"]
         log.info("Resolved client '%s' → DB id=%d", CLIENT_ID, client_db_id)
 
-        # ── Fetch devices (must exist — no auto-creation) ─
+        # ── Fetch devices; auto-create a virtual device if none exist ──
         devices = await fetch_devices(http, client_db_id)
         if not devices:
-            log.error(
-                "No devices registered for client '%s' (db_id=%d). "
-                "Register devices before running simulation.",
+            log.info(
+                "No devices registered for client '%s' (db_id=%d) — creating virtual device…",
                 CLIENT_ID, client_db_id,
             )
-            return
+            vdev = await create_virtual_device(http, client_db_id)
+            if vdev:
+                devices = await fetch_devices(http, client_db_id)
+            if not devices:
+                log.error(
+                    "No devices for client '%s' even after auto-create — aborting monitor",
+                    CLIENT_ID,
+                )
+                return
 
         # ── Filter to single device if DEVICE_ID is set (attack/traffic-node mode) ─
         if TARGET_DEVICE_ID:

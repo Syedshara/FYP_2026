@@ -156,20 +156,38 @@ def generate_round_nonce(session_id: str, round_number: int) -> str:
 def _load_client_public_keys() -> Dict[str, bytes]:
     """Load Ed25519 public keys for each FL client from PEM files.
 
-    Files are expected at ``CLIENT_KEY_DIR/<client_name>.pub.pem``, e.g.
-    ``./certs/client_keys/Bank_A.pub.pem``.  Missing keys are skipped with
-    a warning so the server can still start even when certs are not yet
-    provisioned.
+    Files are expected at ``CLIENT_KEY_DIR/<cert_stem>.pub.pem`` where
+    ``cert_stem`` is the title-cased form of the client name — the same
+    convention used by ``_generate_client_keys()`` in fl_service.py and
+    ``_cert_name()`` in docker_service.py.
+
+    Examples:
+        "bank_a"             → "Bank_A.pub.pem"
+        "node_1773652351722_1" → "Node_1773652351722_1.pub.pem"
+
+    A plain-name fallback (exact match) is tried if the title-cased path
+    does not exist, so edge-case identifiers that need no conversion still
+    work.  Missing keys are skipped with a warning so the server can start
+    even when certs are not yet provisioned.
     """
     keys: Dict[str, bytes] = {}
     for name in FL_CLIENT_NAMES:
-        path = os.path.join(CLIENT_KEY_DIR, f"{name}.pub.pem")
+        # Apply the same title-casing that _cert_name() / _generate_client_keys() use
+        stem = "_".join(part.capitalize() for part in name.split("_"))
+        path = os.path.join(CLIENT_KEY_DIR, f"{stem}.pub.pem")
+        if not os.path.isfile(path):
+            # Fallback: exact name (handles identifiers that need no conversion)
+            path = os.path.join(CLIENT_KEY_DIR, f"{name}.pub.pem")
         if os.path.isfile(path):
             with open(path, "rb") as fh:
                 keys[name] = fh.read()
             log.info("Loaded public key for %s from %s", name, path)
         else:
-            log.warning("Public key not found for %s at %s — signature checks will be skipped", name, path)
+            log.warning(
+                "Public key not found for %s (tried %s and %s) — "
+                "signature checks will be skipped for this client",
+                name, stem, name,
+            )
     return keys
 
 
@@ -1062,23 +1080,37 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 },
             )
 
-            # ── Phase 3: Decrypt ──
+            # ── Phase 3: Decrypt via VSS threshold reconstruction ──
+            # Direct .decrypt() fails here because the VSS ceremony called
+            # ctx.make_context_public() during __init__, permanently stripping
+            # the secret key from self.ckks_ctx.  threshold_decrypt()
+            # reconstructs a short-lived private context from the stored VSS
+            # shares, decrypts all layers, then destroys the context immediately.
+            # num_clients=1 because trust weights were pre-applied as scaling
+            # before encryption — the ciphertext sum IS the weighted delta.
             t_dec_start = time.time()
             dec_layer_data: list[dict] = []
 
-            for key in enc_agg:
-                flat = np.array(enc_agg[key].decrypt(), dtype=np.float32)
-                flat = np.nan_to_num(flat, nan=0.0, posinf=0.0, neginf=0.0)
-                shape = shapes[key]
-                num_el = int(np.prod(shape))
-                # Already weighted — sum is the final delta (no /num_clients needed)
-                delta_agg = flat[:num_el].reshape(shape)
+            from fl_common.vss_utils import threshold_decrypt
+
+            decrypted_tensors = threshold_decrypt(
+                enc_vectors=enc_agg,
+                contributed_shares=self._vss["shares"],
+                nonces=self._vss["nonces"],
+                commitments=self._vss["commitments"],
+                shapes=shapes,
+                public_ctx=self.ckks_ctx,
+                num_clients=1,
+            )
+
+            for key, delta_tensor in decrypted_tensors.items():
+                delta_agg = delta_tensor.numpy()
                 idx = keys.index(key)
                 new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_agg
                 dec_layer_data.append({
                     "layer": key,
                     "delta_agg_norm": round(float(np.linalg.norm(delta_agg)), 6),
-                    "decrypted_preview": [round(float(x), 6) for x in flat[:5].tolist()],
+                    "decrypted_preview": [round(float(x), 6) for x in delta_agg.flatten()[:5].tolist()],
                 })
 
             dec_time = round(time.time() - t_dec_start, 3)

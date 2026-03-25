@@ -1,22 +1,30 @@
 [
   {
     "round": 1,
-    "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.0307004451751709
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 1.6868045330047607
   },
   {
     "round": 2,
-    "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.021027088165283203
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 1.5210022926330566
   },
   {
     "round": 3,
-    "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.017954587936401367
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 1.4819743633270264
   },
   {
     "round": 4,
-    "aggregation": "fedavg_plain",
-    "aggregation_time_sec": 0.015273332595825195
+    "aggregation": "fedavg_he_ckks",
+    "he_poly_modulus": "16384",
+    "num_encrypted_layers": "4",
+    "aggregation_time_sec": 1.5197021961212158
   }
 ]

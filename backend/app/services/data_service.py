@@ -478,9 +478,7 @@ def generate_client_data(
     """
     target_dir = os.path.join(CLIENT_DATA_ROOT, client_id.lower())
 
-    # Remove a dangling symlink (exists as a symlink but its target is gone).
-    # os.path.isdir() returns False for dangling symlinks, causing os.makedirs()
-    # to raise FileExistsError even with exist_ok=True.
+
     if os.path.islink(target_dir) and not os.path.exists(target_dir):
         os.unlink(target_dir)
         log.info("Removed dangling symlink for client %s: %s", client_id, target_dir)

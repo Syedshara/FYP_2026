@@ -1,33 +1,4 @@
-"""
-Verifiable Secret Sharing (VSS) utilities for the CKKS secret key.
 
-Implements an n-of-n additive secret sharing scheme over bytes (XOR-based)
-with SHA-256 commitments for share integrity verification.
-
-Scheme overview
-───────────────
-  split_key()     — serialise the CKKS secret key, split into N additive
-                    (XOR) shares, compute (nonce, commitment) per share,
-                    then strip the secret key from the live context.
-
-  verify_share()  — check SHA-256(share || nonce) == commitment.
-
-  reconstruct_and_get_context() — verify all contributed shares, XOR them
-                    to recover key bytes, deserialise a fresh private context.
-
-  threshold_decrypt() — convenience wrapper: reconstruct → decrypt →
-                    average → destroy private context.
-
-  proactive_refresh() — reconstruct the key and immediately re-split it into
-                    fresh shares, replacing the old share set.
-
-Security notes
-──────────────
-  • Individual shares reveal nothing about the key (information-theoretic).
-  • Commitments are binding and hiding; tampering is detected before XOR.
-  • The reconstructed private context must be deleted by the caller as soon
-    as decryption is complete.  proactive_refresh() handles this internally.
-"""
 
 import gc
 import hashlib
@@ -67,39 +38,7 @@ def split_key(
     ctx: ts.Context,
     client_names: list[str],
 ) -> dict:
-    """
-    Split the CKKS secret key from *ctx* into additive (XOR) shares.
-
-    For N clients, N-1 random shares are drawn uniformly at random; the
-    last share is defined as ``key_bytes XOR share_0 XOR … XOR share_{N-2}``
-    so that XOR of all shares reconstructs the original key bytes exactly.
-
-    A fresh 32-byte nonce and a SHA-256 commitment are generated for every
-    share.  Commitments are public; shares and nonces are private.
-
-    Parameters
-    ----------
-    ctx:
-        A TenSEAL CKKS context that **still holds the secret key**.
-    client_names:
-        Ordered list of client identifiers.  Must contain at least one name.
-
-    Returns
-    -------
-    dict with three keys::
-
-        {
-            "shares":      { client_name: bytes },
-            "nonces":      { client_name: bytes },
-            "commitments": { client_name: bytes },   # 32-byte SHA-256 digests
-        }
-
-    Side effect
-    -----------
-    ``ctx.make_context_public()`` is called before returning — the secret
-    key is permanently removed from *ctx*.  The caller must never store the
-    returned shares in plaintext long-term.
-    """
+    
     if not client_names:
         raise ValueError("client_names must contain at least one entry")
 
@@ -138,23 +77,7 @@ def verify_share(
     nonce: bytes,
     commitment: bytes,
 ) -> bool:
-    """
-    Verify the integrity of a single share.
-
-    Parameters
-    ----------
-    share:
-        The raw share bytes contributed by a client.
-    nonce:
-        The 32-byte nonce that was paired with this share at split time.
-    commitment:
-        The 32-byte SHA-256 digest ``SHA-256(share || nonce)`` stored
-        alongside the public parameters.
-
-    Returns
-    -------
-    ``True`` if and only if ``SHA-256(share || nonce) == commitment``.
-    """
+   
     return _make_commitment(share, nonce) == commitment
 
 
@@ -164,41 +87,7 @@ def reconstruct_and_get_context(
     commitments: dict[str, bytes],
     public_ctx: ts.Context,
 ) -> ts.Context:
-    """
-    Verify all contributed shares and reconstruct the CKKS private context.
-
-    Verification is performed for every client **before** the XOR
-    reconstruction step.  If any commitment check fails the function raises
-    immediately with the offending client's name; no partial key material is
-    ever assembled.
-
-    Parameters
-    ----------
-    contributed_shares:
-        Mapping ``{ client_name: share_bytes }`` from all N clients.
-    nonces:
-        Mapping ``{ client_name: nonce_bytes }`` (public, stored at the server).
-    commitments:
-        Mapping ``{ client_name: commitment_bytes }`` (public).
-    public_ctx:
-        The public (keyless) TenSEAL context — used only to infer parameters;
-        the reconstructed context is built independently from the key bytes.
-
-    Returns
-    -------
-    A fresh ``ts.Context`` that contains the secret key.
-
-    Raises
-    ------
-    ValueError
-        If any client's share fails its commitment check.
-
-    Note
-    ----
-    **The caller is responsible for deleting the returned context** (via
-    ``del ctx`` followed by ``gc.collect()``) as soon as decryption is
-    complete to minimise the secret-key exposure window.
-    """
+   
     # ── 1. Verify every share before touching key material ────────────────────
     for name in contributed_shares:
         share = contributed_shares[name]
@@ -225,34 +114,7 @@ def threshold_decrypt(
     public_ctx: ts.Context,
     num_clients: int,
 ) -> dict[str, torch.Tensor]:
-    """
-    Reconstruct the CKKS private context, decrypt all encrypted vectors,
-    average by *num_clients*, then immediately destroy the private context.
-
-    Parameters
-    ----------
-    enc_vectors:
-        Mapping ``{ layer_name: CKKSVector }`` — the homomorphically
-        aggregated (summed) ciphertexts for each selected layer.
-    contributed_shares:
-        Per-client share bytes, as returned by ``split_key()``.
-    nonces:
-        Per-client nonce bytes.
-    commitments:
-        Per-client commitment bytes.
-    shapes:
-        Mapping ``{ layer_name: original_tensor_shape }`` so the flat
-        decrypted array can be reshaped correctly.
-    public_ctx:
-        The public TenSEAL context (no secret key).
-    num_clients:
-        Number of clients whose updates were summed — used to compute the
-        per-client average.
-
-    Returns
-    -------
-    ``{ layer_name: torch.Tensor }`` — decrypted and averaged weight deltas.
-    """
+   
     # ── Reconstruct private context (raises on bad shares) ───────────────────
     private_ctx = reconstruct_and_get_context(
         contributed_shares, nonces, commitments, public_ctx
@@ -288,37 +150,7 @@ def proactive_refresh(
     commitments: dict[str, bytes],
     client_names: list[str],
 ) -> dict:
-    """
-    Rotate the secret-key shares without exposing the key to any single party.
-
-    The current shares are verified and assembled to recover the secret key,
-    which is immediately re-split into a fresh set of shares with new nonces
-    and commitments.  The temporary private context is destroyed before the
-    function returns.
-
-    Parameters
-    ----------
-    public_ctx:
-        The public (keyless) TenSEAL context.
-    contributed_shares:
-        Current share bytes from all clients.
-    nonces:
-        Current nonce bytes for all clients.
-    commitments:
-        Current commitment bytes for all clients.
-    client_names:
-        Ordered list of client identifiers for the new share set.
-
-    Returns
-    -------
-    A new ``{ "shares", "nonces", "commitments" }`` dict with the same
-    structure as ``split_key()``.  All values differ from the previous round.
-
-    Note
-    ----
-    The reconstructed private context is created internally and destroyed
-    before this function returns; it is never visible to the caller.
-    """
+   
     # ── 1. Reconstruct private context ───────────────────────────────────────
     private_ctx = reconstruct_and_get_context(
         contributed_shares, nonces, commitments, public_ctx
