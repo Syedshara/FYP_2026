@@ -35,11 +35,21 @@ const KIND_META: Record<SecurityEventKind, KindMeta> = {
   vss_ceremony:       { label: 'VSS_CERE',     colorVar: '#38bdf8' },
   vss_share_dist:     { label: 'VSS_SHARE',    colorVar: '#38bdf8' },
   mtls_handshake:     { label: 'MTLS_OK',      colorVar: 'var(--n8n-success)' },
-  recess_detect:      { label: 'RECESS_DET',   colorVar: 'var(--n8n-warning)' },
-  recess_flag:        { label: 'RECESS_FLAG',  colorVar: 'var(--n8n-danger)' },
-  global_dispatch:    { label: 'DISPATCH',     colorVar: '#60a5fa' },
-  client_update:      { label: 'CLIENT_UPD',   colorVar: '#34d399' },
-  model_updated:      { label: 'MODEL_UPD',    colorVar: '#fbbf24' },
+  recess_detect:           { label: 'RECESS_DET',    colorVar: 'var(--n8n-warning)' },
+  recess_flag:             { label: 'RECESS_FLAG',   colorVar: 'var(--n8n-danger)' },
+  global_dispatch:         { label: 'DISPATCH',      colorVar: '#60a5fa' },
+  client_update:           { label: 'CLIENT_UPD',    colorVar: '#34d399' },
+  model_updated:           { label: 'MODEL_UPD',     colorVar: '#fbbf24' },
+  // ── Granular RECESS events — routed to recessStore, but kept here for type
+  //    completeness so the exhaustive Record<SecurityEventKind, KindMeta> compiles.
+  //    These are not displayed in FLTimelinePanel (they bypass addSecurityEvent).
+  recess_probe_built:      { label: 'RECESS_PROBE',  colorVar: 'var(--n8n-warning)' },
+  recess_probe_dispatched: { label: 'RECESS_DISP',   colorVar: 'var(--n8n-warning)' },
+  recess_response_received:{ label: 'RECESS_RESP',   colorVar: 'var(--n8n-warning)' },
+  recess_vss_decrypt:      { label: 'RECESS_VSS',    colorVar: '#38bdf8' },
+  recess_score_computed:   { label: 'RECESS_SCORE',  colorVar: 'var(--n8n-warning)' },
+  recess_decision:         { label: 'RECESS_DECIS',  colorVar: 'var(--n8n-warning)' },
+  recess_round_complete:   { label: 'RECESS_DONE',   colorVar: 'var(--n8n-success)' },
 };
 
 const ALERT_KINDS = new Set<SecurityEventKind>([

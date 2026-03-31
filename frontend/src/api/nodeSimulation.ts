@@ -28,6 +28,7 @@ export interface TrafficNodeStartRequest {
   traffic_node_id: string;
   target_device_ids: string[];
   flow_rate?: number;            // default 5.0
+  traffic_type?: 'benign' | 'mixed';  // default 'benign'
 }
 
 export interface TrafficNodeStopRequest {

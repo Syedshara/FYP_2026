@@ -22,7 +22,7 @@ pytest
 # Run a single test file
 pytest tests/test_fl_training.py
 
-# Run a single test by fully-qualified name
+# Run a single test by fully-qualified name  (tests are grouped in class Test*)
 pytest tests/test_fl_training.py::TestStartTraining::test_start_training
 
 # Pattern match across files
@@ -67,9 +67,16 @@ docker compose -f docker-compose.dev.yml restart backend
 ./scripts/linux/setup.sh
 ```
 
+### FL Components (standalone, outside Docker)
+```bash
+cd fl_server && python server.py
+cd fl_client && MODE=TRAIN python client.py   # IDLE | MONITOR | TRAIN
+```
+
 ## Code Style — Python
 
-- **Module docstring** on every `.py` file — always first line.
+- **Module docstring** on every `.py` file — first line, triple-quoted.
+- **Logger**: `log = logging.getLogger(__name__)` at module level; never use `print()`.
 - **Fully async**: all FastAPI route handlers and service functions are `async def`. Use
   `async with` sessions from `database.py`. Never call blocking I/O in a route handler.
 - **Layer separation** — no cross-layer imports in the wrong direction:
@@ -79,13 +86,16 @@ docker compose -f docker-compose.dev.yml restart backend
 - **Naming**: `snake_case` for variables, functions, modules; `PascalCase` for classes.
 - **Config**: all env vars declared in `backend/app/config.py` (`BaseSettings`). Never
   hardcode secrets or hostnames.
-- **Error handling**: raise `fastapi.HTTPException` in services for user-facing errors;
-  use `try/except Exception as e: log.warning(...)` in startup/background code.
+- **Error handling**: raise typed exceptions from `app.core.exceptions` — `NotFoundException`,
+  `ConflictException`, `ForbiddenException` — not raw `fastapi.HTTPException`. Only use
+  `HTTPException` for truly one-off cases. Use `try/except Exception as e: log.warning(...)`
+  in startup/background code.
 - **Dependency injection**: DB session via `Depends(get_db)`; auth via `Depends(get_current_user)`.
 - **Imports**: stdlib → third-party → local, separated by blank lines. Use `from __future__
   import annotations` only when necessary (forward refs in config / conftest).
-- **ORM**: SQLAlchemy 2.0 style — `Mapped[T]` + `mapped_column()`. Primary keys are `uuid.UUID`
-  with `default=uuid.uuid4`. Timestamps use `datetime.now(timezone.utc)`.
+- **ORM**: SQLAlchemy 2.0 style — `Mapped[T]` + `mapped_column()`. Primary keys are `int`
+  (auto-increment) or `uuid.UUID` with `default=uuid.uuid4`. Timestamps use
+  `datetime.now(timezone.utc)`.
 - **Migrations**: always create an Alembic migration when changing a model. Never mutate
   DB schema directly.
 - No configured linter (no ruff/flake8/mypy). Follow existing file patterns.
@@ -94,7 +104,10 @@ docker compose -f docker-compose.dev.yml restart backend
 
 - **Components**: `export default function ComponentName()` (named function, not arrow).
   PascalCase `.tsx` filenames. One component per file.
-- **Hooks / stores / utils**: `export const name = ...`. camelCase `.ts` filenames.
+- **Hooks**: named export `export function useX(...)` with a JSDoc block. camelCase `.ts`
+  filenames under `src/hooks/`.
+- **Stores / utils**: `export const name = ...`. camelCase `.ts` filenames under `src/stores/`
+  or `src/utils/`.
 - **Path alias**: `@/` → `src/`. Use absolute `@/` imports everywhere; avoid `../..` beyond one level.
 - **Types**: `interface` for object shapes (not `type`). Types mirror backend Pydantic schemas
   (snake_case field names). Optional fields `?:`, nullable `T | null`. No `any`.
@@ -104,11 +117,12 @@ docker compose -f docker-compose.dev.yml restart backend
 - **Server state**: TanStack Query for all server data. No `useEffect + fetch` pattern.
 - **Client state**: Zustand stores in `src/stores/`. Use `persist()` for refresh-surviving
   state. No component-level state for anything shared.
+- **Charts**: Recharts is installed. Charting components live in `src/components/`.
 - **Event handlers**: prefix `handle*` (e.g., `handleStart`, `handleDelete`).
 - **Tailwind v4**: via `@tailwindcss/vite` plugin. Do not add `tailwind.config.js` or
   `postcss.config.js`. No arbitrary magic pixel values — use design tokens / CSS variables.
 - **ESLint**: flat config in `frontend/eslint.config.js`. `strict` mode TypeScript.
-  `noUnusedLocals` / `noUnusedParameters` are OFF in app code (on in vite.config.ts only).
+  `noUnusedLocals` / `noUnusedParameters` are OFF in app code (on in `vite.config.ts` only).
 - **No Prettier** configured — follow spacing/style conventions already in the file.
 
 ## Architecture Quick-Reference
@@ -133,6 +147,39 @@ FL Clients (Bank_A, Bank_B, Bank_C) → POST predictions back to Backend REST
 - FL client `MODE` env var: `IDLE` | `MONITOR` | `TRAIN`.
 - CKKS-encrypted layers: `lstm.weight_ih_l0`, `lstm.weight_hh_l0`, `fc.weight`, `fc.bias`.
 - Default admin credentials (seeded on first start): `admin` / `admin123`.
+- Docker container names: `iot_ids_<service>` (e.g., `iot_ids_backend`, `iot_ids_fl_server`,
+  `iot_ids_fl_client_bank_a`). All containers share the `iot_ids_network` bridge network.
+- **Cert / key file naming**: `client_id` (e.g., `bank_a`) is title-cased per part when
+  building filenames — `bank_a` → `Bank_A`, `node_1773_1` → `Node_1773_1`. This applies to
+  `.crt`, `.key`, `_ed25519.pem`, and `.pub.pem` files under `certs/`. Always apply this
+  transformation when constructing paths to client cert/key files.
+
+## FL / Security Utilities
+
+- **HE**: use `create_ckks_context()` / `encrypted_sum()` from `fl_common/he_utils.py` — do
+  not instantiate TenSEAL contexts inline.
+- **Gradient signing**: `fl_common/signing_utils.py` — `sign_gradient()` on client,
+  `verify_gradient()` on server using public keys from `certs/client_keys/`.
+- **RECESS**: `fl_common/recess_utils.py` — abnormality detection and trust scoring. Server
+  runs a RECESS detection round every 5 rounds.
+- **VSS**: `fl_common/vss_utils.py` — `split_key()` / `reconstruct_and_get_context()` /
+  `threshold_decrypt()`. Never manipulate TenSEAL private contexts directly.
+
+## Environment Setup
+
+Copy `.env.example` to `.env` before first run. Key variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Async PostgreSQL URL (asyncpg driver) |
+| `DATABASE_URL_SYNC` | Sync URL for Alembic migrations |
+| `JWT_SECRET_KEY` | Must be changed in production |
+| `MODEL_PATH` / `SCALER_PATH` | Paths to `.pt` model and `.pkl` scaler inside container |
+| `FL_SERVER_HOST` / `FL_SERVER_PORT` | gRPC FL server address |
+| `HE_POLY_MODULUS` / `HE_GLOBAL_SCALE` | CKKS parameters — must match across server and all clients |
+
+Certificates are auto-generated by `setup.sh` into `./certs/` (gitignored). Regenerate if
+clients fail the gRPC mTLS handshake.
 
 ## Testing Conventions (pytest)
 
@@ -140,14 +187,14 @@ FL Clients (Bank_A, Bank_B, Bank_C) → POST predictions back to Backend REST
 - Fixtures live in `backend/tests/conftest.py`: in-memory SQLite DB, `app_client`,
   `auth_headers`, `registered_user`.
 - Tests use `httpx.AsyncClient` + `ASGITransport` — no real HTTP server required.
-- ML/Docker heavy deps are mocked at `sys.modules` level in conftest.
+- ML/Docker heavy deps are mocked at `sys.modules` level in conftest (before app import).
 - Tests grouped in `class Test*` with `async def test_*` methods.
 - Mark integration tests `@pytest.mark.integration`, WebSocket tests `@pytest.mark.websocket`.
 
 <!-- gitnexus:start -->
 # GitNexus MCP
 
-This project is indexed by GitNexus as **FYP_2026** (1862 symbols, 4226 relationships, 143 execution flows).
+This project is indexed by GitNexus as **FYP_2026** (1855 symbols, 4205 relationships, 143 execution flows).
 
 ## Always Start Here
 

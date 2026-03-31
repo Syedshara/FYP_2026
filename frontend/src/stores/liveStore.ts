@@ -111,7 +111,15 @@ export type SecurityEventKind =
   | 'round_complete'
   | 'global_dispatch'
   | 'client_update'
-  | 'model_updated';
+  | 'model_updated'
+  // ── Granular RECESS detection events (Phase 3, Sprint 3) ──
+  | 'recess_probe_built'
+  | 'recess_probe_dispatched'
+  | 'recess_response_received'
+  | 'recess_vss_decrypt'
+  | 'recess_score_computed'
+  | 'recess_decision'
+  | 'recess_round_complete';
 
 export interface SecurityEvent {
   kind: SecurityEventKind;

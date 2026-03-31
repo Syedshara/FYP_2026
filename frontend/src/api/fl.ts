@@ -133,4 +133,17 @@ export const flApi = {
   // Certificates (mTLS)
   certificates: () =>
     api.get<CertificateMetadata[]>('/security/certificates').then((r) => r.data),
+
+  // Poison mode toggle (adversarial simulation)
+  togglePoison: (clientPk: number, strategy: 'direction_flip' | 'scale_attack' | 'noise_inject' | 'none') =>
+    api.post<PoisonToggleResponse>(`/fl/clients/${clientPk}/poison`, { strategy }).then((r) => r.data),
 };
+
+// ── Poison toggle types ──
+
+export interface PoisonToggleResponse {
+  client_id: string;
+  strategy: string;
+  active: boolean;
+  message: string;
+}

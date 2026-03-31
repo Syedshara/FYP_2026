@@ -7,10 +7,13 @@ import { useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useRecessStore, RECESS_EVENT_KINDS } from '@/stores/recessStore';
+import { useFedRecoveryStore } from '@/stores/fedRecoveryStore';
 import { flApi } from '@/api/fl';
 import type { WSMessage } from '@/hooks/useWebSocket';
 import type { TrustScoreComponents, GradientStats } from '@/types';
 import type { AggregationEnforcementPayload } from '@/types';
+import type { RecessEventKind } from '@/stores/recessStore';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const { isConnected, subscribe } = useWebSocket();
@@ -338,14 +341,57 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     // ── Security pipeline event (Phase 3) ──
     unsubs.push(subscribe('security_event', (msg: WSMessage) => {
       const d = msg.data;
+      const kind = d.kind as string;
+
+      // Route granular RECESS events to recessStore for animated FSM playback.
+      // All other security events go to liveStore audit log as before.
+      if (RECESS_EVENT_KINDS.has(kind)) {
+        useRecessStore.getState().enqueueEvent({
+          kind: kind as RecessEventKind,
+          round: d.round as number,
+          clientId: d.client_id as string | undefined,
+          detail: d.detail as string | undefined,
+          data: d.data as Record<string, unknown> | undefined,
+          timestamp: msg.timestamp ?? new Date().toISOString(),
+        });
+        return;
+      }
+
       addSecurityEvent({
-        kind: d.kind as import('@/stores/liveStore').SecurityEventKind,
+        kind: kind as import('@/stores/liveStore').SecurityEventKind,
         round: d.round as number,
         clientId: d.client_id as string | undefined,
         detail: d.detail as string | undefined,
         data: d.data as Record<string, unknown> | undefined,
         timestamp: msg.timestamp ?? new Date().toISOString(),
       });
+    }));
+
+    // ── FedRecovery pipeline events (Phase 3) ──
+    unsubs.push(subscribe('fedrecovery_event', (msg: WSMessage) => {
+      const d = msg.data;
+      const kind = d.kind as string;
+      const { startRun, appendStep, completeRun } = useFedRecoveryStore.getState();
+      const ts = msg.timestamp ?? new Date().toISOString();
+
+      if (kind === 'started') {
+        startRun(
+          d.run_id as string,
+          d.flagged_client_id as string,
+          d.flag_round as number,
+          ts,
+        );
+      } else if (kind === 'step') {
+        appendStep(d.run_id as string, {
+          round: d.round as number,
+          step: d.step as 'corrected' | 'skipped',
+          detail: d.detail as string | undefined,
+          data: d.data as Record<string, unknown> | undefined,
+          timestamp: ts,
+        });
+      } else if (['complete', 'partial', 'failed', 'cancelled'].includes(kind)) {
+        completeRun(d.run_id as string, kind, d as Record<string, unknown>, ts);
+      }
     }));
 
     return () => { unsubs.forEach((u) => u()); };

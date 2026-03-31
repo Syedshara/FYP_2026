@@ -5,11 +5,17 @@
  *
  * When FL training is active, shows a compact progress indicator
  * (progress bar, epoch/status text) injected by LiveDataSync via _flProgress.
+ *
+ * When poison mode is active, shows a red "Compromised" badge.
+ * When RECESS flags the client, shows "Flagged" or "Downweighted" badge.
  */
 
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
+import { ShieldAlert, ShieldOff } from 'lucide-react';
 import type { NodeProps } from 'reactflow';
 import { BaseCanvasNode } from './BaseCanvasNode';
+import { flApi } from '@/api/fl';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { ClientNodeData } from '@/types/canvas';
 
 /** Compact status label for FL training phase */
@@ -33,6 +39,27 @@ function phaseLabel(status: string): string {
 function ClientNode(props: NodeProps<ClientNodeData>) {
   const { data } = props;
   const fp = data._flProgress;
+  const isPoisoned = data._poisonStrategy != null;
+  const isTraining = fp != null;
+  const updateNodeData = useWorkspaceStore((s) => s.updateNodeData);
+  const [loading, setLoading] = useState(false);
+
+  const handleTogglePoison = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!data.clientId) return;
+    setLoading(true);
+    try {
+      const newStrategy = isPoisoned ? 'none' : 'direction_flip';
+      const res = await flApi.togglePoison(data.clientId, newStrategy as 'direction_flip' | 'none');
+      updateNodeData(props.id, {
+        _poisonStrategy: res.active ? (res.strategy as ClientNodeData['_poisonStrategy']) : null,
+      } as Partial<ClientNodeData>);
+    } catch (err) {
+      console.error('[ClientNode] Poison toggle failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [data.clientId, isPoisoned, props.id, updateNodeData]);
 
   return (
     <BaseCanvasNode {...props}>
@@ -77,6 +104,50 @@ function ClientNode(props: NodeProps<ClientNodeData>) {
             />
           </div>
         </div>
+      )}
+
+      {/* RECESS trust score badge (injected by LiveDataSync) */}
+      {data._recessStatus && (
+        <span
+          className="canvas-node-chip"
+          style={{
+            color: data._recessStatus === 'flagged' ? '#d03050' : '#f0a020',
+            background: data._recessStatus === 'flagged'
+              ? 'rgba(208, 48, 80, 0.12)'
+              : 'rgba(240, 160, 32, 0.10)',
+            borderColor: data._recessStatus === 'flagged'
+              ? 'rgba(208, 48, 80, 0.25)'
+              : 'rgba(240, 160, 32, 0.20)',
+            fontSize: 9,
+          }}
+        >
+          {data._recessStatus === 'flagged' ? '⚠ Flagged' : '↓ Downwt'}
+        </span>
+      )}
+
+      {/* Poison mode badge + toggle (only during training, requires clientId) */}
+      {isTraining && data.clientId && (
+        <button
+          className="canvas-node-chip"
+          onClick={handleTogglePoison}
+          disabled={loading}
+          title={isPoisoned ? 'Click to deactivate poison' : 'Click to compromise this client'}
+          aria-label={isPoisoned ? 'Deactivate poison mode' : 'Activate poison mode'}
+          style={{
+            color: isPoisoned ? '#d03050' : 'var(--n8n-text-muted)',
+            background: isPoisoned ? 'rgba(208, 48, 80, 0.12)' : 'transparent',
+            borderColor: isPoisoned ? 'rgba(208, 48, 80, 0.25)' : 'var(--n8n-border)',
+            fontSize: 9,
+            cursor: loading ? 'wait' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {isPoisoned ? <ShieldAlert size={10} /> : <ShieldOff size={10} />}
+          {isPoisoned ? 'Compromised' : 'Compromise'}
+        </button>
       )}
     </BaseCanvasNode>
   );

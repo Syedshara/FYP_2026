@@ -43,6 +43,7 @@ from torch.utils.data import Dataset, DataLoader
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fl_common.model import CNN_LSTM_IDS, DEFAULT_CONFIG, SELECTED_LAYERS
 from fl_common import signing_utils, recess_utils
+from poison import read_poison_strategy, poison_gradient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("fl_client")
@@ -83,6 +84,7 @@ def _get_http():
     global _http_client
     if _http_client is None:
         import httpx
+
         _http_client = httpx.Client(base_url=BACKEND_URL, timeout=5.0)
     return _http_client
 
@@ -103,14 +105,20 @@ class ClientSequenceDataset(Dataset):
     """Reads X_seq_chunk_*.npy / y_seq_chunk_*.npy files."""
 
     def __init__(self, client_dir: str):
-        self.x_files = sorted([
-            os.path.join(client_dir, f)
-            for f in os.listdir(client_dir) if f.startswith("X_seq")
-        ])
-        self.y_files = sorted([
-            os.path.join(client_dir, f)
-            for f in os.listdir(client_dir) if f.startswith("y_seq")
-        ])
+        self.x_files = sorted(
+            [
+                os.path.join(client_dir, f)
+                for f in os.listdir(client_dir)
+                if f.startswith("X_seq")
+            ]
+        )
+        self.y_files = sorted(
+            [
+                os.path.join(client_dir, f)
+                for f in os.listdir(client_dir)
+                if f.startswith("y_seq")
+            ]
+        )
         assert len(self.x_files) == len(self.y_files), (
             f"Mismatch: {len(self.x_files)} X files vs {len(self.y_files)} y files"
         )
@@ -131,7 +139,9 @@ class ClientSequenceDataset(Dataset):
 
     def __getitem__(self, idx: int):
         chunk_id = int(np.searchsorted(self.cumulative_sizes, idx, side="right"))
-        local_idx = idx if chunk_id == 0 else idx - int(self.cumulative_sizes[chunk_id - 1])
+        local_idx = (
+            idx if chunk_id == 0 else idx - int(self.cumulative_sizes[chunk_id - 1])
+        )
 
         if chunk_id != self._current_chunk_id:
             self._current_x = np.load(self.x_files[chunk_id], mmap_mode="r")
@@ -150,6 +160,7 @@ class ClientSequenceDataset(Dataset):
 #  Live-traffic dataset — generates windows on-the-fly
 # ═══════════════════════════════════════════════════════════
 
+
 class LiveTrafficDataset(Dataset):
     """Generates training windows live from ReplaySimulator / SyntheticGenerator.
 
@@ -161,6 +172,7 @@ class LiveTrafficDataset(Dataset):
 
     def __init__(self, data_dir: str, num_windows: int = 500):
         from replay_simulator import ReplaySimulator
+
         self.simulator = ReplaySimulator(
             data_dir=data_dir,
             scenario_dir=None,
@@ -170,7 +182,10 @@ class LiveTrafficDataset(Dataset):
         self.num_windows = num_windows
         log.info(
             "[%s] LiveTrafficDataset: %d windows/round from %s (%d total available)",
-            CLIENT_ID, num_windows, data_dir, self.simulator.total_windows,
+            CLIENT_ID,
+            num_windows,
+            data_dir,
+            self.simulator.total_windows,
         )
 
     def __len__(self) -> int:
@@ -257,7 +272,10 @@ def local_train(
 
             # ── Throttled per-batch progress report ──
             now = time.time()
-            if now - last_report_time >= _PROGRESS_THROTTLE or global_batch_idx == grand_total_batches:
+            if (
+                now - last_report_time >= _PROGRESS_THROTTLE
+                or global_batch_idx == grand_total_batches
+            ):
                 last_report_time = now
                 elapsed = now - t0
                 throughput = total_samples / max(elapsed, 0.001)
@@ -268,30 +286,34 @@ def local_train(
                 cur_loss = total_loss / max(total_samples, 1)
                 cur_acc = total_correct / max(total_samples, 1)
 
-                _report_progress({
-                    "round": server_round,
-                    "total_rounds": total_rounds,
-                    "phase": "training",
-                    "epoch": epoch + 1,
-                    "total_epochs": epochs,
-                    "epoch_loss": epoch_loss / max(epoch_samples, 1),
-                    "local_accuracy": cur_acc,
-                    "batch": batch_idx + 1,
-                    "total_batches": total_batches_per_epoch,
-                    "batches_processed": global_batch_idx,
-                    "grand_total_batches": grand_total_batches,
-                    "samples_processed": total_samples,
-                    "total_samples": grand_total_samples,
-                    "throughput": round(throughput, 1),
-                    "eta_seconds": round(max(eta_seconds, 0), 1),
-                    "current_loss": round(cur_loss, 6),
-                    "current_accuracy": round(cur_acc, 6),
-                    "last_update_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "message": (
-                        f"Epoch {epoch + 1}/{epochs} Batch {batch_idx + 1}/{total_batches_per_epoch}"
-                        f" — loss={cur_loss:.4f} acc={cur_acc:.4f} {throughput:.0f} samp/s"
-                    ),
-                })
+                _report_progress(
+                    {
+                        "round": server_round,
+                        "total_rounds": total_rounds,
+                        "phase": "training",
+                        "epoch": epoch + 1,
+                        "total_epochs": epochs,
+                        "epoch_loss": epoch_loss / max(epoch_samples, 1),
+                        "local_accuracy": cur_acc,
+                        "batch": batch_idx + 1,
+                        "total_batches": total_batches_per_epoch,
+                        "batches_processed": global_batch_idx,
+                        "grand_total_batches": grand_total_batches,
+                        "samples_processed": total_samples,
+                        "total_samples": grand_total_samples,
+                        "throughput": round(throughput, 1),
+                        "eta_seconds": round(max(eta_seconds, 0), 1),
+                        "current_loss": round(cur_loss, 6),
+                        "current_accuracy": round(cur_acc, 6),
+                        "last_update_time": time.strftime(
+                            "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+                        ),
+                        "message": (
+                            f"Epoch {epoch + 1}/{epochs} Batch {batch_idx + 1}/{total_batches_per_epoch}"
+                            f" — loss={cur_loss:.4f} acc={cur_acc:.4f} {throughput:.0f} samp/s"
+                        ),
+                    }
+                )
 
     elapsed = time.time() - t0
     avg_loss = total_loss / max(total_samples, 1)
@@ -308,6 +330,7 @@ def local_train(
 #  Flower NumPy Client (TRAIN mode)
 # ═══════════════════════════════════════════════════════════
 
+
 def _load_tls_credentials() -> bytes | None:
     """Load the CA certificate PEM bytes for server verification.
 
@@ -323,13 +346,24 @@ def _load_tls_credentials() -> bytes | None:
         with open(FL_CA_CERT, "rb") as f:
             ca_bytes = f.read()
         # Validate that client cert/key paths also exist (log warning if not)
-        for path, label in [(FL_CLIENT_CERT, "FL_CLIENT_CERT"), (FL_CLIENT_KEY, "FL_CLIENT_KEY")]:
+        for path, label in [
+            (FL_CLIENT_CERT, "FL_CLIENT_CERT"),
+            (FL_CLIENT_KEY, "FL_CLIENT_KEY"),
+        ]:
             if not os.path.isfile(path):
-                log.warning("[%s] mTLS client file missing (%s=%s)", CLIENT_ID, label, path)
-        log.info("[%s] CA cert loaded for server verification (CA=%s)", CLIENT_ID, FL_CA_CERT)
+                log.warning(
+                    "[%s] mTLS client file missing (%s=%s)", CLIENT_ID, label, path
+                )
+        log.info(
+            "[%s] CA cert loaded for server verification (CA=%s)", CLIENT_ID, FL_CA_CERT
+        )
         return ca_bytes
     except FileNotFoundError as exc:
-        log.warning("[%s] mTLS cert file not found (%s) — using insecure channel", CLIENT_ID, exc)
+        log.warning(
+            "[%s] mTLS cert file not found (%s) — using insecure channel",
+            CLIENT_ID,
+            exc,
+        )
         return None
 
 
@@ -338,12 +372,15 @@ def _load_signing_key() -> bytes | None:
     try:
         with open(CLIENT_SIGNING_KEY, "rb") as f:
             key_pem = f.read()
-        log.info("[%s] Ed25519 signing key loaded from %s", CLIENT_ID, CLIENT_SIGNING_KEY)
+        log.info(
+            "[%s] Ed25519 signing key loaded from %s", CLIENT_ID, CLIENT_SIGNING_KEY
+        )
         return key_pem
     except FileNotFoundError:
         log.warning(
             "[%s] Signing key not found at %s — gradient signing disabled",
-            CLIENT_ID, CLIENT_SIGNING_KEY,
+            CLIENT_ID,
+            CLIENT_SIGNING_KEY,
         )
         return None
 
@@ -399,7 +436,9 @@ def run_train_mode():
     class IDSClient(fl.client.NumPyClient):
         """Flower client that trains the CNN-LSTM IDS model."""
 
-        def __init__(self, model: CNN_LSTM_IDS, dataloader: DataLoader, num_samples: int):
+        def __init__(
+            self, model: CNN_LSTM_IDS, dataloader: DataLoader, num_samples: int
+        ):
             self.model = model
             self.dataloader = dataloader
             self.num_samples = num_samples
@@ -423,18 +462,32 @@ def run_train_mode():
             share_b64 = config.get("vss_share_data", "")
             if share_b64:
                 self._vss_share = base64.b64decode(share_b64)
-                log.info("[%s] VSS share received and stored (%d bytes)", CLIENT_ID, len(self._vss_share))
+                log.info(
+                    "[%s] VSS share received and stored (%d bytes)",
+                    CLIENT_ID,
+                    len(self._vss_share),
+                )
             else:
-                log.warning("[%s] MSG_TYPE_SHARE received but no vss_share_data in config", CLIENT_ID)
+                log.warning(
+                    "[%s] MSG_TYPE_SHARE received but no vss_share_data in config",
+                    CLIENT_ID,
+                )
 
         def _handle_vss_refresh(self, config: dict) -> None:
             """Replace existing VSS share with a newly issued one."""
             share_b64 = config.get("vss_share_data", "")
             if share_b64:
                 self._vss_share = base64.b64decode(share_b64)
-                log.info("[%s] VSS share refreshed (%d bytes)", CLIENT_ID, len(self._vss_share))
+                log.info(
+                    "[%s] VSS share refreshed (%d bytes)",
+                    CLIENT_ID,
+                    len(self._vss_share),
+                )
             else:
-                log.warning("[%s] MSG_TYPE_REFRESH received but no vss_share_data in config", CLIENT_ID)
+                log.warning(
+                    "[%s] MSG_TYPE_REFRESH received but no vss_share_data in config",
+                    CLIENT_ID,
+                )
 
         # ── Gradient serialisation helper ──────────────────────────────────────
 
@@ -452,10 +505,18 @@ def run_train_mode():
             if msg_type == MSG_TYPE_SHARE:
                 self._handle_vss_share(config)
                 # Return current parameters unchanged; no training this round
-                return self.get_parameters(config), self.num_samples, {"client_id": CLIENT_ID}
+                return (
+                    self.get_parameters(config),
+                    self.num_samples,
+                    {"client_id": CLIENT_ID},
+                )
             if msg_type == MSG_TYPE_REFRESH:
                 self._handle_vss_refresh(config)
-                return self.get_parameters(config), self.num_samples, {"client_id": CLIENT_ID}
+                return (
+                    self.get_parameters(config),
+                    self.num_samples,
+                    {"client_id": CLIENT_ID},
+                )
 
             # ── Extract round metadata ──────────────────────────────────────────
             server_round = config.get("server_round", 0)
@@ -464,10 +525,14 @@ def run_train_mode():
 
             # ── RECESS detection round ──────────────────────────────────────────
             if str(config.get("detect", "")).lower() == "true":
-                return self._fit_recess(parameters, config, server_round, total_rounds, nonce)
+                return self._fit_recess(
+                    parameters, config, server_round, total_rounds, nonce
+                )
 
             # ── Normal training round ───────────────────────────────────────────
-            return self._fit_normal(parameters, config, server_round, total_rounds, nonce)
+            return self._fit_normal(
+                parameters, config, server_round, total_rounds, nonce
+            )
 
         # ── Normal training ────────────────────────────────────────────────────
 
@@ -487,29 +552,43 @@ def run_train_mode():
 
             log.info(
                 "[%s] Round %s/%s — training %d epochs (lr=%.4f, max_batches=%d)",
-                CLIENT_ID, server_round, total_rounds, epochs, lr, max_batches,
+                CLIENT_ID,
+                server_round,
+                total_rounds,
+                epochs,
+                lr,
+                max_batches,
             )
 
             # Report: starting local training
-            _report_progress({
-                "round": server_round,
-                "total_rounds": total_rounds,
-                "phase": "training",
-                "epoch": 0,
-                "total_epochs": epochs,
-                "message": f"Starting local training for round {server_round}/{total_rounds}",
-            })
+            _report_progress(
+                {
+                    "round": server_round,
+                    "total_rounds": total_rounds,
+                    "phase": "training",
+                    "epoch": 0,
+                    "total_epochs": epochs,
+                    "message": f"Starting local training for round {server_round}/{total_rounds}",
+                }
+            )
 
             metrics = local_train(
-                self.model, self.dataloader, epochs, lr, max_batches,
+                self.model,
+                self.dataloader,
+                epochs,
+                lr,
+                max_batches,
                 server_round=server_round,
                 total_rounds=total_rounds,
             )
 
             log.info(
                 "[%s] Round %s — loss=%.4f, samples=%d, time=%.1fs",
-                CLIENT_ID, server_round, metrics["loss"],
-                metrics["num_samples"], metrics.get("training_time_sec", 0),
+                CLIENT_ID,
+                server_round,
+                metrics["loss"],
+                metrics["num_samples"],
+                metrics.get("training_time_sec", 0),
             )
 
             # ── Compute gradient for signing (local state − global state) ───────
@@ -520,27 +599,50 @@ def run_train_mode():
             ):
                 gradient_dict[key] = torch.tensor(local_val) - torch.tensor(global_val)
 
+            # ── Apply poisoning if active ──────────────────────────────────────
+            poison_strategy = read_poison_strategy()
+            if poison_strategy is not None:
+                gradient_dict = poison_gradient(gradient_dict, poison_strategy)
+                # Re-apply poisoned gradients to the model so get_parameters()
+                # returns the poisoned weights to the server
+                poisoned_state = self.model.state_dict().copy()
+                for key in gradient_dict:
+                    if key in poisoned_state:
+                        poisoned_state[key] = (
+                            torch.tensor(
+                                parameters[
+                                    list(self.model.state_dict().keys()).index(key)
+                                ]
+                            )
+                            + gradient_dict[key]
+                        )
+                self.model.load_state_dict(poisoned_state)
+
             # ── Sign gradient ───────────────────────────────────────────────────
             sig_b64 = ""
             if self._signing_key is not None and gradient_dict:
                 try:
                     gradient_bytes = self._serialise_gradient(gradient_dict)
-                    sig_bytes = signing_utils.sign_gradient(gradient_bytes, self._signing_key)
+                    sig_bytes = signing_utils.sign_gradient(
+                        gradient_bytes, self._signing_key
+                    )
                     sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
                     log.debug("[%s] Gradient signed successfully", CLIENT_ID)
                 except Exception as exc:
                     log.warning("[%s] Gradient signing failed: %s", CLIENT_ID, exc)
 
             # Report: sending weights
-            _report_progress({
-                "round": server_round,
-                "total_rounds": total_rounds,
-                "phase": "sending_weights",
-                "loss": metrics["loss"],
-                "num_samples": metrics["num_samples"],
-                "training_time_sec": metrics.get("training_time_sec", 0),
-                "message": f"Round {server_round}/{total_rounds} training complete, sending weights",
-            })
+            _report_progress(
+                {
+                    "round": server_round,
+                    "total_rounds": total_rounds,
+                    "phase": "sending_weights",
+                    "loss": metrics["loss"],
+                    "num_samples": metrics["num_samples"],
+                    "training_time_sec": metrics.get("training_time_sec", 0),
+                    "message": f"Round {server_round}/{total_rounds} training complete, sending weights",
+                }
+            )
 
             # Include CLIENT_ID so server can map Flower CID → registered client
             metrics["client_id"] = CLIENT_ID
@@ -579,26 +681,113 @@ def run_train_mode():
 
             # Filter to SELECTED_LAYERS only — must match what the server caches in
             # _last_agg_gradient / _current_probe to avoid length-mismatch in RECESS.
-            gradient_dict = {k: v for k, v in gradient_dict.items() if k in SELECTED_LAYERS}
+            gradient_dict = {
+                k: v for k, v in gradient_dict.items() if k in SELECTED_LAYERS
+            }
 
-            # Flatten local gradient to bytes for the RECESS response
-            local_gradient_bytes = self._serialise_gradient(gradient_dict)
-            recess_response_b64 = base64.b64encode(local_gradient_bytes).decode("ascii")
+            # ── Apply poisoning to RECESS response if active ───────────────────
+            # IMPORTANT: The residual (local_params − global_params = Δ_i − avg(Δ))
+            # is near-zero when clients have similar data.  Poisoning it directly
+            # has almost no effect because server-side Fix B adds avg(Δ) back,
+            # which dominates.  To produce a detectable anomaly we must:
+            #   1. Reconstruct the full gradient: Δ_i = residual + probe (≈ avg(Δ))
+            #   2. Apply poison to the full gradient
+            #   3. Convert back to residual: poisoned_residual = poisoned_Δ − probe
+            # After server Fix B: reconstructed = poisoned_residual + avg(Δ)
+            #                                   = poisoned_Δ  (clearly anomalous)
+            poison_strategy = read_poison_strategy()
+            poisoned_via_probe = False
+            if poison_strategy is not None:
+                probe_b64 = config.get("recess_probe_b64", "")
+                if probe_b64:
+                    try:
+                        probe_bytes = base64.b64decode(probe_b64)
+                        probe_flat = torch.tensor(
+                            np.frombuffer(probe_bytes, dtype=np.float32).copy(),
+                            dtype=torch.float32,
+                        )
+                        residual_flat = recess_utils.flatten_gradient(gradient_dict)
+                        min_len = min(residual_flat.numel(), probe_flat.numel())
+
+                        # Reconstruct full gradient
+                        full_flat = residual_flat[:min_len] + probe_flat[:min_len]
+
+                        # Apply poison to the full gradient (flat space)
+                        rng = np.random.default_rng()
+                        if poison_strategy == "direction_flip":
+                            factor = rng.uniform(1.5, 3.0)
+                            poisoned_full = -full_flat * factor
+                        elif poison_strategy == "scale_attack":
+                            factor = rng.uniform(5.0, 10.0)
+                            poisoned_full = full_flat * factor
+                        elif poison_strategy == "noise_inject":
+                            magnitude = full_flat.norm().item()
+                            poisoned_full = torch.randn_like(full_flat) * max(
+                                magnitude, 1e-6
+                            )
+                        else:
+                            poisoned_full = full_flat
+
+                        # Convert back to residual form
+                        poisoned_residual = poisoned_full - probe_flat[:min_len]
+
+                        # Serialize directly (bypass gradient_dict)
+                        local_gradient_bytes = (
+                            poisoned_residual.numpy().astype(np.float32).tobytes()
+                        )
+                        recess_response_b64 = base64.b64encode(
+                            local_gradient_bytes
+                        ).decode("ascii")
+                        poisoned_via_probe = True
+                        log.warning(
+                            "[%s] RECESS response poisoned via probe reconstruction "
+                            "(strategy=%s)",
+                            CLIENT_ID,
+                            poison_strategy,
+                        )
+                    except Exception as exc:
+                        log.warning(
+                            "[%s] Probe-based poison failed: %s — falling back to "
+                            "residual poisoning",
+                            CLIENT_ID,
+                            exc,
+                        )
+
+                if not poisoned_via_probe:
+                    # Fallback: poison the residual directly (less effective but
+                    # still works when the probe isn't available)
+                    gradient_dict = poison_gradient(gradient_dict, poison_strategy)
+                    log.warning(
+                        "[%s] RECESS response poisoned (residual fallback, strategy=%s)",
+                        CLIENT_ID,
+                        poison_strategy,
+                    )
+
+            if not poisoned_via_probe:
+                # Flatten local gradient to bytes for the RECESS response
+                local_gradient_bytes = self._serialise_gradient(gradient_dict)
+                recess_response_b64 = base64.b64encode(local_gradient_bytes).decode(
+                    "ascii"
+                )
 
             # ── Sign the local gradient bytes ────────────────────────────────────
             sig_b64 = ""
             if self._signing_key is not None:
                 try:
-                    sig_bytes = signing_utils.sign_gradient(local_gradient_bytes, self._signing_key)
+                    sig_bytes = signing_utils.sign_gradient(
+                        local_gradient_bytes, self._signing_key
+                    )
                     sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
                     log.debug("[%s] RECESS gradient signed successfully", CLIENT_ID)
                 except Exception as exc:
-                    log.warning("[%s] RECESS gradient signing failed: %s", CLIENT_ID, exc)
+                    log.warning(
+                        "[%s] RECESS gradient signing failed: %s", CLIENT_ID, exc
+                    )
 
             metrics = {
                 "client_id": CLIENT_ID,
                 "nonce_echo": nonce,
-                "recess_signature": sig_b64,   # server reads 'recess_signature' in _run_recess_round
+                "recess_signature": sig_b64,  # server reads 'recess_signature' in _run_recess_round
                 "recess_response": recess_response_b64,
                 "is_detection_round": "true",
             }
@@ -698,12 +887,14 @@ def run_train_mode():
 #  MONITOR mode
 # ═══════════════════════════════════════════════════════════
 
+
 def run_monitor_mode():
     """
     MONITOR mode — generates synthetic traffic, runs local inference,
     and posts predictions to the backend API.
     """
     from monitor import run_monitor
+
     log.info("MONITOR mode — starting traffic simulator + inference")
     run_monitor()
 
@@ -711,6 +902,7 @@ def run_monitor_mode():
 # ═══════════════════════════════════════════════════════════
 #  IDLE mode
 # ═══════════════════════════════════════════════════════════
+
 
 def run_idle_mode():
     """
@@ -741,6 +933,7 @@ def run_idle_mode():
 # ═══════════════════════════════════════════════════════════
 #  Entrypoint
 # ═══════════════════════════════════════════════════════════
+
 
 def main() -> None:
     log.info("═" * 50)

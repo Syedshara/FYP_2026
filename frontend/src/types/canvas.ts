@@ -14,7 +14,8 @@ export type CanvasNodeType =
   | 'attack'
   | 'traffic-source'
   | 'rate-filter'
-  | 'monitor';
+  | 'monitor'
+  | 'watcher';
 
 // ── Node shape variants (matching n8n's visual vocabulary) ──
 
@@ -43,6 +44,12 @@ export interface ClientNodeData {
     loss: number;
     accuracy: number;
   };
+  /** Injected by LiveDataSync from RECESS trust scores — NOT persisted. */
+  _trustScore?: number;
+  /** Derived from _trustScore: 'flagged' (<0.3), 'downweighted' (0.3–0.5), or null (healthy). */
+  _recessStatus?: 'flagged' | 'downweighted' | null;
+  /** Injected by UI — active poison strategy on this client. NOT persisted. */
+  _poisonStrategy?: 'direction_flip' | 'scale_attack' | 'noise_inject' | null;
 }
 
 export interface DeviceNodeData {
@@ -74,6 +81,8 @@ export interface FLServerNodeData {
     roundNonces: boolean;
     recess: boolean;
   };
+  /** Injected by LiveDataSync when a FedRecovery run is active for this server — NOT persisted. */
+  _recoveryActive?: boolean;
 }
 
 export interface AttackNodeData {
@@ -128,6 +137,21 @@ export interface MonitorNodeData {
   };
 }
 
+export interface WatcherNodeData {
+  nodeType: 'watcher';
+  label: string;
+  subtitle?: string;
+  status: NodeStatus;
+  /** Injected by LiveDataSync — total security events received. NOT persisted. */
+  _eventCount?: number;
+  /** Injected by LiveDataSync — number of clients currently flagged (<0.3). NOT persisted. */
+  _flaggedCount?: number;
+  /** Injected by LiveDataSync — whether a FedRecovery run is active. NOT persisted. */
+  _recoveryActive?: boolean;
+  /** Injected by LiveDataSync — latest RECESS detection round. NOT persisted. */
+  _lastDetectionRound?: number | null;
+}
+
 // ── Union type for all node data ──
 
 export type CanvasNodeData =
@@ -137,7 +161,8 @@ export type CanvasNodeData =
   | AttackNodeData
   | TrafficSourceNodeData
   | RateFilterNodeData
-  | MonitorNodeData;
+  | MonitorNodeData
+  | WatcherNodeData;
 
 // ── Edge types ──
 
@@ -146,7 +171,8 @@ export type CanvasEdgeType =
   | 'fl-communication' // FL Server → Client
   | 'traffic-feed'     // Traffic Source → Device
   | 'attack-vector'    // Attack → Device
-  | 'observation';     // Device → Monitor
+  | 'observation'      // Device → Monitor
+  | 'watcher-link';    // FL Server → Watcher (security audit feed)
 
 // ── Node config (shape, color, icon mapping) ──
 
@@ -188,7 +214,7 @@ export interface WorkspaceState {
 
 // ── Palette category for grouped display ──
 
-export type PaletteCategory = 'Entities' | 'Federated Learning' | 'Generators' | 'Utilities';
+export type PaletteCategory = 'Entities' | 'Federated Learning' | 'Generators' | 'Utilities' | 'Security';
 
 // ── Node palette item (for drag-to-add) ──
 

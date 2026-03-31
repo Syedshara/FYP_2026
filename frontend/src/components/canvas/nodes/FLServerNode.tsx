@@ -43,6 +43,7 @@ function FLServerNode(props: NodeProps<FLServerNodeData>) {
             {data.securityFeatures.gradientSigning && <FeatureDot label="Sign" color="#18a058" />}
             {data.securityFeatures.roundNonces && <FeatureDot label="RN" color="#f0a020" />}
             {data.securityFeatures.recess && <FeatureDot label="RCS" color="#d03050" />}
+            {data._recoveryActive && <FeatureDot label="REC" color="#fb923c" />}
           </div>
         )}
       </div>

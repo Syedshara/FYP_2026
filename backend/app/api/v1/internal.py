@@ -37,6 +37,7 @@ router = APIRouter()
 
 # ── Schemas ──────────────────────────────────────────────
 
+
 class InternalClientOut(BaseModel):
     id: int
     client_id: str
@@ -81,6 +82,7 @@ class InternalPredictionOut(BaseModel):
 
 class FLProgressIn(BaseModel):
     """Progress update from FL client or server."""
+
     client_id: Optional[str] = None
     round: Optional[int] = None
     total_rounds: Optional[int] = None
@@ -110,6 +112,7 @@ class FLProgressIn(BaseModel):
 
 class FLRoundIn(BaseModel):
     """Completed round from FL server."""
+
     round_number: int
     total_rounds: int
     num_clients: int
@@ -139,6 +142,7 @@ FLRoundIn.model_rebuild()
 
 class FLStatusIn(BaseModel):
     """Training session status change from FL server."""
+
     status: str  # started | completed | failed
     total_rounds: Optional[int] = None
     rounds_completed: Optional[int] = None
@@ -148,6 +152,7 @@ class FLStatusIn(BaseModel):
 
 
 # ── Client / Device / Prediction endpoints ───────────────
+
 
 @router.get("/client/by-client-id/{client_id}", response_model=InternalClientOut)
 async def get_client_by_string_id(
@@ -196,7 +201,8 @@ async def internal_create_device(
         )
         log.info(
             "Auto-created virtual device '%s' for client_id=%d",
-            body.name, body.client_id,
+            body.name,
+            body.client_id,
         )
         return device
     except ConflictException:
@@ -205,10 +211,14 @@ async def internal_create_device(
         if existing:
             log.info(
                 "Device '%s' already exists for client_id=%d — returning existing",
-                body.name, body.client_id,
+                body.name,
+                body.client_id,
             )
             return existing[0]
-        raise HTTPException(status_code=409, detail=f"Device name '{body.name}' already taken by another client")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Device name '{body.name}' already taken by another client",
+        )
 
 
 # ── Auto‑register client (called by monitor containers) ──
@@ -238,10 +248,12 @@ async def register_client_internal(
             client_id=body.client_id,
             name=body.name,
             description=body.description,
-            create_container=False,       # We ARE the container
+            create_container=False,  # We ARE the container
         )
     except ConflictException:
-        raise HTTPException(status_code=409, detail=f"Client '{body.client_id}' already exists")
+        raise HTTPException(
+            status_code=409, detail=f"Client '{body.client_id}' already exists"
+        )
 
     # Auto-create a default Device linked to this client so that monitor mode
     # finds at least one device immediately without requiring manual registration.
@@ -258,12 +270,15 @@ async def register_client_internal(
         )
         log.info(
             "Auto-created device for FL client '%s' (db_id=%d)",
-            body.client_id, client.id,
+            body.client_id,
+            client.id,
         )
     except Exception as exc:
         # Non-fatal: client is registered; device creation is best-effort.
         # On duplicate name (e.g. if register is retried) this is harmless.
-        log.warning("Could not auto-create device for client '%s': %s", body.client_id, exc)
+        log.warning(
+            "Could not auto-create device for client '%s': %s", body.client_id, exc
+        )
 
     return client
 
@@ -300,6 +315,7 @@ async def save_prediction(
         from sqlalchemy import select as sa_select
         from app.models.device import Device
         from app.models.fl import FLClient
+
         result = await db.execute(
             sa_select(Device.name, FLClient.client_id)
             .outerjoin(FLClient, Device.client_id == FLClient.id)
@@ -312,32 +328,46 @@ async def save_prediction(
         pass
 
     # Broadcast via WebSocket
-    await ws_manager.broadcast(build_ws_message(WSMessageType.PREDICTION, {
-        "id": pred.id,
-        "device_id": str(pred.device_id),
-        "device_name": device_name,
-        "client_string_id": client_string_id,
-        "client_id": pred.client_id,
-        "score": pred.score,
-        "label": pred.label,
-        "confidence": pred.confidence,
-        "attack_type": pred.attack_type,
-        "inference_latency_ms": pred.inference_latency_ms,
-        "model_version": pred.model_version,
-        "timestamp": pred.timestamp.isoformat() if pred.timestamp else None,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.PREDICTION,
+            {
+                "id": pred.id,
+                "device_id": str(pred.device_id),
+                "device_name": device_name,
+                "client_string_id": client_string_id,
+                "client_id": pred.client_id,
+                "score": pred.score,
+                "label": pred.label,
+                "confidence": pred.confidence,
+                "attack_type": pred.attack_type,
+                "inference_latency_ms": pred.inference_latency_ms,
+                "model_version": pred.model_version,
+                "timestamp": pred.timestamp.isoformat() if pred.timestamp else None,
+            },
+        )
+    )
 
     # Update device status to "online" (or "under_attack" if attack detected)
     try:
-        new_status = "under_attack" if (body.label == "attack" and body.confidence > 0.7) else "online"
+        new_status = (
+            "under_attack"
+            if (body.label == "attack" and body.confidence > 0.7)
+            else "online"
+        )
         await device_service.update_device(db, body.device_id, status=new_status)
 
         # Broadcast device status change
-        await ws_manager.broadcast(build_ws_message(WSMessageType.DEVICE_STATUS, {
-            "device_id": str(body.device_id),
-            "device_name": device_name,
-            "status": new_status,
-        }))
+        await ws_manager.broadcast(
+            build_ws_message(
+                WSMessageType.DEVICE_STATUS,
+                {
+                    "device_id": str(body.device_id),
+                    "device_name": device_name,
+                    "status": new_status,
+                },
+            )
+        )
     except Exception as exc:
         log.warning("Failed to update device status for %s: %s", body.device_id, exc)
 
@@ -345,6 +375,7 @@ async def save_prediction(
 
 
 # ── FL Progress / Round / Status endpoints ───────────────
+
 
 @router.post("/fl/progress", status_code=200)
 async def fl_progress(body: FLProgressIn):
@@ -356,7 +387,10 @@ async def fl_progress(body: FLProgressIn):
     await ws_manager.broadcast(build_ws_message(WSMessageType.FL_PROGRESS, data))
     log.info(
         "FL progress: client=%s round=%s phase=%s %s",
-        body.client_id, body.round, body.phase, body.message or "",
+        body.client_id,
+        body.round,
+        body.phase,
+        body.message or "",
     )
     return {"ok": True}
 
@@ -400,21 +434,29 @@ async def fl_round_complete(
             client_data.append(cm.model_dump())
 
     # Broadcast round completion
-    await ws_manager.broadcast(build_ws_message(WSMessageType.FL_ROUND, {
-        "round_number": body.round_number,
-        "total_rounds": body.total_rounds,
-        "num_clients": body.num_clients,
-        "aggregation_method": body.aggregation_method,
-        "duration_seconds": body.duration_seconds,
-        "global_loss": body.global_loss,
-        "global_accuracy": body.global_accuracy,
-        "client_metrics": client_data,
-        "gradient_stats": body.gradient_stats,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.FL_ROUND,
+            {
+                "round_number": body.round_number,
+                "total_rounds": body.total_rounds,
+                "num_clients": body.num_clients,
+                "aggregation_method": body.aggregation_method,
+                "duration_seconds": body.duration_seconds,
+                "global_loss": body.global_loss,
+                "global_accuracy": body.global_accuracy,
+                "client_metrics": client_data,
+                "gradient_stats": body.gradient_stats,
+            },
+        )
+    )
 
     log.info(
         "FL round %d/%d persisted (id=%d, clients=%d)",
-        body.round_number, body.total_rounds, fl_round.id, body.num_clients,
+        body.round_number,
+        body.total_rounds,
+        fl_round.id,
+        body.num_clients,
     )
     return {"ok": True, "round_id": fl_round.id}
 
@@ -448,7 +490,9 @@ async def fl_status_change(
                 await fl_service.update_fl_client(db, client.id, status="active")
                 log.info("Client %s status: training → active", client.client_id)
 
-    await ws_manager.broadcast(build_ws_message(msg_type, body.model_dump(exclude_none=True)))
+    await ws_manager.broadcast(
+        build_ws_message(msg_type, body.model_dump(exclude_none=True))
+    )
 
     log.info("FL status: %s (rounds=%s)", body.status, body.total_rounds)
     return {"ok": True}
@@ -456,8 +500,10 @@ async def fl_status_change(
 
 # ── Attack engine status callback ────────────────────────
 
+
 class AttackRunStatusIn(BaseModel):
     """Status update from an attack engine container."""
+
     run_id: int
     status: str  # running | completed | failed | cancelled
     duration_seconds: Optional[float] = None
@@ -471,11 +517,50 @@ class AttackRunStatusIn(BaseModel):
 
 class SecurityEventIn(BaseModel):
     """Security pipeline event from FL server/client."""
-    kind: str   # nonce_issued | nonce_verified | signature_verified | ...
+
+    kind: str  # nonce_issued | nonce_verified | signature_verified | ...
     round: int
     client_id: Optional[str] = None
     detail: Optional[str] = None
     data: Optional[dict] = None  # structured metrics (HE timing, per-layer norms, etc.)
+
+
+# ── FedRecovery internal schemas ─────────────────────────
+
+
+class FedRecoveryStartedIn(BaseModel):
+    """FL server notifies backend that a FedRecovery run has started."""
+
+    run_id: str  # UUID string generated by FL server
+    flagged_client_id: str
+    flag_round: int
+
+
+class FedRecoveryStepIn(BaseModel):
+    """FL server reports a single correction step within a FedRecovery run."""
+
+    run_id: str
+    round: int
+    step: str  # 'corrected' | 'skipped'
+    detail: Optional[str] = None
+    data: Optional[dict] = None  # per-round metrics (norms, noise sigma, etc.)
+
+
+class FedRecoveryCompleteIn(BaseModel):
+    """FL server reports final outcome of a FedRecovery run."""
+
+    run_id: str
+    status: str  # 'complete' | 'partial' | 'failed' | 'cancelled'
+    rounds_corrected: Optional[int] = None
+    rounds_skipped: Optional[int] = None
+    before_norms: Optional[dict] = None
+    after_norms: Optional[dict] = None
+    epsilon: Optional[float] = None
+    sigma: Optional[float] = None
+    accuracy_before: Optional[float] = None
+    accuracy_after: Optional[float] = None
+    loss_before: Optional[float] = None
+    loss_after: Optional[float] = None
 
 
 @router.post("/attack-run-status", status_code=200)
@@ -507,25 +592,35 @@ async def attack_run_status(
     )
 
     if run is None:
-        raise HTTPException(status_code=404, detail=f"Attack run {body.run_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Attack run {body.run_id} not found"
+        )
 
     # Broadcast status change via WebSocket
     ws_type = WSMessageType.ATTACK_RESULT if finished else WSMessageType.ATTACK_STATUS
-    await ws_manager.broadcast(build_ws_message(ws_type, {
-        "run_id": run.id,
-        "attack_id": run.attack_id,
-        "status": run.status,
-        "packets_sent": run.packets_sent,
-        "duration_seconds": body.duration_seconds,
-        "error_message": run.error_message,
-        "results": body.results or {},
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            ws_type,
+            {
+                "run_id": run.id,
+                "attack_id": run.attack_id,
+                "status": run.status,
+                "packets_sent": run.packets_sent,
+                "duration_seconds": body.duration_seconds,
+                "error_message": run.error_message,
+                "results": body.results or {},
+            },
+        )
+    )
 
-    log.info("Attack run %d status: %s (packets=%s)", run.id, run.status, run.packets_sent)
+    log.info(
+        "Attack run %d status: %s (packets=%s)", run.id, run.status, run.packets_sent
+    )
     return {"ok": True}
 
 
 # ── Security event reporting ─────────────────────────────
+
 
 @router.post("/fl/security-event", status_code=200)
 async def fl_security_event(body: SecurityEventIn):
@@ -533,16 +628,23 @@ async def fl_security_event(body: SecurityEventIn):
     Receive a security pipeline event from FL server or client.
     Broadcasts immediately to all connected frontends via WebSocket.
     """
-    await ws_manager.broadcast(build_ws_message(WSMessageType.SECURITY_EVENT, {
-        "kind": body.kind,
-        "round": body.round,
-        "client_id": body.client_id,
-        "detail": body.detail,
-        "data": body.data,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.SECURITY_EVENT,
+            {
+                "kind": body.kind,
+                "round": body.round,
+                "client_id": body.client_id,
+                "detail": body.detail,
+                "data": body.data,
+            },
+        )
+    )
     log.debug(
         "Security event: kind=%s round=%d client=%s",
-        body.kind, body.round, body.client_id,
+        body.kind,
+        body.round,
+        body.client_id,
     )
     return {"ok": True}
 
@@ -554,13 +656,18 @@ async def fl_security_events_batch(events: List[SecurityEventIn]):
     during busy rounds).
     """
     for body in events:
-        await ws_manager.broadcast(build_ws_message(WSMessageType.SECURITY_EVENT, {
-            "kind": body.kind,
-            "round": body.round,
-            "client_id": body.client_id,
-            "detail": body.detail,
-            "data": body.data,
-        }))
+        await ws_manager.broadcast(
+            build_ws_message(
+                WSMessageType.SECURITY_EVENT,
+                {
+                    "kind": body.kind,
+                    "round": body.round,
+                    "client_id": body.client_id,
+                    "detail": body.detail,
+                    "data": body.data,
+                },
+            )
+        )
     log.debug("Security events batch: %d events", len(events))
     return {"ok": True, "count": len(events)}
 
@@ -574,3 +681,155 @@ async def get_fl_trust_scores_internal():
     _trust_scores dict with scores persisted from previous training sessions.
     """
     return {"trust_scores": fl_service.get_trust_scores()}
+
+
+# ── FedRecovery lifecycle endpoints ──────────────────────
+
+
+@router.post("/fl/fedrecovery/started", status_code=201)
+async def fl_fedrecovery_started(
+    body: FedRecoveryStartedIn,
+    db: AsyncSession = Depends(get_db),
+):
+    """FL server signals that a FedRecovery run has begun.
+
+    Creates a FedRecoveryRun DB record and broadcasts a fedrecovery_event
+    with kind='started' to all connected frontends.
+    """
+    run = await fl_service.create_fed_recovery_run(
+        db,
+        run_id=body.run_id,
+        flagged_client_id=body.flagged_client_id,
+        flag_round=body.flag_round,
+    )
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.FEDRECOVERY_EVENT,
+            {
+                "kind": "started",
+                "run_id": body.run_id,
+                "flagged_client_id": body.flagged_client_id,
+                "flag_round": body.flag_round,
+            },
+        )
+    )
+    log.info(
+        "FedRecovery started: run_id=%s client=%s flag_round=%d",
+        body.run_id,
+        body.flagged_client_id,
+        body.flag_round,
+    )
+    return {"ok": True, "run_db_id": run.id}
+
+
+@router.post("/fl/fedrecovery/step", status_code=200)
+async def fl_fedrecovery_step(
+    body: FedRecoveryStepIn,
+    db: AsyncSession = Depends(get_db),
+):
+    """FL server reports completion of one correction step within a run.
+
+    Appends the step to FedRecoveryRun.steps (crash-safe — each step is
+    committed individually) and broadcasts a fedrecovery_event with
+    kind='step' to all connected frontends.
+    """
+    run = await fl_service.append_fed_recovery_step(
+        db,
+        run_id=body.run_id,
+        round_num=body.round,
+        step=body.step,
+        detail=body.detail,
+        data=body.data,
+    )
+    if run is None:
+        raise HTTPException(
+            status_code=404, detail=f"FedRecovery run '{body.run_id}' not found"
+        )
+
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.FEDRECOVERY_EVENT,
+            {
+                "kind": "step",
+                "run_id": body.run_id,
+                "round": body.round,
+                "step": body.step,
+                "detail": body.detail,
+                "data": body.data,
+                "rounds_corrected": run.rounds_corrected,
+                "rounds_skipped": run.rounds_skipped,
+            },
+        )
+    )
+    log.debug(
+        "FedRecovery step: run_id=%s round=%d step=%s",
+        body.run_id,
+        body.round,
+        body.step,
+    )
+    return {"ok": True}
+
+
+@router.post("/fl/fedrecovery/complete", status_code=200)
+async def fl_fedrecovery_complete(
+    body: FedRecoveryCompleteIn,
+    db: AsyncSession = Depends(get_db),
+):
+    """FL server reports the final outcome of a FedRecovery run.
+
+    Updates the FedRecoveryRun record to a terminal status with all
+    final metrics, and broadcasts a fedrecovery_event with kind equal
+    to 'complete', 'partial', 'failed', or 'cancelled'.
+    """
+    run = await fl_service.complete_fed_recovery_run(
+        db,
+        run_id=body.run_id,
+        status=body.status,
+        rounds_corrected=body.rounds_corrected,
+        rounds_skipped=body.rounds_skipped,
+        before_norms=body.before_norms,
+        after_norms=body.after_norms,
+        epsilon=body.epsilon,
+        sigma=body.sigma,
+        accuracy_before=body.accuracy_before,
+        accuracy_after=body.accuracy_after,
+        loss_before=body.loss_before,
+        loss_after=body.loss_after,
+    )
+    if run is None:
+        raise HTTPException(
+            status_code=404, detail=f"FedRecovery run '{body.run_id}' not found"
+        )
+
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.FEDRECOVERY_EVENT,
+            {
+                "kind": body.status,  # 'complete' | 'partial' | 'failed' | 'cancelled'
+                "run_id": body.run_id,
+                "flagged_client_id": run.flagged_client_id,
+                "flag_round": run.flag_round,
+                "rounds_corrected": run.rounds_corrected,
+                "rounds_skipped": run.rounds_skipped,
+                "before_norms": run.before_norms,
+                "after_norms": run.after_norms,
+                "epsilon": run.epsilon,
+                "sigma": run.sigma,
+                "accuracy_before": run.accuracy_before,
+                "accuracy_after": run.accuracy_after,
+                "loss_before": run.loss_before,
+                "loss_after": run.loss_after,
+                "completed_at": run.completed_at.isoformat()
+                if run.completed_at
+                else None,
+            },
+        )
+    )
+    log.info(
+        "FedRecovery complete: run_id=%s status=%s corrected=%d skipped=%d",
+        body.run_id,
+        body.status,
+        run.rounds_corrected or 0,
+        run.rounds_skipped or 0,
+    )
+    return {"ok": True}

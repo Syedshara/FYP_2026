@@ -12,6 +12,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ArrowLeft, Server, Loader2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
+import { useRecessStore } from '@/stores/recessStore';
+import { useFedRecoveryStore } from '@/stores/fedRecoveryStore';
 import { flApi } from '@/api/fl';
 import type { FLClient } from '@/types';
 import type { FLServerNodeData } from '@/types/canvas';
@@ -22,6 +24,9 @@ import FLOutputPanel from './FLOutputPanel';
 import FLAccuracyChart from './FLAccuracyChart';
 import FLRoundLog from './FLRoundLog';
 import FLTimelinePanel from './FLTimelinePanel';
+import RecessSequenceDiagram from './RecessSequenceDiagram';
+import RecessToastCard from './RecessToastCard';
+import FedRecoveryModal from './FedRecoveryModal';
 
 export default function FLDrillDownView() {
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
@@ -95,6 +100,9 @@ export default function FLDrillDownView() {
     useLiveStore.getState().clearFLClientRoundHistory();
     useLiveStore.getState().clearSecurityEvents();
     useLiveStore.getState().clearTrustScores();
+    // Clear RECESS and FedRecovery state so the next session starts clean
+    useRecessStore.getState().clearRecess();
+    useFedRecoveryStore.getState().clearAll();
   }, [setViewMode, setDrilldownServerId]);
 
   // Keyboard: Escape to go back
@@ -113,6 +121,10 @@ export default function FLDrillDownView() {
       className="flex flex-col w-full h-full overflow-hidden"
       style={{ background: 'var(--n8n-canvas-bg)' }}
     >
+      {/* Fixed-position RECESS decision toasts — renders above all panels */}
+      <RecessToastCard />
+      {/* FedRecovery correction pipeline modal — auto-opens on fedrecovery_event started */}
+      <FedRecoveryModal />
       {/* ── Top Bar ── */}
       <header
         className="flex items-center justify-between shrink-0 select-none"
@@ -209,6 +221,7 @@ export default function FLDrillDownView() {
             <FLAccuracyChart />
             <FLRoundLog />
             <FLTimelinePanel />
+            <RecessSequenceDiagram />
           </main>
 
           {/* RIGHT PANEL: Trust Scores + Certificates */}

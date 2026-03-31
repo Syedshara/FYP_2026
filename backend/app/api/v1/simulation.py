@@ -33,8 +33,10 @@ router = APIRouter()
 
 # ── Schemas ──────────────────────────────────────────────
 
+
 class SimStartRequest(BaseModel):
     """The only thing the user chooses: scenario, duration, and clients."""
+
     scenario: str = Field(
         default="client_data",
         description="Scenario name (e.g. 'ddos_attack') or 'client_data'",
@@ -71,6 +73,7 @@ class SimStatusOut(BaseModel):
 
 class SimClientOut(BaseModel):
     """Lightweight client info for the simulation page."""
+
     id: int
     client_id: str
     name: str
@@ -81,6 +84,7 @@ class SimClientOut(BaseModel):
 
 class AttackNodeStartRequest(BaseModel):
     """Start CVAE attack generation targeting specific devices."""
+
     attack_node_id: str = Field(..., description="Canvas attack node ID")
     attack_category: str = Field(
         ...,
@@ -104,11 +108,13 @@ class AttackNodeStartRequest(BaseModel):
 
 class AttackNodeStopRequest(BaseModel):
     """Stop a running attack‑node simulation."""
+
     attack_node_id: str = Field(..., description="Canvas attack node ID to stop")
 
 
 class AttackNodeResponse(BaseModel):
     """Response after starting/stopping an attack‑node simulation."""
+
     run_id: str
     attack_node_id: str
     status: str
@@ -120,12 +126,13 @@ class AttackNodeResponse(BaseModel):
 
 
 class TrafficNodeStartRequest(BaseModel):
-    """Start CVAE benign traffic generation targeting specific devices."""
+    """Start CVAE traffic generation targeting specific devices."""
+
     traffic_node_id: str = Field(..., description="Canvas traffic source node ID")
     target_device_ids: list[str] = Field(
         ...,
         min_length=1,
-        description="Device IDs to send benign traffic to",
+        description="Device IDs to send traffic to",
     )
     flow_rate: float = Field(
         default=5.0,
@@ -133,15 +140,23 @@ class TrafficNodeStartRequest(BaseModel):
         le=100.0,
         description="Flows per second (controls generation speed)",
     )
+    traffic_type: str = Field(
+        default="benign",
+        description="Traffic type: 'benign' (100% benign) or 'mixed' (70/30 benign/attack)",
+    )
 
 
 class TrafficNodeStopRequest(BaseModel):
     """Stop a running traffic‑node simulation."""
-    traffic_node_id: str = Field(..., description="Canvas traffic source node ID to stop")
+
+    traffic_node_id: str = Field(
+        ..., description="Canvas traffic source node ID to stop"
+    )
 
 
 class TrafficNodeResponse(BaseModel):
     """Response after starting/stopping a traffic‑node simulation."""
+
     run_id: str
     traffic_node_id: str
     status: str
@@ -152,6 +167,7 @@ class TrafficNodeResponse(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────
+
 
 @router.get("/scenarios", response_model=list[ScenarioOut])
 async def list_scenarios(_user=Depends(get_current_user)):
@@ -182,14 +198,16 @@ async def list_sim_clients(
     out: list[dict] = []
     for c in clients:
         devices = await device_service.get_all_devices(db, client_id=c.id)
-        out.append({
-            "id": c.id,
-            "client_id": c.client_id,
-            "name": c.name,
-            "status": c.status,
-            "total_samples": c.total_samples,
-            "device_count": len(devices),
-        })
+        out.append(
+            {
+                "id": c.id,
+                "client_id": c.client_id,
+                "name": c.name,
+                "status": c.status,
+                "total_samples": c.total_samples,
+                "device_count": len(devices),
+            }
+        )
     return out
 
 
@@ -215,7 +233,9 @@ async def start_simulation(
         raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         log.error("Failed to start simulation: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to start simulation: {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start simulation: {exc}"
+        )
 
 
 @router.post("/stop", response_model=SimStatusOut)
@@ -242,6 +262,7 @@ async def get_container_status(_user=Depends(get_current_user)):
 
 
 # ── Attack‑Node Endpoints ────────────────────────────────
+
 
 @router.post("/attack-node/start", response_model=AttackNodeResponse)
 async def start_attack_node(
@@ -297,6 +318,7 @@ async def stop_attack_node(
 
 # ── Traffic‑Node Endpoints ──────────────────────────────
 
+
 @router.post("/traffic-node/start", response_model=TrafficNodeResponse)
 async def start_traffic_node(
     req: TrafficNodeStartRequest,
@@ -315,6 +337,7 @@ async def start_traffic_node(
             target_device_ids=req.target_device_ids,
             db=db,
             flow_rate=req.flow_rate,
+            traffic_type=req.traffic_type,
         )
         return result
     except ValueError as exc:

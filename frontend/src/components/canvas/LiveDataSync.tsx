@@ -17,8 +17,9 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useLiveStore } from '@/stores/liveStore';
+import { useLiveStore, useTrustScores } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useFedRecoveryStore } from '@/stores/fedRecoveryStore';
 import type {
   CanvasNodeData,
   FLServerNodeData,
@@ -26,6 +27,7 @@ import type {
   AttackNodeData,
   DeviceNodeData,
   MonitorNodeData,
+  WatcherNodeData,
   NodeStatus,
 } from '@/types/canvas';
 
@@ -56,6 +58,11 @@ export default function LiveDataSync() {
   const attackRunStatuses = useLiveStore((s) => s.attackRunStatuses);
   const deviceStatuses = useLiveStore((s) => s.deviceStatuses);
   const latestPredictions = useLiveStore((s) => s.latestPredictions);
+  const trustScores = useTrustScores();
+  const activeRun = useFedRecoveryStore((s) => s.activeRun);
+  const securityEventCount = useLiveStore((s) => s.securityEvents.length);
+  const currentDetectionRound = useLiveStore((s) => s.currentDetectionRound);
+  const flaggedEventCount = useLiveStore((s) => s.flaggedEvents.length);
 
   // Read nodes/edges from workspace (we need to match by data props)
   const nodes = useWorkspaceStore((s) => s.nodes);
@@ -71,6 +78,11 @@ export default function LiveDataSync() {
       attacks: Object.keys(attackRunStatuses).length,
       devices: Object.keys(deviceStatuses).length,
       preds: latestPredictions.length,
+      trust: Object.entries(trustScores).map(([k, v]) => `${k}:${v.toFixed(2)}`).join(','),
+      recoveryRun: activeRun ? `${activeRun.runId}:${activeRun.status}` : null,
+      secEvts: securityEventCount,
+      detRound: currentDetectionRound,
+      flagged: flaggedEventCount,
     });
 
     if (fingerprint === prevSyncRef.current) return;
@@ -113,6 +125,12 @@ export default function LiveDataSync() {
           };
         }
       }
+
+      // Inject FedRecovery active flag — shown as "REC" dot on FL server node
+      updates._recoveryActive =
+        activeRun !== null &&
+        activeRun.status === 'running' &&
+        isActiveServer;
 
       updateNodeData(node.id, updates as Partial<CanvasNodeData>);
     }
@@ -178,6 +196,17 @@ export default function LiveDataSync() {
         };
       } else if (!isTraining) {
         updates._flProgress = undefined;
+      }
+
+      // Inject RECESS trust score for this client
+      const trustScore = trustScores[derivedClientId];
+      if (trustScore !== undefined) {
+        updates._trustScore = trustScore;
+        updates._recessStatus =
+          trustScore < 0.3 ? 'flagged' : trustScore < 0.5 ? 'downweighted' : null;
+      } else {
+        updates._trustScore = undefined;
+        updates._recessStatus = undefined;
       }
 
       updateNodeData(node.id, updates as Partial<CanvasNodeData>);
@@ -485,10 +514,46 @@ export default function LiveDataSync() {
           updateEdgeData(edge.id, { animated: shouldAnimate });
         }
       }
+
+      // Watcher-link edges: animated when training (security events flowing)
+      if (edge.type === 'watcher-link') {
+        const shouldAnimate = isTraining;
+        if (edge.data?.animated !== shouldAnimate) {
+          updateEdgeData(edge.id, { animated: shouldAnimate });
+        }
+      }
+    }
+
+    // ── 7. Watcher nodes — inject security event stats ──
+    // Count flagged clients (trust < 0.3)
+    const flaggedClientCount = Object.values(trustScores).filter((s) => s < 0.3).length;
+
+    for (const node of nodes) {
+      if (node.data.nodeType !== 'watcher') continue;
+
+      // Check if this watcher is connected to an FL Server via watcher-link edge
+      const watcherEdge = edges.find(
+        (e) => e.target === node.id && e.type === 'watcher-link',
+      );
+
+      const isConnected = watcherEdge != null;
+
+      const updates: Partial<WatcherNodeData> = {
+        _eventCount: securityEventCount,
+        _flaggedCount: flaggedClientCount,
+        _recoveryActive: activeRun != null && activeRun.status === 'running',
+        _lastDetectionRound: currentDetectionRound,
+        status: isConnected && isTraining ? 'running'
+          : isConnected && securityEventCount > 0 ? 'active'
+          : isConnected ? 'idle'
+          : 'disabled',
+      };
+
+      updateNodeData(node.id, updates as Partial<CanvasNodeData>);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flGlobal, flClientProgress, attackRunStatuses, deviceStatuses, latestPredictions]);
+  }, [flGlobal, flClientProgress, attackRunStatuses, deviceStatuses, latestPredictions, trustScores, activeRun, securityEventCount, currentDetectionRound, flaggedEventCount]);
 
   return null;
 }

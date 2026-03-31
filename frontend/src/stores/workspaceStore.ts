@@ -28,7 +28,7 @@ import {
 } from '@/api/workspace';
 
 // ── View modes ──
-export type ViewMode = 'canvas' | 'fl-drilldown' | 'monitor-drilldown';
+export type ViewMode = 'canvas' | 'fl-drilldown' | 'monitor-drilldown' | 'watcher-drilldown';
 
 // ── Store interface ──
 interface WorkspaceState {
@@ -50,6 +50,8 @@ interface WorkspaceState {
   setDrilldownServerId: (id: string | null) => void;
   drilldownMonitorId: string | null;
   setDrilldownMonitorId: (id: string | null) => void;
+  drilldownWatcherId: string | null;
+  setDrilldownWatcherId: (id: string | null) => void;
 
   // Node operations
   addNode: (type: CanvasNodeType, position: { x: number; y: number }) => string;
@@ -179,6 +181,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   setDrilldownServerId: (id) => set({ drilldownServerId: id }),
   drilldownMonitorId: null,
   setDrilldownMonitorId: (id) => set({ drilldownMonitorId: id }),
+  drilldownWatcherId: null,
+  setDrilldownWatcherId: (id) => set({ drilldownWatcherId: id }),
 
   // ── Node operations ──
   addNode: (type, position) => {

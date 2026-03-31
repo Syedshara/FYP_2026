@@ -34,6 +34,8 @@ import {
   useTrustScoreHistory,
 } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useFedRecoveryStore, useFedRecoveryCompletedRuns } from '@/stores/fedRecoveryStore';
+import { useRecessCompletedRounds } from '@/stores/recessStore';
 import { flApi } from '@/api/fl';
 import type { TrustScoreComponents, ClientEnforcementStatus } from '@/types';
 
@@ -948,6 +950,13 @@ export default function FLSecurityPanel() {
 
   const isTraining = useLiveStore((s) => s.flGlobalProgress?.is_training ?? false);
 
+  // FedRecovery + RECESS activity counters for header badges
+  const completedRecoveryRuns = useFedRecoveryCompletedRuns();
+  const completedRecessRounds = useRecessCompletedRounds();
+  const openRecoveryModal     = useFedRecoveryStore((s) => s.openModal);
+  const recoveryRunCount      = completedRecoveryRuns.length;
+  const recessRoundCount      = completedRecessRounds.length;
+
   const handleReset = useCallback(async () => {
     setResetting(true);
     try {
@@ -1086,8 +1095,41 @@ export default function FLSecurityPanel() {
                 {flaggedCount} flagged
               </span>
             )}
+            {recessRoundCount > 0 && (
+              <span
+                className="text-xs font-mono px-1.5 py-0.5 rounded"
+                style={{
+                  color: 'var(--n8n-warning)',
+                  background: 'rgba(240,160,32,0.10)',
+                  flexShrink: 0,
+                }}
+                title={`${recessRoundCount} RECESS detection round(s) completed`}
+              >
+                {recessRoundCount} rounds
+              </span>
+            )}
             <button
               className="ml-auto flex items-center gap-1"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: recoveryRunCount > 0 ? 'var(--n8n-accent)' : 'var(--n8n-text-muted)',
+                padding: '2px 4px',
+                borderRadius: 4,
+                fontSize: 10,
+                flexShrink: 0,
+              }}
+              onClick={openRecoveryModal}
+              title={recoveryRunCount > 0
+                ? `${recoveryRunCount} FedRecovery run(s) — click to view`
+                : 'FedRecovery — no runs yet'}
+            >
+              <ShieldCheck size={10} />
+              Recovery{recoveryRunCount > 0 ? ` (${recoveryRunCount})` : ''}
+            </button>
+            <button
+              className="flex items-center gap-1"
               style={{
                 background: 'transparent',
                 border: 'none',

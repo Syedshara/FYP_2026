@@ -61,6 +61,7 @@ function TrafficSourceNode(props: NodeProps<TrafficSourceNodeData>) {
         traffic_node_id: id,
         target_device_ids: targetDeviceIds,
         flow_rate: flowRate,
+        traffic_type: (data.trafficType as 'benign' | 'mixed') ?? 'benign',
       });
 
       // Set this node to running

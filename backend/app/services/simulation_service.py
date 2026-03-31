@@ -45,35 +45,35 @@ log = logging.getLogger(__name__)
 # The monitor interval = 1 / rate.  These were tuned so that the
 # scenario "feels" realistic without flooding the DB.
 SCENARIO_FLOW_RATES: dict[str, float] = {
-    "ddos_attack":    100.0,
-    "portscan":       10.0,
-    "brute_force":    3.0,
-    "web_attacks":    5.0,
-    "infiltration":   1.0,
-    "botnet":         1.5,
-    "benign_only":    5.0,
-    "mixed_traffic":  20.0,
+    "ddos_attack": 100.0,
+    "portscan": 10.0,
+    "brute_force": 3.0,
+    "web_attacks": 5.0,
+    "infiltration": 1.0,
+    "botnet": 1.5,
+    "benign_only": 5.0,
+    "mixed_traffic": 20.0,
     "high_intensity": 50.0,
-    "client_data":    5.0,   # default for client‑data mode
+    "client_data": 5.0,  # default for client‑data mode
 }
 
 # ── Scenario descriptions (user‑friendly) ───────────────
 SCENARIO_FRIENDLY: dict[str, str] = {
-    "ddos_attack":    "Distributed Denial‑of‑Service flood",
-    "portscan":       "Network port scanning reconnaissance",
-    "brute_force":    "SSH / FTP brute‑force login attempts",
-    "web_attacks":    "SQL‑injection & XSS web exploits",
-    "infiltration":   "Stealthy network infiltration",
-    "botnet":         "Botnet command‑and‑control traffic",
-    "benign_only":    "Normal traffic — no attacks (baseline)",
-    "mixed_traffic":  "Mix of benign & several attack types",
+    "ddos_attack": "Distributed Denial‑of‑Service flood",
+    "portscan": "Network port scanning reconnaissance",
+    "brute_force": "SSH / FTP brute‑force login attempts",
+    "web_attacks": "SQL‑injection & XSS web exploits",
+    "infiltration": "Stealthy network infiltration",
+    "botnet": "Botnet command‑and‑control traffic",
+    "benign_only": "Normal traffic — no attacks (baseline)",
+    "mixed_traffic": "Mix of benign & several attack types",
     "high_intensity": "High‑volume multi‑vector attacks",
 }
 
 # Duration presets (seconds) — "continuous" → 0 (no time limit)
 DURATION_PRESETS: dict[str, int] = {
-    "5min":       5 * 60,
-    "30min":      30 * 60,
+    "5min": 5 * 60,
+    "30min": 30 * 60,
     "continuous": 0,
 }
 
@@ -81,10 +81,13 @@ DURATION_PRESETS: dict[str, int] = {
 _SCENARIO_PATHS = [
     Path("/app/scenarios"),
     Path("/app/client_data").parent / "scenarios",
-    Path(os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "data", "scenarios",
-    )),
+    Path(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "data",
+            "scenarios",
+        )
+    ),
 ]
 
 
@@ -98,28 +101,31 @@ def _find_scenario_dir() -> Optional[Path]:
 
 # ── State / Config dataclasses ───────────────────────────
 
+
 class SimState(str, Enum):
-    IDLE     = "idle"
+    IDLE = "idle"
     STARTING = "starting"
-    RUNNING  = "running"
+    RUNNING = "running"
     STOPPING = "stopping"
-    ERROR    = "error"
+    ERROR = "error"
 
 
 @dataclass
 class SimConfig:
     """Immutable config snapshot of a running simulation."""
+
     scenario: str = ""
-    duration: str = "continuous"       # "5min" | "30min" | "continuous"
-    duration_seconds: int = 0          # resolved value (0 = unlimited)
-    flow_rate: float = 5.0             # auto‑set from scenario
-    monitor_interval: float = 1.0      # = 1/flow_rate (capped ≥0.2)
+    duration: str = "continuous"  # "5min" | "30min" | "continuous"
+    duration_seconds: int = 0  # resolved value (0 = unlimited)
+    flow_rate: float = 5.0  # auto‑set from scenario
+    monitor_interval: float = 1.0  # = 1/flow_rate (capped ≥0.2)
     clients: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ClientSimStatus:
     """Per‑client container status."""
+
     client_id: str
     client_name: str = ""
     container_id: Optional[str] = None
@@ -132,6 +138,7 @@ class ClientSimStatus:
 @dataclass
 class SimStatus:
     """Global simulation state — serialised to the frontend."""
+
     state: SimState = SimState.IDLE
     config: SimConfig = field(default_factory=SimConfig)
     clients: list[ClientSimStatus] = field(default_factory=list)
@@ -150,7 +157,9 @@ class SimStatus:
         }
         for c in self.clients:
             cd = asdict(c)
-            cd["state"] = cd["state"].value if hasattr(cd["state"], "value") else cd["state"]
+            cd["state"] = (
+                cd["state"].value if hasattr(cd["state"], "value") else cd["state"]
+            )
             d["clients"].append(cd)
         return d
 
@@ -165,21 +174,31 @@ _traffic_containers: dict[str, list[tuple[str, str]]] = {}
 
 # Attack category (canvas UI) → CVAE class_id
 ATTACK_CATEGORY_CLASS_MAP: dict[str, int] = {
-    "ddos":         6,
-    "port-scan":    5,
-    "botnet":       9,
-    "mitm":         10,
-    "replay":       8,
-    "malformed":    11,
+    "ddos": 6,
+    "port-scan": 5,
+    "botnet": 9,
+    "mitm": 10,
+    "replay": 8,
+    "malformed": 11,
     "iot-protocol": 3,
 }
 
 # CVAE class names (for logging / WS messages)
 CVAE_CLASS_NAMES: dict[int, str] = {
-    0: "benign", 1: "dos hulk", 2: "dos goldeneye", 3: "dos slowloris",
-    4: "dos slowhttptest", 5: "portscan", 6: "ddos", 7: "ftp patator",
-    8: "ssh patator", 9: "bot", 10: "infiltration", 11: "heartbleed",
-    12: "web attack brute force", 13: "web attack xss",
+    0: "benign",
+    1: "dos hulk",
+    2: "dos goldeneye",
+    3: "dos slowloris",
+    4: "dos slowhttptest",
+    5: "portscan",
+    6: "ddos",
+    7: "ftp patator",
+    8: "ssh patator",
+    9: "bot",
+    10: "infiltration",
+    11: "heartbleed",
+    12: "web attack brute force",
+    13: "web attack xss",
     14: "web attack sql injection",
 }
 
@@ -230,6 +249,7 @@ def get_status() -> SimStatus:
             if _sim.uptime_seconds >= _sim.config.duration_seconds:
                 log.info("Simulation duration reached — auto‑stopping")
                 import asyncio
+
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
@@ -240,6 +260,7 @@ def get_status() -> SimStatus:
 
 
 # ── Scenario Discovery ──────────────────────────────────
+
 
 def list_scenarios() -> list[dict]:
     """
@@ -266,33 +287,39 @@ def list_scenarios() -> list[dict]:
                 except Exception as exc:
                     log.warning("Bad metadata for %s: %s", entry.name, exc)
 
-            scenarios.append({
-                "name": meta.get("name", entry.name),
-                "description": meta.get("description",
-                                        SCENARIO_FRIENDLY.get(entry.name,
-                                                              f"Scenario: {entry.name}")),
-                "attack_labels": meta.get("attack_labels", []),
-                "total_windows": meta.get("total_windows", 0),
-                "attack_rate": meta.get("attack_rate", 0),
-                "flow_rate": SCENARIO_FLOW_RATES.get(entry.name, 5.0),
-                "is_default": False,
-            })
+            scenarios.append(
+                {
+                    "name": meta.get("name", entry.name),
+                    "description": meta.get(
+                        "description",
+                        SCENARIO_FRIENDLY.get(entry.name, f"Scenario: {entry.name}"),
+                    ),
+                    "attack_labels": meta.get("attack_labels", []),
+                    "total_windows": meta.get("total_windows", 0),
+                    "attack_rate": meta.get("attack_rate", 0),
+                    "flow_rate": SCENARIO_FLOW_RATES.get(entry.name, 5.0),
+                    "is_default": False,
+                }
+            )
 
     # Always append "client_data" as the last option
-    scenarios.append({
-        "name": "client_data",
-        "description": "Use each client's own training‑data partition (default)",
-        "attack_labels": ["mixed"],
-        "total_windows": 0,
-        "attack_rate": 0,
-        "flow_rate": SCENARIO_FLOW_RATES["client_data"],
-        "is_default": True,
-    })
+    scenarios.append(
+        {
+            "name": "client_data",
+            "description": "Use each client's own training‑data partition (default)",
+            "attack_labels": ["mixed"],
+            "total_windows": 0,
+            "attack_rate": 0,
+            "flow_rate": SCENARIO_FLOW_RATES["client_data"],
+            "is_default": True,
+        }
+    )
 
     return scenarios
 
 
 # ── Simulation Control ───────────────────────────────────
+
 
 async def start_simulation(
     scenario: str,
@@ -348,14 +375,20 @@ async def start_simulation(
     log.info(
         "Starting simulation: scenario=%s  rate=%.1f/s  interval=%.2fs  "
         "duration=%s  clients=%s",
-        config.scenario, flow_rate, monitor_interval, duration, client_ids,
+        config.scenario,
+        flow_rate,
+        monitor_interval,
+        duration,
+        client_ids,
     )
 
     # Broadcast starting
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.SIMULATION_STATUS,
-        {"state": "starting", "scenario": config.scenario},
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.SIMULATION_STATUS,
+            {"state": "starting", "scenario": config.scenario},
+        )
+    )
 
     host_root = settings.HOST_PROJECT_ROOT
 
@@ -392,8 +425,8 @@ async def start_simulation(
             volumes = {
                 host_fl_client: {"bind": "/app", "mode": "rw"},
                 host_fl_common: {"bind": "/fl_common", "mode": "rw"},
-                host_data:      {"bind": "/app/data", "mode": "ro"},
-                host_model:     {"bind": "/app/models", "mode": "ro"},
+                host_data: {"bind": "/app/data", "mode": "ro"},
+                host_model: {"bind": "/app/models", "mode": "ro"},
                 host_scenarios: {"bind": "/app/scenarios", "mode": "ro"},
             }
 
@@ -429,10 +462,12 @@ async def start_simulation(
     running = [c for c in _sim.clients if c.state == SimState.RUNNING]
     _sim.state = SimState.RUNNING if running else SimState.ERROR
 
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.SIMULATION_STATUS,
-        get_status().to_dict(),
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.SIMULATION_STATUS,
+            get_status().to_dict(),
+        )
+    )
     return _sim
 
 
@@ -464,10 +499,12 @@ async def stop_simulation() -> SimStatus:
     _sim.uptime_seconds = 0.0
     _sim.started_at = None
 
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.SIMULATION_STATUS,
-        get_status().to_dict(),
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.SIMULATION_STATUS,
+            get_status().to_dict(),
+        )
+    )
     return _sim
 
 
@@ -492,6 +529,7 @@ async def get_container_statuses() -> list[dict]:
 
 
 # ── Attack‑Node Simulation (CVAE) ───────────────────────
+
 
 async def start_attack_node_sim(
     attack_node_id: str,
@@ -548,23 +586,28 @@ async def start_attack_node_sim(
     log.info(
         "Starting attack-node sim: node=%s  category=%s  class=%d(%s)  "
         "ratio=%.2f  devices=%s",
-        attack_node_id, attack_category, cvae_class_id,
+        attack_node_id,
+        attack_category,
+        cvae_class_id,
         CVAE_CLASS_NAMES.get(cvae_class_id, "?"),
-        attack_ratio, target_device_ids,
+        attack_ratio,
+        target_device_ids,
     )
 
     # Broadcast pending status
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.ATTACK_STATUS,
-        {
-            "run_id": run_id,
-            "attack_id": attack_node_id,
-            "status": "pending",
-            "attack_category": attack_category,
-            "class_id": cvae_class_id,
-            "target_device_ids": target_device_ids,
-        },
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.ATTACK_STATUS,
+            {
+                "run_id": run_id,
+                "attack_id": attack_node_id,
+                "status": "pending",
+                "attack_category": attack_category,
+                "class_id": cvae_class_id,
+                "target_device_ids": target_device_ids,
+            },
+        )
+    )
 
     # ── Spawn containers ─────────────────────────
     host_root = settings.HOST_PROJECT_ROOT
@@ -599,8 +642,8 @@ async def start_attack_node_sim(
         volumes = {
             host_fl_client: {"bind": "/app", "mode": "rw"},
             host_fl_common: {"bind": "/fl_common", "mode": "rw"},
-            host_model:     {"bind": "/app/models", "mode": "ro"},
-            host_data:      {"bind": "/app/data", "mode": "ro"},
+            host_model: {"bind": "/app/models", "mode": "ro"},
+            host_data: {"bind": "/app/data", "mode": "ro"},
         }
 
         try:
@@ -620,12 +663,15 @@ async def start_attack_node_sim(
             containers.append((container.id, container.name))
             log.info(
                 "Started attack container %s → device %s (class=%d)",
-                container.name, device_id, cvae_class_id,
+                container.name,
+                device_id,
+                cvae_class_id,
             )
         except Exception as exc:
             log.error(
                 "Failed to start attack container for device %s: %s",
-                device_id, exc,
+                device_id,
+                exc,
             )
             # Clean up already‑started containers on partial failure
             for cid, cname in containers:
@@ -635,32 +681,36 @@ async def start_attack_node_sim(
                 except Exception:
                     pass
             # Broadcast failure
-            await ws_manager.broadcast(build_ws_message(
-                WSMessageType.ATTACK_STATUS,
-                {
-                    "run_id": run_id,
-                    "attack_id": attack_node_id,
-                    "status": "failed",
-                    "error_message": str(exc),
-                },
-            ))
+            await ws_manager.broadcast(
+                build_ws_message(
+                    WSMessageType.ATTACK_STATUS,
+                    {
+                        "run_id": run_id,
+                        "attack_id": attack_node_id,
+                        "status": "failed",
+                        "error_message": str(exc),
+                    },
+                )
+            )
             raise ValueError(f"Failed to start attack container: {exc}")
 
     _attack_containers[attack_node_id] = containers
 
     # Broadcast running status
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.ATTACK_STATUS,
-        {
-            "run_id": run_id,
-            "attack_id": attack_node_id,
-            "status": "running",
-            "attack_category": attack_category,
-            "class_id": cvae_class_id,
-            "target_device_ids": target_device_ids,
-            "container_count": len(containers),
-        },
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.ATTACK_STATUS,
+            {
+                "run_id": run_id,
+                "attack_id": attack_node_id,
+                "status": "running",
+                "attack_category": attack_category,
+                "class_id": cvae_class_id,
+                "target_device_ids": target_device_ids,
+                "container_count": len(containers),
+            },
+        )
+    )
 
     return {
         "run_id": run_id,
@@ -686,9 +736,7 @@ async def stop_attack_node_sim(attack_node_id: str) -> dict:
 
     containers = _attack_containers.pop(attack_node_id, [])
     if not containers:
-        raise ValueError(
-            f"No running containers for attack node {attack_node_id}"
-        )
+        raise ValueError(f"No running containers for attack node {attack_node_id}")
 
     stopped = 0
     for cid, cname in containers:
@@ -701,14 +749,16 @@ async def stop_attack_node_sim(attack_node_id: str) -> dict:
             log.warning("Error stopping attack container %s: %s", cname, exc)
 
     # Broadcast cancelled status
-    await ws_manager.broadcast(build_ws_message(
-        WSMessageType.ATTACK_STATUS,
-        {
-            "run_id": attack_node_id,
-            "attack_id": attack_node_id,
-            "status": "cancelled",
-        },
-    ))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.ATTACK_STATUS,
+            {
+                "run_id": attack_node_id,
+                "attack_id": attack_node_id,
+                "status": "cancelled",
+            },
+        )
+    )
 
     return {
         "run_id": attack_node_id,
@@ -720,23 +770,27 @@ async def stop_attack_node_sim(attack_node_id: str) -> dict:
 
 # ── Traffic‑Node Simulation (CVAE benign) ───────────────
 
+
 async def start_traffic_node_sim(
     traffic_node_id: str,
     target_device_ids: list[str],
     db: AsyncSession,
     flow_rate: float = 5.0,
+    traffic_type: str = "benign",
 ) -> dict:
     """
-    Spawn one CVAE container per target device for benign traffic generation.
+    Spawn one CVAE container per target device for traffic generation.
 
-    Uses CVAE class_id=0 (benign) with attack_ratio=0.0.
+    Uses CVAE class_id=0 (benign) with attack_ratio=0.0 for 'benign' mode.
+    Uses a random attack class with attack_ratio=0.3 for 'mixed' mode.
 
     Parameters
     ----------
     traffic_node_id  : unique canvas node ID
-    target_device_ids: list of device_id strings to send benign traffic to
+    target_device_ids: list of device_id strings to send traffic to
     db               : async DB session for device → client resolution
     flow_rate        : flows per second (controls monitor_interval)
+    traffic_type     : 'benign' or 'mixed' (30% attack windows)
 
     Returns
     -------
@@ -765,10 +819,22 @@ async def start_traffic_node_sim(
     run_id = traffic_node_id
 
     log.info(
-        "Starting traffic-node sim: node=%s  class=0(benign)  "
-        "interval=%.2fs  devices=%s",
-        traffic_node_id, monitor_interval, target_device_ids,
+        "Starting traffic-node sim: node=%s  type=%s  interval=%.2fs  devices=%s",
+        traffic_node_id,
+        traffic_type,
+        monitor_interval,
+        target_device_ids,
     )
+
+    # ── Resolve CVAE parameters from traffic_type ──
+    if traffic_type == "mixed":
+        import random as _rng
+
+        attack_class_id = str(_rng.randint(1, 14))  # Random CIC-IDS2017 attack class
+        attack_ratio = "0.3"  # 30% attack windows
+    else:
+        attack_class_id = "0"
+        attack_ratio = "0.0"
 
     host_root = settings.HOST_PROJECT_ROOT
     containers: list[tuple[str, str]] = []
@@ -784,8 +850,8 @@ async def start_traffic_node_sim(
             "MODE": "MONITOR",
             "MONITOR_INTERVAL": str(round(monitor_interval, 3)),
             "USE_CVAE": "true",
-            "ATTACK_CLASS_ID": "0",
-            "ATTACK_RATIO": "0.0",
+            "ATTACK_CLASS_ID": attack_class_id,
+            "ATTACK_RATIO": attack_ratio,
             "DEVICE_ID": device_id,
             "TRAFFIC_NODE_ID": traffic_node_id,
             "REPLAY_LOOP": "true",
@@ -801,8 +867,8 @@ async def start_traffic_node_sim(
         volumes = {
             host_fl_client: {"bind": "/app", "mode": "rw"},
             host_fl_common: {"bind": "/fl_common", "mode": "rw"},
-            host_model:     {"bind": "/app/models", "mode": "ro"},
-            host_data:      {"bind": "/app/data", "mode": "ro"},
+            host_model: {"bind": "/app/models", "mode": "ro"},
+            host_data: {"bind": "/app/data", "mode": "ro"},
         }
 
         try:
@@ -820,11 +886,14 @@ async def start_traffic_node_sim(
             container.start()
             container.reload()
             containers.append((container.id, container.name))
-            log.info("Started traffic container %s → device %s", container.name, device_id)
+            log.info(
+                "Started traffic container %s → device %s", container.name, device_id
+            )
         except Exception as exc:
             log.error(
                 "Failed to start traffic container for device %s: %s",
-                device_id, exc,
+                device_id,
+                exc,
             )
             for cid, cname in containers:
                 try:
@@ -840,8 +909,8 @@ async def start_traffic_node_sim(
         "run_id": run_id,
         "traffic_node_id": traffic_node_id,
         "container_names": [cn for _, cn in containers],
-        "class_id": 0,
-        "class_name": "benign",
+        "class_id": int(attack_class_id),
+        "class_name": "mixed" if traffic_type == "mixed" else "benign",
         "status": "running",
     }
 
@@ -858,9 +927,7 @@ async def stop_traffic_node_sim(traffic_node_id: str) -> dict:
 
     containers = _traffic_containers.pop(traffic_node_id, [])
     if not containers:
-        raise ValueError(
-            f"No running containers for traffic node {traffic_node_id}"
-        )
+        raise ValueError(f"No running containers for traffic node {traffic_node_id}")
 
     stopped = 0
     for cid, cname in containers:

@@ -15,6 +15,7 @@ const CATEGORY_ORDER: PaletteCategory[] = [
   'Federated Learning',
   'Generators',
   'Utilities',
+  'Security',
 ];
 
 function hexToRgba(hex: string, alpha: number): string {

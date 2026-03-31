@@ -67,6 +67,7 @@ def _get_docker() -> docker.DockerClient:
 
 # ── Public API ───────────────────────────────────────────
 
+
 def create_client_container(
     client_id: str,
     data_path: str = "/app/data",
@@ -74,18 +75,17 @@ def create_client_container(
     fl_server_url: str | None = None,
     mode: str = "IDLE",
     auto_start: bool = False,
-) -
+) -> ContainerInfo:
     dk = _get_docker()
     container_name = f"{CONTAINER_PREFIX}{client_id.lower()}"
 
     host_root = settings.HOST_PROJECT_ROOT
 
-    
     host_data_dir = os.path.join(host_root, "data", "clients", client_id.lower())
     host_fl_common = os.path.join(host_root, "fl_common")
     host_fl_client = os.path.join(host_root, "fl_client")
     host_model = os.path.join(host_root, "model")
-    host_certs  = os.path.join(host_root, "certs")
+    host_certs = os.path.join(host_root, "certs")
 
     server_url = fl_server_url or f"{FL_SERVER_CONTAINER}:{settings.FL_SERVER_PORT}"
 
@@ -98,8 +98,8 @@ def create_client_container(
         "MODE": mode.upper(),
         # mTLS client identity — cert files are named Bank_A.crt (Title_Case from setup.sh)
         "FL_CLIENT_CERT": f"{container_cert_dir}/{_cert_name(client_id)}.crt",
-        "FL_CLIENT_KEY":  f"{container_cert_dir}/{_cert_name(client_id)}.key",
-        "FL_CA_CERT":     f"{container_cert_dir}/ca.crt",
+        "FL_CLIENT_KEY": f"{container_cert_dir}/{_cert_name(client_id)}.key",
+        "FL_CA_CERT": f"{container_cert_dir}/ca.crt",
         # Ed25519 gradient signing key
         "CLIENT_SIGNING_KEY": f"{container_cert_dir}/{_cert_name(client_id)}_ed25519.pem",
     }
@@ -107,9 +107,9 @@ def create_client_container(
     volumes = {
         host_fl_client: {"bind": "/app", "mode": "rw"},
         host_fl_common: {"bind": "/fl_common", "mode": "rw"},
-        host_data_dir:  {"bind": "/app/data", "mode": "ro"},
-        host_model:     {"bind": "/app/models", "mode": "ro"},
-        host_certs:     {"bind": container_cert_dir, "mode": "ro"},  # Phase 2 PKI
+        host_data_dir: {"bind": "/app/data", "mode": "ro"},
+        host_model: {"bind": "/app/models", "mode": "ro"},
+        host_certs: {"bind": container_cert_dir, "mode": "ro"},  # Phase 2 PKI
     }
 
     log.info("Creating container %s (image=%s)", container_name, FL_CLIENT_IMAGE)
@@ -208,8 +208,7 @@ def ensure_image_exists() -> bool:
         return True
     except ImageNotFound:
         log.warning(
-            "FL client image '%s' not found. "
-            "Run: docker build -t %s ./fl_client",
+            "FL client image '%s' not found. Run: docker build -t %s ./fl_client",
             FL_CLIENT_IMAGE,
             FL_CLIENT_IMAGE,
         )
@@ -217,6 +216,7 @@ def ensure_image_exists() -> bool:
 
 
 # ── Data Validation ──────────────────────────────────────
+
 
 def validate_client_data(client_id: str) -> bool:
     """
@@ -236,13 +236,16 @@ def validate_client_data(client_id: str) -> bool:
     has_y = any(f.startswith("y_seq") and f.endswith(".npy") for f in files)
 
     if not (has_x and has_y):
-        log.warning("No training data in %s (X_seq: %s, y_seq: %s)", data_dir, has_x, has_y)
+        log.warning(
+            "No training data in %s (X_seq: %s, y_seq: %s)", data_dir, has_x, has_y
+        )
         return False
 
     return True
 
 
 # ── FL Server Container Management ───────────────────────
+
 
 def start_fl_server(
     *,
@@ -267,7 +270,7 @@ def start_fl_server(
     host_fl_server = os.path.join(host_root, "fl_server")
     host_fl_common = os.path.join(host_root, "fl_common")
     host_model = os.path.join(host_root, "model")
-    host_certs  = os.path.join(host_root, "certs")
+    host_certs = os.path.join(host_root, "certs")
 
     container_cert_dir = "/app/certs"
     environment = {
@@ -282,8 +285,8 @@ def start_fl_server(
         "BACKEND_URL": "http://iot_ids_backend:8000",
         # Phase 2 — mTLS server credentials
         "FL_TLS_CERT": f"{container_cert_dir}/server.crt",
-        "FL_TLS_KEY":  f"{container_cert_dir}/server.key",
-        "FL_TLS_CA":   f"{container_cert_dir}/ca.crt",
+        "FL_TLS_KEY": f"{container_cert_dir}/server.key",
+        "FL_TLS_CA": f"{container_cert_dir}/ca.crt",
         # Phase 2 — client Ed25519 public keys for gradient signature verification
         "CLIENT_KEY_DIR": f"{container_cert_dir}/client_keys/",
         # Canvas-driven: comma-separated list of client_id values to train
@@ -293,12 +296,16 @@ def start_fl_server(
     volumes = {
         host_fl_server: {"bind": "/app", "mode": "rw"},
         host_fl_common: {"bind": "/fl_common", "mode": "rw"},
-        host_model:     {"bind": "/app/models", "mode": "rw"},
-        host_certs:     {"bind": container_cert_dir, "mode": "ro"},  # Phase 2 PKI
+        host_model: {"bind": "/app/models", "mode": "rw"},
+        host_certs: {"bind": container_cert_dir, "mode": "ro"},  # Phase 2 PKI
     }
 
-    log.info("Starting FL server container (rounds=%d, clients=%d, HE=%s)",
-             num_rounds, min_clients, use_he)
+    log.info(
+        "Starting FL server container (rounds=%d, clients=%d, HE=%s)",
+        num_rounds,
+        min_clients,
+        use_he,
+    )
 
     _remove_if_exists(FL_SERVER_CONTAINER, protect_training=False)
 
@@ -343,6 +350,7 @@ def get_fl_server_status() -> ContainerInfo | None:
 
 # ── Persistent Container Lifecycle ───────────────────────
 
+
 def get_container_by_name(name: str) -> "docker.models.containers.Container | None":
     """
     Return the Docker container object (running or stopped) by exact name.
@@ -383,13 +391,16 @@ def ensure_client_container_running(
             if current_mode == mode.upper():
                 log.info(
                     "Container %s already running in mode %s — no-op",
-                    name, mode.upper(),
+                    name,
+                    mode.upper(),
                 )
                 return get_container_status(existing.id)  # type: ignore[return-value]
             else:
                 log.info(
                     "Container %s running in mode %s, need %s — recreating",
-                    name, current_mode, mode.upper(),
+                    name,
+                    current_mode,
+                    mode.upper(),
                 )
                 stop_container(existing.id)
                 remove_container(existing.id)
@@ -397,7 +408,8 @@ def ensure_client_container_running(
             # Stopped / exited / created — just remove and recreate
             log.info(
                 "Container %s exists but is %s — removing and recreating",
-                name, existing.status,
+                name,
+                existing.status,
             )
             remove_container(existing.id)
 
@@ -448,6 +460,7 @@ def update_client_container_mode(
 
 
 # ── Helpers ──────────────────────────────────────────────
+
 
 def _to_info(container) -> ContainerInfo:
     """Convert a docker container object to our DTO."""

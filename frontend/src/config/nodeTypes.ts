@@ -89,6 +89,17 @@ export const NODE_TYPE_CONFIGS: Record<CanvasNodeType, NodeTypeConfig> = {
     width: 176,
     height: 104,
   },
+  watcher: {
+    type: 'watcher',
+    label: 'Watcher',
+    shape: 'wide',
+    accent: '#38bdf8',
+    accentLight: 'rgba(56, 189, 248, 0.12)',
+    icon: 'Eye',
+    description: 'Security audit & event monitor',
+    width: 320,
+    height: 116,
+  },
 };
 
 // ── Palette Items (ordered for UX) ──
@@ -105,6 +116,8 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   // Utilities
   { type: 'rate-filter',     label: 'Rate Filter',     icon: 'Filter',        accent: '#888888', shape: 'pill',    description: 'Traffic throttle / shape', category: 'Utilities' },
   { type: 'monitor',         label: 'Monitor',         icon: 'Activity',      accent: '#38bdf8', shape: 'default', description: 'Live IDS analytics',       category: 'Utilities' },
+  // Security
+  { type: 'watcher',         label: 'Watcher',         icon: 'Eye',           accent: '#38bdf8', shape: 'wide',    description: 'Security audit monitor',   category: 'Security' },
 ];
 
 // ── Default node data factories ──
@@ -140,6 +153,8 @@ export function createDefaultNodeData(type: CanvasNodeType): CanvasNodeData {
       return { ...base, maxRate: 1000, burstSize: 100, dropPolicy: 'tail' };
     case 'monitor':
       return { ...base, metrics: { totalPredictions: 0, attackRate: 0, avgLatency: 0, avgConfidence: 0 } };
+    case 'watcher':
+      return { ...base };
     default:
       return base;
   }

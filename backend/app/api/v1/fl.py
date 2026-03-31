@@ -39,6 +39,7 @@ router = APIRouter()
 
 # ── Response schemas ─────────────────────────────────────
 
+
 class RoundOut(BaseModel):
     id: int
     round_number: int
@@ -110,7 +111,9 @@ class FLClientCreate(BaseModel):
     ip_address: Optional[str] = Field(default=None, max_length=45)
     data_path: str = Field(default="/app/data")
     canvas_node_id: Optional[str] = Field(default=None, max_length=100)
-    data_source: str = Field(default="cic-ids2017", description="'cic-ids2017' or 'synthetic'")
+    data_source: str = Field(
+        default="cic-ids2017", description="'cic-ids2017' or 'synthetic'"
+    )
 
 
 class FLClientUpdate(BaseModel):
@@ -124,6 +127,7 @@ class FLClientUpdate(BaseModel):
 
 class RoundCreate(BaseModel):
     """Payload from FL server to record a completed round."""
+
     round_number: int
     num_clients: int
     aggregation_method: str = "fedavg_he"
@@ -146,6 +150,7 @@ class FLStatusResponse(BaseModel):
 
 
 # ── Round Endpoints ──────────────────────────────────────
+
 
 @router.get("/rounds", response_model=list[RoundOut])
 async def list_rounds(
@@ -221,6 +226,7 @@ async def record_round(
 
 
 # ── Client CRUD Endpoints ───────────────────────────────
+
 
 @router.get("/clients", response_model=list[FLClientOut])
 async def list_clients(
@@ -300,6 +306,7 @@ async def list_client_devices(
 
 # ── Container Management Endpoints ──────────────────────
 
+
 class ContainerStatusOut(BaseModel):
     container_id: str | None = None
     name: str | None = None
@@ -342,7 +349,8 @@ async def start_client_container(
             auto_start=True,
         )
         await fl_service.update_fl_client(
-            db, client_pk,
+            db,
+            client_pk,
             status="active",
             container_id=info.container_id,
             container_name=info.name,
@@ -420,23 +428,28 @@ async def get_client_container_status(
 
 # ── Training Session Management ────────────────────────
 
+
 class FLStartRequest(BaseModel):
     """Configuration for a new FL training session."""
+
     num_rounds: int = Field(default=5, ge=1, le=100)
     min_clients: int = Field(default=1, ge=1)
     use_he: bool = False  # Default off — HE is computationally heavy on dev machines
     local_epochs: int = Field(default=5, ge=1, le=50)
     learning_rate: float = Field(default=0.001, gt=0.0)
     max_batches: int = Field(
-        default=0, ge=0,
+        default=0,
+        ge=0,
         description="Max batches per epoch per client. 0 = no cap (use all data).",
     )
-    workspace_id: Optional[int] = Field(default=None, description="Workspace ID for topology lookup")
+    workspace_id: Optional[int] = Field(
+        default=None, description="Workspace ID for topology lookup"
+    )
     # Canvas-aware: list of canvas node IDs of Client nodes connected to this FL Server
     canvas_node_ids: Optional[List[str]] = Field(
         default=None,
         description="Canvas node IDs of Client nodes to include in training. "
-                    "If provided, only those clients are used.",
+        "If provided, only those clients are used.",
     )
     # Legacy: direct client_id list (lower priority than canvas_node_ids)
     client_ids: Optional[List[str]] = Field(
@@ -483,10 +496,14 @@ async def start_training(
 
         # Auto-register any canvas nodes not yet in DB (eliminates race with background task)
         for canvas_node_id in body.canvas_node_ids:
-            existing = await fl_service.get_fl_client_by_canvas_node_id(db, canvas_node_id)
+            existing = await fl_service.get_fl_client_by_canvas_node_id(
+                db, canvas_node_id
+            )
             if not existing:
                 derived_client_id = canvas_node_id.replace("-", "_")
-                existing_by_id = await fl_service.get_fl_client_by_client_id(db, derived_client_id)
+                existing_by_id = await fl_service.get_fl_client_by_client_id(
+                    db, derived_client_id
+                )
                 if not existing_by_id:
                     try:
                         await fl_service.register_fl_client(
@@ -497,9 +514,17 @@ async def start_training(
                             data_source="cic-ids2017",
                             skip_data_generation=True,
                         )
-                        log.info("On-demand registered canvas client %s as FL client %s", canvas_node_id, derived_client_id)
+                        log.info(
+                            "On-demand registered canvas client %s as FL client %s",
+                            canvas_node_id,
+                            derived_client_id,
+                        )
                     except Exception as exc:
-                        log.warning("On-demand registration failed for %s: %s", canvas_node_id, exc)
+                        log.warning(
+                            "On-demand registration failed for %s: %s",
+                            canvas_node_id,
+                            exc,
+                        )
 
         # Re-fetch all clients after potential auto-registration
         clients = await fl_service.get_all_fl_clients(db)
@@ -529,7 +554,9 @@ async def start_training(
 
     # ── Generate training data based on Traffic Source topology ──
     # Look up workspace to find each client's Traffic Source config
-    traffic_config: dict[str, tuple[str, str]] = {}  # canvas_node_id → (data_source, traffic_type)
+    traffic_config: dict[
+        str, tuple[str, str]
+    ] = {}  # canvas_node_id → (data_source, traffic_type)
     if body.workspace_id:
         ws = await workspace_service.get_workspace(db, body.workspace_id)
         if ws:
@@ -544,7 +571,10 @@ async def start_training(
                     if edge.source_key == cnid and edge.edge_type == "ownership":
                         device_key = edge.target_key
                         for e2 in edge_list:
-                            if e2.target_key == device_key and e2.edge_type == "traffic-feed":
+                            if (
+                                e2.target_key == device_key
+                                and e2.edge_type == "traffic-feed"
+                            ):
                                 ts_node = node_map.get(e2.source_key)
                                 if ts_node and ts_node.node_type == "traffic-source":
                                     ts_data = ts_node.data or {}
@@ -556,14 +586,21 @@ async def start_training(
                             break
 
     # Broadcast data preparation phase
-    await ws_manager.broadcast(build_ws_message(WSMessageType.FL_PROGRESS, {
-        "phase": "data_preparation",
-        "message": f"Preparing training data for {len(clients)} client(s)...",
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.FL_PROGRESS,
+            {
+                "phase": "data_preparation",
+                "message": f"Preparing training data for {len(clients)} client(s)...",
+            },
+        )
+    )
 
     # Generate/regenerate training data for each client based on Traffic Source config
     for client in clients:
-        ds, tt = traffic_config.get(client.canvas_node_id or "", ("cic-ids2017", "mixed"))
+        ds, tt = traffic_config.get(
+            client.canvas_node_id or "", ("cic-ids2017", "mixed")
+        )
         log.info("Generating data for %s: source=%s, type=%s", client.client_id, ds, tt)
         data_info = data_service.generate_client_data(
             client.client_id,
@@ -574,7 +611,10 @@ async def start_training(
         if data_info.get("created"):
             total = data_info.get("total_samples", 0)
             await fl_service.update_fl_client(
-                db, client.id, total_samples=total, data_source=ds,
+                db,
+                client.id,
+                total_samples=total,
+                data_source=ds,
             )
             log.info("  → %d samples generated for %s", total, client.client_id)
 
@@ -602,7 +642,9 @@ async def start_training(
     # ── Step 0: Clear previous training session data for clean slate ──
     deleted = await fl_service.delete_fl_round_data(db)
     if deleted:
-        log.info("Cleared %d old round/metric records before new training session", deleted)
+        log.info(
+            "Cleared %d old round/metric records before new training session", deleted
+        )
 
     # ── Step 1: Start FL server FIRST so gRPC is ready ──
     client_names = [c.client_id for c in trainable_clients]
@@ -616,7 +658,11 @@ async def start_training(
             max_batches=body.max_batches,
             client_names=client_names,
         )
-        log.info("FL server started: rounds=%d, clients=%d", body.num_rounds, len(trainable_clients))
+        log.info(
+            "FL server started: rounds=%d, clients=%d",
+            body.num_rounds,
+            len(trainable_clients),
+        )
     except Exception as exc:
         log.error("Failed to start FL server: %s", exc)
         raise HTTPException(
@@ -657,7 +703,8 @@ async def start_training(
                 new_mode="TRAIN",
             )
             await fl_service.update_fl_client(
-                db, client.id,
+                db,
+                client.id,
                 status="training",
                 container_id=info.container_id,
                 container_name=info.name,
@@ -666,7 +713,9 @@ async def start_training(
             log.info("Switched client %s to TRAIN mode", client.client_id)
 
         except Exception as exc:
-            log.error("Failed to switch client %s to TRAIN mode: %s", client.client_id, exc)
+            log.error(
+                "Failed to switch client %s to TRAIN mode: %s", client.client_id, exc
+            )
 
     if len(active_client_ids) < body.min_clients:
         # Clean up: stop the FL server since not enough clients started
@@ -680,12 +729,17 @@ async def start_training(
         )
 
     # ── Step 3: Broadcast training start via WebSocket ──
-    await ws_manager.broadcast(build_ws_message(WSMessageType.TRAINING_START, {
-        "num_rounds": body.num_rounds,
-        "num_clients": len(active_client_ids),
-        "client_ids": active_client_ids,
-        "use_he": body.use_he,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.TRAINING_START,
+            {
+                "num_rounds": body.num_rounds,
+                "num_clients": len(active_client_ids),
+                "client_ids": active_client_ids,
+                "use_he": body.use_he,
+            },
+        )
+    )
 
     return FLStartResponse(
         status="started",
@@ -698,8 +752,10 @@ async def start_training(
 
 # ── Detection / Trust Endpoints (called by FL server) ──
 
+
 class FlaggedClientBody(BaseModel):
     """Payload from FL server when a client is flagged as anomalous."""
+
     client_id: str
     round: int
     abnormality: float
@@ -707,6 +763,7 @@ class FlaggedClientBody(BaseModel):
 
 class TrustScoreComponents(BaseModel):
     """Per-client abnormality breakdown from RECESS."""
+
     abnormality: float
     direction_score: float
     magnitude_score: float
@@ -714,6 +771,7 @@ class TrustScoreComponents(BaseModel):
 
 class DetectionRoundBody(BaseModel):
     """Payload from FL server when a detection round completes."""
+
     round: int
     scores: dict[str, float]
     flagged: list[str]
@@ -733,12 +791,17 @@ async def post_flagged_client(body: FlaggedClientBody):
         abnormality=body.abnormality,
     )
     timestamp = datetime.utcnow().isoformat() + "Z"
-    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_FLAGGED, {
-        "client_id": body.client_id,
-        "round": body.round,
-        "abnormality": body.abnormality,
-        "timestamp": timestamp,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.CLIENT_FLAGGED,
+            {
+                "client_id": body.client_id,
+                "round": body.round,
+                "abnormality": body.abnormality,
+                "timestamp": timestamp,
+            },
+        )
+    )
     return {"ok": True}
 
 
@@ -760,12 +823,19 @@ async def post_detection_round(
     fl_service.update_trust_scores(body.scores)
     # Persist updated scores so they survive a backend restart
     await fl_service.save_trust_scores_to_db(db)
-    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_TRUST_UPDATE, {
-        "round": body.round,
-        "scores": body.scores,
-        "flagged": body.flagged,
-        "components": {cid: c.model_dump() for cid, c in body.components.items()},
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.CLIENT_TRUST_UPDATE,
+            {
+                "round": body.round,
+                "scores": body.scores,
+                "flagged": body.flagged,
+                "components": {
+                    cid: c.model_dump() for cid, c in body.components.items()
+                },
+            },
+        )
+    )
     return {"ok": True}
 
 
@@ -787,10 +857,16 @@ async def reset_trust_scores(
     influencing RECESS detection.
     """
     await fl_service.reset_all_trust_scores(db)
-    await ws_manager.broadcast(build_ws_message(WSMessageType.CLIENT_TRUST_UPDATE, {
-        "scores": fl_service.get_trust_scores(),
-        "reset": True,
-    }))
+    fl_service.reset_detection_history()
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.CLIENT_TRUST_UPDATE,
+            {
+                "scores": fl_service.get_trust_scores(),
+                "reset": True,
+            },
+        )
+    )
     return {"status": "ok", "message": "All trust scores reset to 1.0"}
 
 
@@ -808,10 +884,12 @@ async def get_flagged_clients(_user=Depends(get_current_user)):
 
 # ── Aggregation Enforcement Endpoints ───────────────────
 
+
 class AggregationEnforcementBody(BaseModel):
     """Payload sent by the FL server after each aggregation round."""
+
     round: int
-    enforcement: dict[str, str]   # client_id → 'included'|'downweighted'|'excluded'
+    enforcement: dict[str, str]  # client_id → 'included'|'downweighted'|'excluded'
     excluded_count: int = 0
     downweighted_count: int = 0
 
@@ -830,12 +908,17 @@ async def post_aggregation_enforcement(body: AggregationEnforcementBody):
         excluded_count=body.excluded_count,
         downweighted_count=body.downweighted_count,
     )
-    await ws_manager.broadcast(build_ws_message(WSMessageType.AGGREGATION_ENFORCEMENT, {
-        "round": body.round,
-        "enforcement": body.enforcement,
-        "excluded_count": body.excluded_count,
-        "downweighted_count": body.downweighted_count,
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.AGGREGATION_ENFORCEMENT,
+            {
+                "round": body.round,
+                "enforcement": body.enforcement,
+                "excluded_count": body.excluded_count,
+                "downweighted_count": body.downweighted_count,
+            },
+        )
+    )
     return {"ok": True}
 
 
@@ -880,22 +963,144 @@ async def stop_training(
                     new_mode="IDLE",
                 )
                 await fl_service.update_fl_client(
-                    db, client.id,
+                    db,
+                    client.id,
                     status="active",
                     container_id=info.container_id,
                     container_name=info.name,
                 )
                 log.info("Switched client %s back to IDLE mode", client.client_id)
             except Exception as exc:
-                log.warning("Failed to switch client %s to IDLE: %s", client.client_id, exc)
+                log.warning(
+                    "Failed to switch client %s to IDLE: %s", client.client_id, exc
+                )
 
     # Broadcast training stop
-    await ws_manager.broadcast(build_ws_message(WSMessageType.TRAINING_STOP, {
-        "status": "stopped",
-        "message": "FL training session stopped by user",
-    }))
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.TRAINING_STOP,
+            {
+                "status": "stopped",
+                "message": "FL training session stopped by user",
+            },
+        )
+    )
 
     return FLStopResponse(
         status="stopped",
         message="FL training session stopped",
+    )
+
+
+# ── Poison Mode Toggle ──────────────────────────────────────
+
+
+class PoisonToggleRequest(BaseModel):
+    """Toggle gradient poisoning on a running FL client."""
+
+    strategy: str = Field(
+        default="none",
+        description=(
+            "Poison strategy: 'direction_flip', 'scale_attack', 'noise_inject', or 'none' to disable."
+        ),
+    )
+
+
+class PoisonToggleResponse(BaseModel):
+    client_id: str
+    strategy: str
+    active: bool
+    message: str
+
+
+@router.post(
+    "/clients/{client_db_id}/poison",
+    response_model=PoisonToggleResponse,
+)
+async def toggle_poison_mode(
+    client_db_id: int,
+    req: PoisonToggleRequest,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """
+    Toggle gradient poisoning on a running FL client container.
+
+    Writes a signal file to the shared volume that the FL client reads
+    at the start of each training round.  No container restart required.
+
+    Strategies:
+      - direction_flip: reverses gradient direction + amplifies 1.5-3x
+      - scale_attack: amplifies gradients by 5-10x
+      - noise_inject: replaces gradients with random noise
+      - none: disables poisoning (removes signal file)
+    """
+    VALID_STRATEGIES = {"direction_flip", "scale_attack", "noise_inject", "none"}
+    if req.strategy not in VALID_STRATEGIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid strategy '{req.strategy}'. Must be one of: {VALID_STRATEGIES}",
+        )
+
+    client = await fl_service.get_fl_client(db, client_db_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail="FL client not found")
+
+    # Write signal file inside the FL client container via Docker exec.
+    # The fl_client/ directory is bind-mounted as /app in the container,
+    # so writing /app/.poison_mode is visible to the client process immediately.
+    container_name = client.container_name
+    if not container_name:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Client {client.client_id} has no associated container",
+        )
+
+    try:
+        container = docker_service.get_container_by_name(container_name)
+        if container is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Container {container_name} not found",
+            )
+
+        if req.strategy == "none":
+            container.exec_run(["rm", "-f", "/app/.poison_mode"])
+            log.info("Poison mode disabled for client %s", client.client_id)
+        else:
+            container.exec_run(
+                ["sh", "-c", f"echo -n '{req.strategy}' > /app/.poison_mode"]
+            )
+            log.warning(
+                "POISON MODE ENABLED for client %s: strategy=%s",
+                client.client_id,
+                req.strategy,
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to write poison signal via Docker exec: {exc}",
+        )
+
+    # Broadcast a security event so the Watcher/Timeline can show it
+    await ws_manager.broadcast(
+        build_ws_message(
+            WSMessageType.SECURITY_EVENT,
+            {
+                "kind": "poison_toggle",
+                "round": 0,
+                "client_id": client.client_id,
+                "detail": f"Poison {'activated' if req.strategy != 'none' else 'deactivated'}: {req.strategy}",
+                "data": {"strategy": req.strategy, "active": req.strategy != "none"},
+            },
+        )
+    )
+
+    return PoisonToggleResponse(
+        client_id=client.client_id,
+        strategy=req.strategy,
+        active=req.strategy != "none",
+        message=f"Poison mode {'activated' if req.strategy != 'none' else 'deactivated'} for {client.client_id}",
     )

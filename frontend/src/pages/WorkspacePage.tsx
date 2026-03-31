@@ -27,6 +27,7 @@ import NodePalette from '@/components/canvas/NodePalette';
 import PropertiesPanel from '@/components/canvas/PropertiesPanel';
 import FLDrillDownView from '@/components/canvas/fl/FLDrillDownView';
 import MonitorDrillDownView from '@/components/canvas/monitor/MonitorDrillDownView';
+import WatcherDrillDownView from '@/components/canvas/watcher/WatcherDrillDownView';
 import LiveDataSync from '@/components/canvas/LiveDataSync';
 
 // Custom node components
@@ -37,6 +38,7 @@ import AttackNode from '@/components/canvas/nodes/AttackNode';
 import TrafficSourceNode from '@/components/canvas/nodes/TrafficSourceNode';
 import RateFilterNode from '@/components/canvas/nodes/RateFilterNode';
 import MonitorNode from '@/components/canvas/nodes/MonitorNode';
+import WatcherNode from '@/components/canvas/nodes/WatcherNode';
 
 // Custom edge components
 import OwnershipEdge from '@/components/canvas/edges/OwnershipEdge';
@@ -44,6 +46,7 @@ import FLCommunicationEdge from '@/components/canvas/edges/FLCommunicationEdge';
 import TrafficFeedEdge from '@/components/canvas/edges/TrafficFeedEdge';
 import AttackVectorEdge from '@/components/canvas/edges/AttackVectorEdge';
 import ObservationEdge from '@/components/canvas/edges/ObservationEdge';
+import WatcherLinkEdge from '@/components/canvas/edges/WatcherLinkEdge';
 
 // ── Register custom node types with ReactFlow ──
 const nodeTypes = {
@@ -54,6 +57,7 @@ const nodeTypes = {
   'traffic-source': TrafficSourceNode,
   'rate-filter': RateFilterNode,
   monitor: MonitorNode,
+  watcher: WatcherNode,
 };
 
 // ── Register custom edge types with ReactFlow ──
@@ -63,6 +67,7 @@ const edgeTypes = {
   'traffic-feed': TrafficFeedEdge,
   'attack-vector': AttackVectorEdge,
   observation: ObservationEdge,
+  'watcher-link': WatcherLinkEdge,
 };
 
 export default function WorkspacePage() {
@@ -86,6 +91,7 @@ export default function WorkspacePage() {
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const setDrilldownServerId = useWorkspaceStore((s) => s.setDrilldownServerId);
   const setDrilldownMonitorId = useWorkspaceStore((s) => s.setDrilldownMonitorId);
+  const setDrilldownWatcherId = useWorkspaceStore((s) => s.setDrilldownWatcherId);
   const setRfInstance = useWorkspaceStore((s) => s.setRfInstance);
 
   // ── Auto-load workspace on mount ──
@@ -167,9 +173,12 @@ export default function WorkspacePage() {
       } else if (node.type === 'monitor') {
         setDrilldownMonitorId(node.id);
         setViewMode('monitor-drilldown');
+      } else if (node.type === 'watcher') {
+        setDrilldownWatcherId(node.id);
+        setViewMode('watcher-drilldown');
       }
     },
-    [setDrilldownServerId, setDrilldownMonitorId, setViewMode],
+    [setDrilldownServerId, setDrilldownMonitorId, setDrilldownWatcherId, setViewMode],
   );
 
   // ── If in FL drill-down mode, render that view instead ──
@@ -194,6 +203,19 @@ export default function WorkspacePage() {
       >
         <LiveDataSync />
         <MonitorDrillDownView />
+      </div>
+    );
+  }
+
+  // ── If in Watcher drill-down mode, render security audit view ──
+  if (viewMode === 'watcher-drilldown') {
+    return (
+      <div
+        className="flex flex-col w-screen h-screen overflow-hidden"
+        style={{ background: 'var(--n8n-canvas-bg)' }}
+      >
+        <LiveDataSync />
+        <WatcherDrillDownView />
       </div>
     );
   }

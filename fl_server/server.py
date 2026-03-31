@@ -59,6 +59,8 @@ from fl_common.recess_utils import (
     update_trust_score,
     FLAG_THRESHOLD,
 )
+from gradient_archive import GradientArchive
+from fed_recovery import FedRecoveryEngine
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("fl_server")
@@ -124,27 +126,35 @@ def _emit_security_event(
     ``data`` carries structured payload (e.g. per-layer metrics for HE events)
     so the frontend can render rich detail beyond the plain ``detail`` string.
     """
-    _post_to_backend("/api/v1/internal/fl/security-event", {
-        "kind": kind,
-        "round": round_num,
-        "client_id": client_id,
-        "detail": detail,
-        "data": data,
-    })
+    _post_to_backend(
+        "/api/v1/internal/fl/security-event",
+        {
+            "kind": kind,
+            "round": round_num,
+            "client_id": client_id,
+            "detail": detail,
+            "data": data,
+        },
+    )
 
 
 def _emit_security_events_batch(events: List[dict]) -> None:
     """Fire-and-forget a batch of security events."""
     if events:
         try:
-            r = _get_http().post("/api/v1/internal/fl/security-events-batch", json=events)
+            r = _get_http().post(
+                "/api/v1/internal/fl/security-events-batch", json=events
+            )
             if r.status_code >= 300:
-                log.warning("Security events batch → %s: %s", r.status_code, r.text[:200])
+                log.warning(
+                    "Security events batch → %s: %s", r.status_code, r.text[:200]
+                )
         except Exception as exc:
             log.warning("Security events batch failed: %s", exc)
 
 
 # ── Security helpers ─────────────────────────────────────
+
 
 def generate_round_nonce(session_id: str, round_number: int) -> str:
     """Return a unique nonce for a given session and round."""
@@ -186,7 +196,9 @@ def _load_client_public_keys() -> Dict[str, bytes]:
             log.warning(
                 "Public key not found for %s (tried %s and %s) — "
                 "signature checks will be skipped for this client",
-                name, stem, name,
+                name,
+                stem,
+                name,
             )
     return keys
 
@@ -252,6 +264,15 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         # ── Current RECESS probe sent to clients this detection round ──────
         self._current_probe: Optional[Dict[str, torch.Tensor]] = None
 
+        # ── Gradient archive (encrypted per-client + aggregated, for FedRecovery) ──
+        self._archive = GradientArchive()
+
+        # ── FedRecovery concurrency guard ───────────────────
+        # Prevents two recovery runs from modifying the global model simultaneously.
+        import threading as _threading
+
+        self._fedrecovery_lock = _threading.Lock()
+
         # ── Client public keys (Ed25519 PEM) ───────────────
         self._client_public_keys: Dict[str, bytes] = _load_client_public_keys()
 
@@ -302,9 +323,13 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 persisted = resp.json().get("trust_scores", {})
                 if persisted:
                     self._trust_scores.update(persisted)
-                    log.info("Loaded persisted trust scores from backend: %s", persisted)
+                    log.info(
+                        "Loaded persisted trust scores from backend: %s", persisted
+                    )
             except Exception as exc:
-                log.warning("Could not load trust scores from backend (non-fatal): %s", exc)
+                log.warning(
+                    "Could not load trust scores from backend (non-fatal): %s", exc
+                )
 
         is_detect = server_round % RECESS_INTERVAL == 0
         config: Dict[str, Scalar] = {
@@ -332,15 +357,31 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     probe_flat.numpy().tobytes()
                 ).decode("ascii")
                 log.debug(
-                    "RECESS probe constructed and embedded (%d elements)", probe_flat.numel()
+                    "RECESS probe constructed and embedded (%d elements)",
+                    probe_flat.numel(),
+                )
+                _emit_security_event(
+                    "recess_probe_built",
+                    server_round,
+                    detail=f"Probe constructed ({probe_flat.numel()} elements)",
+                    data={
+                        "num_elements": probe_flat.numel(),
+                        "probe_norm": round(float(probe_flat.norm().item()), 6),
+                    },
                 )
             except Exception as exc:
-                log.warning("Failed to construct RECESS probe: %s — proceeding without probe", exc)
+                log.warning(
+                    "Failed to construct RECESS probe: %s — proceeding without probe",
+                    exc,
+                )
                 self._current_probe = None
         elif is_detect:
             # Round 1 RECESS — no prior delta yet, probe will be None
             self._current_probe = None
-            log.debug("RECESS detection round %d — no prior gradient, probe skipped", server_round)
+            log.debug(
+                "RECESS detection round %d — no prior gradient, probe skipped",
+                server_round,
+            )
 
         fit_ins = FitIns(parameters, config)
         sample_size = max(self.min_fit_clients, MIN_FIT_CLIENTS)
@@ -350,8 +391,24 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         )
 
         # Emit security events: round start + nonce issued
-        _emit_security_event("round_start", server_round, detail=f"clients={len(clients)} detect={is_detect}")
+        _emit_security_event(
+            "round_start",
+            server_round,
+            detail=f"clients={len(clients)} detect={is_detect}",
+        )
         _emit_security_event("nonce_issued", server_round, detail=nonce[:16] + "...")
+
+        # For detection rounds, confirm probe has been dispatched to clients
+        if is_detect:
+            _emit_security_event(
+                "recess_probe_dispatched",
+                server_round,
+                detail=f"Config sent to {len(clients)} client{'s' if len(clients) != 1 else ''} (probe={'embedded' if self._current_probe is not None else 'skipped — no prior gradient'})",
+                data={
+                    "num_clients": len(clients),
+                    "probe_available": self._current_probe is not None,
+                },
+            )
 
         # Emit global_dispatch — global model weight norms + prior round metrics
         try:
@@ -366,14 +423,17 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             ]
             prior = self.round_metrics[-1] if self.round_metrics else None
             _emit_security_event(
-                "global_dispatch", server_round,
+                "global_dispatch",
+                server_round,
                 detail=(
                     f"Dispatching global model to {len(clients)} "
                     f"client{'s' if len(clients) != 1 else ''}"
                     + (
                         f" | prev loss={prior['global_loss']:.4f}"
                         f" acc={prior['global_accuracy']:.4f}"
-                        if prior and "global_loss" in prior and "global_accuracy" in prior
+                        if prior
+                        and "global_loss" in prior
+                        and "global_accuracy" in prior
                         else " | initial model"
                     )
                 ),
@@ -381,12 +441,18 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     "num_clients": len(clients),
                     "layers": dispatch_layer_data,
                     "prior_round": prior["round"] if prior else None,
-                    "prior_loss": round(float(prior["global_loss"]), 6) if prior and "global_loss" in prior else None,
-                    "prior_accuracy": round(float(prior["global_accuracy"]), 6) if prior and "global_accuracy" in prior else None,
+                    "prior_loss": round(float(prior["global_loss"]), 6)
+                    if prior and "global_loss" in prior
+                    else None,
+                    "prior_accuracy": round(float(prior["global_accuracy"]), 6)
+                    if prior and "global_accuracy" in prior
+                    else None,
                 },
             )
         except Exception as exc:
-            log.warning("Could not emit global_dispatch for round %d: %s", server_round, exc)
+            log.warning(
+                "Could not emit global_dispatch for round %d: %s", server_round, exc
+            )
 
         return [(client, fit_ins) for client in clients]
 
@@ -407,16 +473,21 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         # ── Normal aggregation ────────────────────────────
         t0 = time.time()
         num_clients = len(results)
-        log.info("Round %d — aggregating %d clients (HE=%s)", rnd, num_clients, self.use_he)
+        log.info(
+            "Round %d — aggregating %d clients (HE=%s)", rnd, num_clients, self.use_he
+        )
 
         # Notify backend that aggregation is starting
-        _post_to_backend("/api/v1/internal/fl/progress", {
-            "round": rnd,
-            "total_rounds": ROUNDS,
-            "phase": "aggregating",
-            "num_clients": num_clients,
-            "message": f"Aggregating {num_clients} client updates (HE={self.use_he})",
-        })
+        _post_to_backend(
+            "/api/v1/internal/fl/progress",
+            {
+                "round": rnd,
+                "total_rounds": ROUNDS,
+                "phase": "aggregating",
+                "num_clients": num_clients,
+                "message": f"Aggregating {num_clients} client updates (HE={self.use_he})",
+            },
+        )
 
         # Snapshot the model weights BEFORE aggregation so we can compute deltas after
         pre_agg_state: Dict[str, torch.Tensor] = {}
@@ -445,14 +516,19 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 layer_data = []
                 for i, key in enumerate(keys):
                     if key in SELECTED_LAYERS and i < len(ndarrays):
-                        delta = ndarrays[i].astype(np.float64) - state[key].cpu().numpy().astype(np.float64)
-                        layer_data.append({
-                            "layer": key,
-                            "delta_norm": round(float(np.linalg.norm(delta)), 6),
-                        })
+                        delta = ndarrays[i].astype(np.float64) - state[
+                            key
+                        ].cpu().numpy().astype(np.float64)
+                        layer_data.append(
+                            {
+                                "layer": key,
+                                "delta_norm": round(float(np.linalg.norm(delta)), 6),
+                            }
+                        )
                 total_delta = round(sum(ld["delta_norm"] for ld in layer_data), 6)
                 _emit_security_event(
-                    "client_update", rnd,
+                    "client_update",
+                    rnd,
                     client_id=cid,
                     detail=(
                         f"loss={client_loss:.4f} acc={client_acc:.4f} "
@@ -468,7 +544,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     },
                 )
         except Exception as exc:
-            log.warning("Could not emit client_update events for round %d: %s", rnd, exc)
+            log.warning(
+                "Could not emit client_update events for round %d: %s", rnd, exc
+            )
 
         if self.use_he:
             params, metrics = self._aggregate_he(rnd, results)
@@ -477,6 +555,13 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
         # Cache last aggregated gradient delta (post − pre) for RECESS probing
         self._update_last_agg_gradient(pre_agg_state)
+
+        # Archive aggregated gradient for FedRecovery use
+        if self._last_agg_gradient:
+            try:
+                self._archive.store_agg(rnd, self._last_agg_gradient)
+            except Exception as _exc:
+                log.warning("GradientArchive.store_agg failed r%d: %s", rnd, _exc)
 
         elapsed = time.time() - t0
         metrics["aggregation_time_sec"] = float(elapsed)
@@ -504,14 +589,21 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         """
         log.info("Round %d — RECESS detection round", rnd)
 
-        _post_to_backend("/api/v1/internal/fl/progress", {
-            "round": rnd,
-            "total_rounds": ROUNDS,
-            "phase": "recess_detection",
-            "message": f"RECESS detection round {rnd}",
-        })
+        _post_to_backend(
+            "/api/v1/internal/fl/progress",
+            {
+                "round": rnd,
+                "total_rounds": ROUNDS,
+                "phase": "recess_detection",
+                "message": f"RECESS detection round {rnd}",
+            },
+        )
 
-        _emit_security_event("recess_detect", rnd, detail=f"Starting RECESS detection ({len(results)} clients)")
+        _emit_security_event(
+            "recess_detect",
+            rnd,
+            detail=f"Starting RECESS detection ({len(results)} clients)",
+        )
 
         expected_nonce = self._round_nonces.get(rnd, "")
         trust_updates: Dict[str, float] = {}
@@ -526,21 +618,44 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             # ── 1. Verify nonce echo ──────────────────────
             nonce_echo = str(m.get("nonce_echo", ""))
             if expected_nonce and nonce_echo != expected_nonce:
-                log.warning("Round %d — client %s: nonce mismatch — discarding", rnd, cid)
-                sec_events.append({"kind": "nonce_verified", "round": rnd, "client_id": cid, "detail": "FAILED — mismatch"})
+                log.warning(
+                    "Round %d — client %s: nonce mismatch — discarding", rnd, cid
+                )
+                sec_events.append(
+                    {
+                        "kind": "nonce_verified",
+                        "round": rnd,
+                        "client_id": cid,
+                        "detail": "FAILED — mismatch",
+                    }
+                )
                 continue
-            sec_events.append({"kind": "nonce_verified", "round": rnd, "client_id": cid, "detail": "OK"})
+            sec_events.append(
+                {
+                    "kind": "nonce_verified",
+                    "round": rnd,
+                    "client_id": cid,
+                    "detail": "OK",
+                }
+            )
 
             # ── 2. Retrieve base64-encoded RECESS response ─
             recess_b64 = m.get("recess_response", "")
             if not recess_b64:
-                log.warning("Round %d — client %s: no recess_response — skipping", rnd, cid)
+                log.warning(
+                    "Round %d — client %s: no recess_response — skipping", rnd, cid
+                )
                 continue
 
             try:
                 recess_bytes = base64.b64decode(recess_b64)
             except Exception as exc:
-                log.warning("Round %d — client %s: bad base64 recess_response: %s", rnd, cid, exc)
+                log.warning(
+                    "Round %d — client %s: bad base64 recess_response: %s",
+                    rnd,
+                    cid,
+                    exc,
+                )
                 continue
 
             # ── 3. Verify Ed25519 signature ───────────────
@@ -551,24 +666,58 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     sig_bytes = base64.b64decode(sig_b64)
                     if not verify_gradient(recess_bytes, sig_bytes, pub_key_pem):
                         log.warning(
-                            "Round %d — client %s: invalid signature — discarding", rnd, cid
+                            "Round %d — client %s: invalid signature — discarding",
+                            rnd,
+                            cid,
                         )
-                        sec_events.append({"kind": "signature_failed", "round": rnd, "client_id": cid, "detail": "Invalid Ed25519 signature"})
+                        sec_events.append(
+                            {
+                                "kind": "signature_failed",
+                                "round": rnd,
+                                "client_id": cid,
+                                "detail": "Invalid Ed25519 signature",
+                            }
+                        )
                         continue
                 except Exception as exc:
                     log.warning(
-                        "Round %d — client %s: signature error: %s — discarding", rnd, cid, exc
+                        "Round %d — client %s: signature error: %s — discarding",
+                        rnd,
+                        cid,
+                        exc,
                     )
-                    sec_events.append({"kind": "signature_failed", "round": rnd, "client_id": cid, "detail": str(exc)[:100]})
+                    sec_events.append(
+                        {
+                            "kind": "signature_failed",
+                            "round": rnd,
+                            "client_id": cid,
+                            "detail": str(exc)[:100],
+                        }
+                    )
                     continue
-                sec_events.append({"kind": "signature_verified", "round": rnd, "client_id": cid, "detail": "Ed25519 OK"})
+                sec_events.append(
+                    {
+                        "kind": "signature_verified",
+                        "round": rnd,
+                        "client_id": cid,
+                        "detail": "Ed25519 OK",
+                    }
+                )
             elif pub_key_pem:
                 # Key is loaded but no signature provided — warn and continue
                 log.warning(
                     "Round %d — client %s: no signature provided (key on file) — proceeding with caution",
-                    rnd, cid,
+                    rnd,
+                    cid,
                 )
-                sec_events.append({"kind": "signature_verified", "round": rnd, "client_id": cid, "detail": "No signature (key on file)"})
+                sec_events.append(
+                    {
+                        "kind": "signature_verified",
+                        "round": rnd,
+                        "client_id": cid,
+                        "detail": "No signature (key on file)",
+                    }
+                )
 
             # ── 4. Decode response gradient from raw bytes ─
             # Clients encode a flat float32 numpy array as raw bytes
@@ -577,9 +726,23 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 response_flat = torch.tensor(response_flat_np, dtype=torch.float32)
             except Exception as exc:
                 log.warning(
-                    "Round %d — client %s: failed to decode response gradient: %s", rnd, cid, exc
+                    "Round %d — client %s: failed to decode response gradient: %s",
+                    rnd,
+                    cid,
+                    exc,
                 )
                 continue
+
+            _emit_security_event(
+                "recess_response_received",
+                rnd,
+                client_id=cid,
+                detail=f"Response decoded ({response_flat.numel()} elements, norm={torch.norm(response_flat).item():.4f})",
+                data={
+                    "num_elements": response_flat.numel(),
+                    "resp_norm": round(float(torch.norm(response_flat).item()), 6),
+                },
+            )
 
             # ── 5. Build test gradient flat vector ────────
             # Use the pre-constructed RECESS probe (built from the aggregation delta
@@ -589,7 +752,10 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 try:
                     test_flat = flatten_gradient(self._current_probe)
                 except Exception as exc:
-                    log.warning("Could not flatten RECESS probe: %s — using response as reference", exc)
+                    log.warning(
+                        "Could not flatten RECESS probe: %s — using response as reference",
+                        exc,
+                    )
                     test_flat = response_flat.clone()
             else:
                 # No probe available (round 1 or probe construction failed) —
@@ -601,44 +767,87 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             test_flat = test_flat[:min_len]
             response_flat = response_flat[:min_len]
 
-            # ── Fix B: Reconstruct true client update Δ_i ─────────────
-            # Client returns: local_params − global_new = Δ_i − avg(Δ)
-            # We recover Δ_i = response + avg(Δ) so that the comparison
-            # is between Δ_i and the probe (≈ avg(Δ)), which are
-            # semantically aligned.  Without this, response and probe
-            # are geometrically orthogonal → cos_sim ≈ 0 always.
-            if self._last_agg_gradient is not None and self._current_probe is not None:
-                try:
-                    agg_delta_flat = flatten_gradient(self._last_agg_gradient)[:min_len]
-                    response_flat = response_flat + agg_delta_flat
-                except Exception as exc:
-                    log.warning("Could not reconstruct Δ_i for %s: %s", cid, exc)
+            # ── Residual-based detection (replaces Fix B) ─────────────
+            # The client response is a residual: local_params − global_params
+            # = Δ_i − avg(Δ).  An honest client's residual is near-zero
+            # (close to the global model).  A poisoned client (with probe-
+            # aware poisoning) produces a large adversarial residual.
+            #
+            # Instead of reconstructing the full gradient (Fix B), which
+            # fails when the aggregated gradient is contaminated, we compare
+            # the raw residual magnitude against the probe:
+            #   - |residual| << |probe|  →  benign (client ≈ global model)
+            #   - |residual| ≈ |probe|   →  compute full abnormality
+            #   - |residual| >> |probe|  →  highly anomalous
+            RESIDUAL_BENIGN_RATIO = 0.15  # response < 15% of probe → benign
+
+            _emit_security_event(
+                "recess_vss_decrypt",
+                rnd,
+                client_id=cid,
+                detail=f"Raw residual (no Fix B, norm={torch.norm(response_flat).item():.4f})",
+                data={
+                    "residual_norm": round(float(torch.norm(response_flat).item()), 6)
+                },
+            )
 
             # ── Diagnostic checkpoint 1: probe norm ──────────────
             probe_norm = torch.norm(test_flat).item()
             resp_norm = torch.norm(response_flat).item()
+            residual_ratio = resp_norm / (probe_norm + 1e-8)
             log.info(
-                "RECESS diag [%s] probe_norm=%.4f  resp_norm=%.4f",
-                cid, probe_norm, resp_norm,
+                "RECESS diag [%s] probe_norm=%.4f  resp_norm=%.4f  "
+                "residual_ratio=%.4f  benign_thresh=%.2f",
+                cid,
+                probe_norm,
+                resp_norm,
+                residual_ratio,
+                RESIDUAL_BENIGN_RATIO,
             )
 
             # ── 6. Compute abnormality score ───────────────
-            try:
-                abnormality, direction_score, magnitude_score = compute_abnormality_components(test_flat, response_flat)
-            except Exception as exc:
-                log.warning("Round %d — client %s: compute_abnormality_components error: %s", rnd, cid, exc)
-                abnormality, direction_score, magnitude_score = 1.0, 1.0, 1.0
+            if probe_norm > 1e-8 and residual_ratio < RESIDUAL_BENIGN_RATIO:
+                # Near-zero residual: client is very close to the global
+                # model → benign behaviour, no penalty.
+                abnormality, direction_score, magnitude_score = 0.0, 0.0, 0.0
+                log.info(
+                    "RECESS [%s]: near-zero residual (ratio=%.4f < %.2f) → benign",
+                    cid,
+                    residual_ratio,
+                    RESIDUAL_BENIGN_RATIO,
+                )
+            else:
+                try:
+                    abnormality, direction_score, magnitude_score = (
+                        compute_abnormality_components(test_flat, response_flat)
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "Round %d — client %s: compute_abnormality_components error: %s",
+                        rnd,
+                        cid,
+                        exc,
+                    )
+                    abnormality, direction_score, magnitude_score = 1.0, 1.0, 1.0
 
             # ── Diagnostic checkpoint 2: cos_sim & magnitude ratio ──
-            _cos_sim = torch.nn.functional.cosine_similarity(
-                test_flat.unsqueeze(0), response_flat.unsqueeze(0)
-            ).item() if probe_norm > 1e-8 and resp_norm > 1e-8 else 0.0
+            _cos_sim = (
+                torch.nn.functional.cosine_similarity(
+                    test_flat.unsqueeze(0), response_flat.unsqueeze(0)
+                ).item()
+                if probe_norm > 1e-8 and resp_norm > 1e-8
+                else 0.0
+            )
             _mag_ratio = resp_norm / (probe_norm + 1e-8)
             log.info(
                 "RECESS diag [%s] cos_sim=%.4f  mag_ratio=%.4f  "
                 "dir_score=%.4f  mag_score=%.4f  abnormality=%.4f",
-                cid, _cos_sim, _mag_ratio,
-                direction_score, magnitude_score, abnormality,
+                cid,
+                _cos_sim,
+                _mag_ratio,
+                direction_score,
+                magnitude_score,
+                abnormality,
             )
 
             # Store per-client components for detection_round POST
@@ -648,6 +857,23 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 "magnitude_score": float(magnitude_score),
             }
 
+            _emit_security_event(
+                "recess_score_computed",
+                rnd,
+                client_id=cid,
+                detail=(
+                    f"abnormality={abnormality:.4f} "
+                    f"dir={direction_score:.4f} mag={magnitude_score:.4f}"
+                ),
+                data={
+                    "abnormality": round(float(abnormality), 6),
+                    "direction_score": round(float(direction_score), 6),
+                    "magnitude_score": round(float(magnitude_score), 6),
+                    "cos_sim": round(_cos_sim, 6),
+                    "mag_ratio": round(_mag_ratio, 6),
+                },
+            )
+
             # ── 7. Update trust score ──────────────────────
             current = self._trust_scores.get(cid, 1.0)
             new_score = update_trust_score(current, abnormality)
@@ -655,16 +881,30 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             trust_updates[cid] = new_score
             log.info(
                 "Round %d — client %s: abnormality=%.4f  trust %.4f → %.4f",
-                rnd, cid, abnormality, current, new_score,
+                rnd,
+                cid,
+                abnormality,
+                current,
+                new_score,
             )
 
             # ── 8. Flag if abnormality > 0.7 ──────────────
             if abnormality > 0.7:
                 flagged_in_round.append(cid)
                 log.warning(
-                    "Round %d — FLAGGING client %s (abnormality=%.4f)", rnd, cid, abnormality
+                    "Round %d — FLAGGING client %s (abnormality=%.4f)",
+                    rnd,
+                    cid,
+                    abnormality,
                 )
-                sec_events.append({"kind": "recess_flag", "round": rnd, "client_id": cid, "detail": f"abnormality={abnormality:.4f}"})
+                sec_events.append(
+                    {
+                        "kind": "recess_flag",
+                        "round": rnd,
+                        "client_id": cid,
+                        "detail": f"abnormality={abnormality:.4f}",
+                    }
+                )
                 _post_to_backend(
                     "/api/v1/fl/flagged_client",
                     {
@@ -674,13 +914,34 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     },
                 )
 
+            decision = (
+                "flagged"
+                if abnormality > 0.7
+                else ("downweighted" if new_score < 0.5 else "trusted")
+            )
+            _emit_security_event(
+                "recess_decision",
+                rnd,
+                client_id=cid,
+                detail=f"decision={decision} trust {current:.4f} → {new_score:.4f}",
+                data={
+                    "decision": decision,
+                    "trust_before": round(float(current), 6),
+                    "trust_after": round(float(new_score), 6),
+                    "abnormality": round(float(abnormality), 6),
+                    "flag_threshold": FLAG_THRESHOLD,
+                },
+            )
+
         # ── 9. Broadcast trust-score update via detection_round endpoint ──
         if trust_updates:
             _post_to_backend(
                 "/api/v1/fl/detection_round",
                 {
                     "round": rnd,
-                    "scores": {cid: float(score) for cid, score in trust_updates.items()},
+                    "scores": {
+                        cid: float(score) for cid, score in trust_updates.items()
+                    },
                     "flagged": flagged_in_round,
                     "components": components,
                 },
@@ -688,6 +949,32 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
         # Emit batched security events for the RECESS round
         _emit_security_events_batch(sec_events)
+
+        # Emit round-level summary event
+        _emit_security_event(
+            "recess_round_complete",
+            rnd,
+            detail=(
+                f"{len(trust_updates)} client{'s' if len(trust_updates) != 1 else ''} evaluated, "
+                f"{len(flagged_in_round)} flagged"
+            ),
+            data={
+                "num_evaluated": len(trust_updates),
+                "num_flagged": len(flagged_in_round),
+                "flagged_clients": flagged_in_round,
+                "trust_scores": {
+                    cid: round(float(s), 6) for cid, s in trust_updates.items()
+                },
+            },
+        )
+
+        # ── Trigger FedRecovery for newly-below-threshold clients ─────────────
+        # Only trigger if HE is enabled (archive has encrypted bytes) and VSS
+        # state is available (needed for the cooperative decrypt ceremony).
+        if self.use_he and self._vss and flagged_in_round:
+            for cid in flagged_in_round:
+                if self._trust_scores.get(cid, 1.0) < FLAG_THRESHOLD:
+                    self._run_fed_recovery(cid, rnd)
 
         # RECESS round does not update the model — return current parameters
         current_params = ndarrays_to_parameters(self._get_global_ndarrays())
@@ -713,6 +1000,49 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             log.info("VSS key refresh complete — new commitments distributed")
         except Exception as exc:
             log.error("VSS key refresh failed: %s", exc)
+
+    def _run_fed_recovery(self, flagged_client_id: str, flag_round: int) -> None:
+        """Acquire the lock and run FedRecoveryEngine for a newly-flagged client.
+
+        Runs synchronously (blocks the current round callback).  This is
+        intentional — security correction takes precedence over training speed.
+        If the lock is already held by a concurrent recovery (shouldn't happen in
+        Flower's single-threaded callback path), the run is skipped with a warning.
+        """
+        acquired = self._fedrecovery_lock.acquire(blocking=False)
+        if not acquired:
+            log.warning(
+                "FedRecovery already running — skipping for client %s round %d",
+                flagged_client_id,
+                flag_round,
+            )
+            return
+        try:
+            engine = FedRecoveryEngine(
+                archive=self._archive,
+                model=self.global_model,
+                vss=self._vss,
+                public_ctx=self.ckks_ctx,
+                post_fn=_post_to_backend,
+            )
+            result = engine.run(
+                flagged_client_id=flagged_client_id, flag_round=flag_round
+            )
+            log.info(
+                "FedRecovery result: run_id=%s status=%s corrected=%d skipped=%d",
+                result.get("run_id"),
+                result.get("status"),
+                result.get("rounds_corrected", 0),
+                result.get("rounds_skipped", 0),
+            )
+        except Exception as exc:
+            log.error(
+                "FedRecovery failed unexpectedly for client %s: %s",
+                flagged_client_id,
+                exc,
+            )
+        finally:
+            self._fedrecovery_lock.release()
 
     def _update_last_agg_gradient(self, pre_agg_state: Dict[str, torch.Tensor]) -> None:
         """Cache the aggregation delta (post − pre) for SELECTED_LAYERS as the last gradient.
@@ -755,14 +1085,16 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             loss = float(m.get("loss", 0.0))
             acc = float(m.get("accuracy", 0.0))
 
-            client_metrics.append({
-                "client_id": str(cid),
-                "local_loss": loss,
-                "local_accuracy": acc,
-                "num_samples": n,
-                "training_time_sec": float(m.get("training_time_sec", 0.0)),
-                "encrypted": self.use_he,
-            })
+            client_metrics.append(
+                {
+                    "client_id": str(cid),
+                    "local_loss": loss,
+                    "local_accuracy": acc,
+                    "num_samples": n,
+                    "training_time_sec": float(m.get("training_time_sec", 0.0)),
+                    "encrypted": self.use_he,
+                }
+            )
             total_samples += n
             weighted_loss += loss * n
             weighted_acc += acc * n
@@ -809,7 +1141,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 "total_delta": round(sum(delta_norms.values()), 6),
             }
         except Exception as exc:
-            log.warning("Could not compute gradient_stats for round %d: %s", server_round, exc)
+            log.warning(
+                "Could not compute gradient_stats for round %d: %s", server_round, exc
+            )
 
         if gradient_stats:
             log.info(
@@ -819,7 +1153,10 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 gradient_stats.get("total_delta", 0.0),
             )
         else:
-            log.warning("Round %d: gradient_stats is None — check pre_agg_state and _last_agg_gradient", server_round)
+            log.warning(
+                "Round %d: gradient_stats is None — check pre_agg_state and _last_agg_gradient",
+                server_round,
+            )
 
         round_payload = {
             "round_number": server_round,
@@ -844,13 +1181,16 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 pn = gradient_stats["post_norms"].get(layer)
                 dn = gradient_stats["delta_norms"].get(layer)
                 if pn is not None:
-                    mu_layers.append({
-                        "layer": layer,
-                        "weight_norm": pn,
-                        "delta_from_prior": dn if dn is not None else 0.0,
-                    })
+                    mu_layers.append(
+                        {
+                            "layer": layer,
+                            "weight_norm": pn,
+                            "delta_from_prior": dn if dn is not None else 0.0,
+                        }
+                    )
             _emit_security_event(
-                "model_updated", server_round,
+                "model_updated",
+                server_round,
                 detail=(
                     f"loss={global_loss:.4f} acc={global_accuracy:.4f} "
                     f"total_delta={gradient_stats['total_delta']:.6f}"
@@ -865,7 +1205,8 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
         # Emit round_complete security event
         _emit_security_event(
-            "round_complete", server_round,
+            "round_complete",
+            server_round,
             detail=f"loss={global_loss:.4f} acc={global_accuracy:.4f} clients={num_clients} dur={duration:.2f}s",
         )
 
@@ -897,7 +1238,12 @@ class FedAvgHE(fl.server.strategy.FedAvg):
 
             if trust < FLAG_THRESHOLD:
                 enforcement[cid] = "excluded"
-                log.info("Aggregation — client %s excluded (trust=%.3f < %.2f)", cid, trust, FLAG_THRESHOLD)
+                log.info(
+                    "Aggregation — client %s excluded (trust=%.3f < %.2f)",
+                    cid,
+                    trust,
+                    FLAG_THRESHOLD,
+                )
             else:
                 ndarrays = parameters_to_ndarrays(fit_res.parameters)
                 eff_weight = trust * fit_res.num_examples
@@ -914,7 +1260,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         if excluded > 0 or downweighted > 0:
             log.info(
                 "Round %d — enforcement: %d excluded, %d downweighted",
-                rnd, excluded, downweighted,
+                rnd,
+                excluded,
+                downweighted,
             )
         _post_to_backend(
             "/api/v1/fl/aggregation_enforcement",
@@ -945,7 +1293,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         for i in range(num_layers):
             layer_sum = np.zeros_like(active[0][0][i], dtype=np.float64)
             for ndarrays, eff_weight, _cid in active:
-                layer_sum += ndarrays[i].astype(np.float64) * (eff_weight / total_weight)
+                layer_sum += ndarrays[i].astype(np.float64) * (
+                    eff_weight / total_weight
+                )
             avg.append(layer_sum.astype(np.float32))
 
         self._set_global_ndarrays(avg)
@@ -996,7 +1346,9 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 if key not in SELECTED_LAYERS:
                     layer_sum = np.zeros_like(active[0][0][i], dtype=np.float64)
                     for ndarrays, eff_weight, _cid in active:
-                        layer_sum += ndarrays[i].astype(np.float64) * (eff_weight / total_weight)
+                        layer_sum += ndarrays[i].astype(np.float64) * (
+                            eff_weight / total_weight
+                        )
                     new_ndarrays.append(layer_sum.astype(np.float32))
                 else:
                     new_ndarrays.append(global_state[key].cpu().numpy())
@@ -1031,17 +1383,37 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                             except Exception:
                                 cipher_kb = None
                                 cipher_hex = None
-                            enc_layer_data.append({
-                                "layer": key,
-                                "delta_norm": round(float(np.linalg.norm(delta)), 6),
-                                "cipher_kb": cipher_kb,
-                                "cipher_hex": cipher_hex,
-                            })
+                            enc_layer_data.append(
+                                {
+                                    "layer": key,
+                                    "delta_norm": round(
+                                        float(np.linalg.norm(delta)), 6
+                                    ),
+                                    "cipher_kb": cipher_kb,
+                                    "cipher_hex": cipher_hex,
+                                }
+                            )
                 encrypted_deltas.append(client_enc)
+
+                # Archive CKKS-encrypted bytes per client for FedRecovery use
+                try:
+                    enc_bytes = {k: v.serialize() for k, v in client_enc.items()}
+                    self._archive.store_enc(_cid, server_round, enc_bytes)
+                except Exception as _exc:
+                    log.warning(
+                        "GradientArchive.store_enc failed for %s r%d: %s",
+                        _cid,
+                        server_round,
+                        _exc,
+                    )
 
             enc_time = round(time.time() - t_enc_start, 3)
             total_cipher_kb = round(
-                sum(ld["cipher_kb"] for ld in enc_layer_data if ld["cipher_kb"] is not None)
+                sum(
+                    ld["cipher_kb"]
+                    for ld in enc_layer_data
+                    if ld["cipher_kb"] is not None
+                )
                 * num_active,
                 1,
             )
@@ -1050,7 +1422,8 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 f"enc={enc_time}s | {total_cipher_kb} KB total"
             )
             _emit_security_event(
-                "he_encrypt", server_round,
+                "he_encrypt",
+                server_round,
                 detail=enc_detail,
                 data={
                     "num_layers": len(SELECTED_LAYERS),
@@ -1067,7 +1440,8 @@ class FedAvgHE(fl.server.strategy.FedAvg):
             agg_time = round(time.time() - t_agg_start, 3)
 
             _emit_security_event(
-                "he_aggregate", server_round,
+                "he_aggregate",
+                server_round,
                 detail=(
                     f"{num_active} client{'s' if num_active != 1 else ''} × {len(enc_agg)} layers | "
                     f"agg={agg_time}s | CKKS poly={HE_POLY_MODULUS}"
@@ -1107,18 +1481,21 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                 delta_agg = delta_tensor.numpy()
                 idx = keys.index(key)
                 new_ndarrays[idx] = global_state[key].cpu().numpy() + delta_agg
-                dec_layer_data.append({
-                    "layer": key,
-                    "delta_agg_norm": round(float(np.linalg.norm(delta_agg)), 6),
-                    "decrypted_preview": [round(float(x), 6) for x in delta_agg.flatten()[:5].tolist()],
-                })
+                dec_layer_data.append(
+                    {
+                        "layer": key,
+                        "delta_agg_norm": round(float(np.linalg.norm(delta_agg)), 6),
+                        "decrypted_preview": [
+                            round(float(x), 6) for x in delta_agg.flatten()[:5].tolist()
+                        ],
+                    }
+                )
 
             dec_time = round(time.time() - t_dec_start, 3)
             _emit_security_event(
-                "he_decrypt", server_round,
-                detail=(
-                    f"{len(enc_agg)} layers | dec={dec_time}s"
-                ),
+                "he_decrypt",
+                server_round,
+                detail=(f"{len(enc_agg)} layers | dec={dec_time}s"),
                 data={
                     "num_layers": len(enc_agg),
                     "dec_time_sec": dec_time,
@@ -1139,7 +1516,8 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         except Exception as exc:
             log.warning(
                 "HE aggregation failed (round %d): %s — falling back to plain FedAvg",
-                server_round, exc,
+                server_round,
+                exc,
             )
             return self._aggregate_plain(server_round, results)
 
@@ -1149,13 +1527,16 @@ class FedAvgHE(fl.server.strategy.FedAvg):
         ckpt_dir = os.path.join(MODEL_DIR, "fl_checkpoints")
         os.makedirs(ckpt_dir, exist_ok=True)
         path = os.path.join(ckpt_dir, f"global_round_{server_round}.pt")
-        torch.save({"round": server_round, "model_state": self.global_model.state_dict()}, path)
+        torch.save(
+            {"round": server_round, "model_state": self.global_model.state_dict()}, path
+        )
         log.info("Checkpoint → %s", path)
 
 
 # ═══════════════════════════════════════════════════════════
 #  mTLS gRPC credential builder
 # ═══════════════════════════════════════════════════════════
+
 
 def _build_mtls_credentials() -> Optional[tuple[bytes, bytes, bytes]]:
     """Build mTLS gRPC server credentials if cert files are present.
@@ -1168,12 +1549,14 @@ def _build_mtls_credentials() -> Optional[tuple[bytes, bytes, bytes]]:
     Returns ``None`` when any file is missing (falls back to insecure channel).
     """
     cert_path = os.environ.get("FL_TLS_CERT", "./certs/server.crt")
-    key_path  = os.environ.get("FL_TLS_KEY",  "./certs/server.key")
-    ca_path   = os.environ.get("FL_TLS_CA",   "./certs/ca.crt")
+    key_path = os.environ.get("FL_TLS_KEY", "./certs/server.key")
+    ca_path = os.environ.get("FL_TLS_CA", "./certs/ca.crt")
 
     for p in (cert_path, key_path, ca_path):
         if not os.path.isfile(p):
-            log.warning("mTLS cert file not found: %s — falling back to insecure channel", p)
+            log.warning(
+                "mTLS cert file not found: %s — falling back to insecure channel", p
+            )
             return None
 
     with open(cert_path, "rb") as f:
@@ -1191,6 +1574,7 @@ def _build_mtls_credentials() -> Optional[tuple[bytes, bytes, bytes]]:
 # ═══════════════════════════════════════════════════════════
 #  Entrypoint
 # ═══════════════════════════════════════════════════════════
+
 
 def make_global_model() -> CNN_LSTM_IDS:
     """Load or initialise the global CNN-LSTM model."""
@@ -1228,12 +1612,15 @@ def main() -> None:
     )
 
     # Notify backend that training is starting
-    _post_to_backend("/api/v1/internal/fl/status", {
-        "status": "started",
-        "total_rounds": ROUNDS,
-        "num_clients": MIN_CLIENTS,
-        "use_he": USE_HE,
-    })
+    _post_to_backend(
+        "/api/v1/internal/fl/status",
+        {
+            "status": "started",
+            "total_rounds": ROUNDS,
+            "num_clients": MIN_CLIENTS,
+            "use_he": USE_HE,
+        },
+    )
 
     # Build mTLS credentials (None → insecure fallback)
     tls_creds = _build_mtls_credentials()
@@ -1243,7 +1630,7 @@ def main() -> None:
         config=fl.server.ServerConfig(num_rounds=ROUNDS),
         strategy=strategy,
         grpc_max_message_length=512 * 1024 * 1024,
-        certificates=tls_creds,   # (ca_cert, server_cert, server_key) bytes or None
+        certificates=tls_creds,  # (ca_cert, server_cert, server_key) bytes or None
     )
 
     # Save final model
@@ -1257,12 +1644,15 @@ def main() -> None:
     log.info("History → %s", history_path)
 
     # Notify backend that training is complete
-    _post_to_backend("/api/v1/internal/fl/status", {
-        "status": "completed",
-        "total_rounds": ROUNDS,
-        "rounds_completed": len(strategy.round_metrics),
-        "model_path": final_path,
-    })
+    _post_to_backend(
+        "/api/v1/internal/fl/status",
+        {
+            "status": "completed",
+            "total_rounds": ROUNDS,
+            "rounds_completed": len(strategy.round_metrics),
+            "model_path": final_path,
+        },
+    )
 
 
 if __name__ == "__main__":

@@ -55,7 +55,9 @@ class ConnectionManager:
                 conns.discard(websocket)
                 if not conns:
                     del self._connections[user_id]
-        log.info("WS disconnected: user=%s  (total=%d)", user_id, self.total_connections)
+        log.info(
+            "WS disconnected: user=%s  (total=%d)", user_id, self.total_connections
+        )
 
     # ── Send helpers ────────────────────────────────────
 
@@ -71,7 +73,9 @@ class ConnectionManager:
             conns = [ws for conns in self._connections.values() for ws in conns]
         await self._send_many(conns, message)
 
-    async def broadcast_except(self, message: dict[str, Any], exclude_user: str) -> None:
+    async def broadcast_except(
+        self, message: dict[str, Any], exclude_user: str
+    ) -> None:
         """Broadcast to all except a specific user."""
         async with self._lock:
             conns = [
@@ -94,7 +98,9 @@ class ConnectionManager:
 
     # ── Internal ────────────────────────────────────────
 
-    async def _send_many(self, connections: list[WebSocket], message: dict[str, Any]) -> None:
+    async def _send_many(
+        self, connections: list[WebSocket], message: dict[str, Any]
+    ) -> None:
         """Send *message* to a list of WebSocket connections (best-effort)."""
         payload = self._serialise(message)
         dead: list[tuple[WebSocket, str]] = []
@@ -110,7 +116,9 @@ class ConnectionManager:
                         dead.append((ws, uid))
                         break
 
-        await asyncio.gather(*[_send_one(ws) for ws in connections], return_exceptions=True)
+        await asyncio.gather(
+            *[_send_one(ws) for ws in connections], return_exceptions=True
+        )
 
         # Clean up dead connections
         if dead:
@@ -143,34 +151,42 @@ ws_manager = ConnectionManager()
 # ── Message type helpers ────────────────────────────────
 # Each outbound message MUST have a "type" field.
 
+
 class WSMessageType:
     """Well-known WebSocket message types."""
-    PREDICTION      = "prediction"        # new prediction result
-    FL_PROGRESS     = "fl_progress"       # per-client training progress
-    FL_ROUND        = "fl_round"          # completed round summary
-    TRAINING_START  = "training_start"    # training session started
-    TRAINING_STOP   = "training_complete" # training session ended
-    CLIENT_STATUS   = "client_status"     # FL client container status change
-    DEVICE_STATUS   = "device_status"     # device status change
-    ALERT           = "alert"             # high-severity alert
+
+    PREDICTION = "prediction"  # new prediction result
+    FL_PROGRESS = "fl_progress"  # per-client training progress
+    FL_ROUND = "fl_round"  # completed round summary
+    TRAINING_START = "training_start"  # training session started
+    TRAINING_STOP = "training_complete"  # training session ended
+    CLIENT_STATUS = "client_status"  # FL client container status change
+    DEVICE_STATUS = "device_status"  # device status change
+    ALERT = "alert"  # high-severity alert
     SIMULATION_STATUS = "simulation_status"  # simulation state change
-    PING            = "ping"              # keep-alive ping
-    PONG            = "pong"              # keep-alive pong
-    ERROR           = "error"             # server-side error
+    PING = "ping"  # keep-alive ping
+    PONG = "pong"  # keep-alive pong
+    ERROR = "error"  # server-side error
     # ── Phase 2 RECESS security events ──────────────────
-    DETECTION_ROUND_START = "detection_round_start"   # RECESS detection round beginning
-    CLIENT_TRUST_UPDATE   = "client_trust_update"     # trust scores updated after detection
-    CLIENT_FLAGGED        = "client_flagged"          # client trust score dropped below threshold
+    DETECTION_ROUND_START = "detection_round_start"  # RECESS detection round beginning
+    CLIENT_TRUST_UPDATE = "client_trust_update"  # trust scores updated after detection
+    CLIENT_FLAGGED = "client_flagged"  # client trust score dropped below threshold
     # ── Phase 3 security observability ──────────────────
-    SECURITY_EVENT        = "security_event"          # per-round security pipeline step (nonce, sign, HE, VSS, mTLS)
+    SECURITY_EVENT = "security_event"  # per-round security pipeline step (nonce, sign, HE, VSS, mTLS)
     # ── Attack engine events ────────────────────────────
-    ATTACK_STATUS         = "attack_status"           # attack run status change
-    ATTACK_RESULT         = "attack_result"           # attack run completed with results
+    ATTACK_STATUS = "attack_status"  # attack run status change
+    ATTACK_RESULT = "attack_result"  # attack run completed with results
     # ── Aggregation enforcement ─────────────────────────
-    AGGREGATION_ENFORCEMENT = "aggregation_enforcement"  # per-round trust enforcement decisions
+    AGGREGATION_ENFORCEMENT = (
+        "aggregation_enforcement"  # per-round trust enforcement decisions
+    )
+    # ── FedRecovery events ───────────────────────────────
+    FEDRECOVERY_EVENT = "fedrecovery_event"  # started | step | complete | failed
 
 
-def build_ws_message(msg_type: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_ws_message(
+    msg_type: str, data: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Construct a standard WebSocket message envelope."""
     return {
         "type": msg_type,

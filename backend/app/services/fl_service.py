@@ -11,7 +11,13 @@ from sqlalchemy import select, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.fl import FLRound, FLClientMetric, FLClient
+from app.models.fl import (
+    FLRound,
+    FLClientMetric,
+    FLClient,
+    SecurityEventLog,
+    FedRecoveryRun,
+)
 from app.core.exceptions import NotFoundException, ConflictException
 from app.services import docker_service, data_service
 from app.config import settings
@@ -20,6 +26,7 @@ log = logging.getLogger(__name__)
 
 
 # ── FL Rounds ────────────────────────────────────────────
+
 
 async def create_fl_round(
     db: AsyncSession,
@@ -89,9 +96,7 @@ async def create_client_metric(
 
 async def get_all_rounds(db: AsyncSession) -> list[FLRound]:
     """Return all FL rounds across every training session, ordered by id."""
-    result = await db.execute(
-        select(FLRound).order_by(FLRound.id)
-    )
+    result = await db.execute(select(FLRound).order_by(FLRound.id))
     return list(result.scalars().all())
 
 
@@ -126,6 +131,7 @@ async def get_latest_round(db: AsyncSession) -> Optional[FLRound]:
 
 # ── FL Client CRUD ──────────────────────────────────────
 
+
 def _generate_client_keys(client_id: str) -> None:
     """
     Auto-generate an Ed25519 signing key pair for a new FL client.
@@ -144,7 +150,11 @@ def _generate_client_keys(client_id: str) -> None:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives.serialization import (
-            Encoding, PrivateFormat, PublicFormat, NoEncryption, load_pem_private_key,
+            Encoding,
+            PrivateFormat,
+            PublicFormat,
+            NoEncryption,
+            load_pem_private_key,
         )
         from cryptography.hazmat.primitives.hashes import SHA256
         from cryptography import x509
@@ -158,14 +168,18 @@ def _generate_client_keys(client_id: str) -> None:
 
         # ── 1. Ed25519 signing keys ──
         priv_path = os.path.join(certs_dir, f"{cert_name}_ed25519.pem")
-        pub_path  = os.path.join(certs_dir, "client_keys", f"{cert_name}.pub.pem")
+        pub_path = os.path.join(certs_dir, "client_keys", f"{cert_name}.pub.pem")
 
         os.makedirs(os.path.dirname(pub_path), exist_ok=True)
 
         if not (os.path.isfile(priv_path) and os.path.isfile(pub_path)):
             key = Ed25519PrivateKey.generate()
-            priv_pem = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
-            pub_pem  = key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+            priv_pem = key.private_bytes(
+                Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+            )
+            pub_pem = key.public_key().public_bytes(
+                Encoding.PEM, PublicFormat.SubjectPublicKeyInfo
+            )
 
             with open(priv_path, "wb") as f:
                 f.write(priv_pem)
@@ -187,7 +201,11 @@ def _generate_client_keys(client_id: str) -> None:
             # Generate RSA key
             client_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
             with open(mtls_key_path, "wb") as f:
-                f.write(client_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
+                f.write(
+                    client_key.private_bytes(
+                        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
+                    )
+                )
 
             # Load CA
             with open(ca_crt_path, "rb") as f:
@@ -196,11 +214,13 @@ def _generate_client_keys(client_id: str) -> None:
                 ca_key = load_pem_private_key(f.read(), password=None)
 
             # Create CSR-equivalent subject and sign
-            subject = x509.Name([
-                x509.NameAttribute(NameOID.COMMON_NAME, cert_name),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "IoT IDS Platform"),
-                x509.NameAttribute(NameOID.COUNTRY_NAME, "MY"),
-            ])
+            subject = x509.Name(
+                [
+                    x509.NameAttribute(NameOID.COMMON_NAME, cert_name),
+                    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "IoT IDS Platform"),
+                    x509.NameAttribute(NameOID.COUNTRY_NAME, "MY"),
+                ]
+            )
             cert = (
                 x509.CertificateBuilder()
                 .subject_name(subject)
@@ -208,20 +228,35 @@ def _generate_client_keys(client_id: str) -> None:
                 .public_key(client_key.public_key())
                 .serial_number(x509.random_serial_number())
                 .not_valid_before(dt.datetime.now(dt.timezone.utc))
-                .not_valid_after(dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=3650))
+                .not_valid_after(
+                    dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=3650)
+                )
                 .sign(ca_key, SHA256())
             )
             with open(mtls_crt_path, "wb") as f:
                 f.write(cert.public_bytes(Encoding.PEM))
 
-            log.info("Generated mTLS cert for client %s → %s.crt/.key", client_id, cert_name)
+            log.info(
+                "Generated mTLS cert for client %s → %s.crt/.key", client_id, cert_name
+            )
         else:
-            log.warning("CA cert/key not found at %s — cannot generate mTLS cert for %s", certs_dir, client_id)
+            log.warning(
+                "CA cert/key not found at %s — cannot generate mTLS cert for %s",
+                certs_dir,
+                client_id,
+            )
 
     except ImportError:
-        log.warning("cryptography library not available — skipping Ed25519 keygen for %s", client_id)
+        log.warning(
+            "cryptography library not available — skipping Ed25519 keygen for %s",
+            client_id,
+        )
     except Exception as exc:
-        log.warning("Ed25519 keygen failed for %s: %s — signing will be disabled", client_id, exc)
+        log.warning(
+            "Ed25519 keygen failed for %s: %s — signing will be disabled",
+            client_id,
+            exc,
+        )
 
 
 async def register_fl_client(
@@ -243,9 +278,7 @@ async def register_fl_client(
     - Creates a Docker container in IDLE mode if create_container=True.
     - Raises ConflictException if client_id already exists.
     """
-    result = await db.execute(
-        select(FLClient).where(FLClient.client_id == client_id)
-    )
+    result = await db.execute(select(FLClient).where(FLClient.client_id == client_id))
     existing = result.scalar_one_or_none()
     if existing:
         raise ConflictException(f"FL client with ID '{client_id}' already exists")
@@ -262,18 +295,27 @@ async def register_fl_client(
 
     # Generate training data based on chosen source (skipped when data will be generated at training start)
     if not skip_data_generation:
-        data_info = data_service.generate_client_data(client_id, data_source=data_source)
+        data_info = data_service.generate_client_data(
+            client_id, data_source=data_source
+        )
         total_samples = data_info.get("total_samples", 0)
         if data_info.get("created"):
             log.info(
                 "Generated %s training data for %s: %d chunks, %d samples (source: %s)",
-                data_source, client_id, data_info["chunks"], total_samples, data_info["source"],
+                data_source,
+                client_id,
+                data_info["chunks"],
+                total_samples,
+                data_info["source"],
             )
         elif not data_info.get("created") and data_info.get("source") == "existing":
             existing_info = data_service.get_client_data_info(client_id)
             total_samples = existing_info.get("total_samples", 0)
     else:
-        log.info("Skipping data generation for %s — will be generated at training start", client_id)
+        log.info(
+            "Skipping data generation for %s — will be generated at training start",
+            client_id,
+        )
 
     if create_container:
         try:
@@ -331,11 +373,11 @@ async def get_fl_client_by_canvas_node_id(
     return result.scalar_one_or_none()
 
 
-async def get_fl_client_by_client_id(db: AsyncSession, client_id: str) -> Optional[FLClient]:
+async def get_fl_client_by_client_id(
+    db: AsyncSession, client_id: str
+) -> Optional[FLClient]:
     """Get a single FL client by its short client_id string."""
-    result = await db.execute(
-        select(FLClient).where(FLClient.client_id == client_id)
-    )
+    result = await db.execute(select(FLClient).where(FLClient.client_id == client_id))
     return result.scalar_one_or_none()
 
 
@@ -362,7 +404,11 @@ async def delete_fl_client(db: AsyncSession, pk: int) -> None:
     if client.container_id:
         try:
             docker_service.remove_container(client.container_id, force=True)
-            log.info("Removed container %s for client %s", client.container_id, client.client_id)
+            log.info(
+                "Removed container %s for client %s",
+                client.container_id,
+                client.client_id,
+            )
         except Exception as exc:
             log.error("Failed to remove container for %s: %s", client.client_id, exc)
 
@@ -375,9 +421,7 @@ async def delete_fl_client(db: AsyncSession, pk: int) -> None:
 
 async def get_all_fl_clients(db: AsyncSession) -> list[FLClient]:
     """Return all registered FL clients."""
-    result = await db.execute(
-        select(FLClient).order_by(FLClient.created_at.desc())
-    )
+    result = await db.execute(select(FLClient).order_by(FLClient.created_at.desc()))
     return list(result.scalars().all())
 
 
@@ -390,6 +434,7 @@ async def get_active_fl_clients(db: AsyncSession) -> list[FLClient]:
 
 
 # ── Cleanup ─────────────────────────────────────────────
+
 
 async def delete_fl_round_data(db: AsyncSession) -> int:
     """Delete all FL round and metric data (reset). Returns count deleted."""
@@ -477,6 +522,15 @@ async def reset_all_trust_scores(db: AsyncSession) -> None:
     log.info("All trust scores reset to 1.0")
 
 
+def reset_detection_history() -> None:
+    """Clear all in-memory detection rounds and flagged client records."""
+    _detection_rounds.clear()
+    _flagged_clients.clear()
+    _enforcement_status.clear()
+    _enforcement_rounds.clear()
+    log.info("Detection history cleared (rounds, flagged, enforcement)")
+
+
 def record_detection_round(
     round_number: int,
     scores: dict[str, float],
@@ -556,3 +610,161 @@ def get_enforcement_status() -> dict[str, str]:
 def get_enforcement_rounds() -> list[dict]:
     """Return the full history of enforcement rounds."""
     return list(_enforcement_rounds)
+
+
+# ── FedRecovery DB helpers ───────────────────────────────
+
+
+async def create_fed_recovery_run(
+    db: AsyncSession,
+    run_id: str,
+    flagged_client_id: str,
+    flag_round: int,
+) -> FedRecoveryRun:
+    """Create a new FedRecovery run record in 'running' state."""
+    run = FedRecoveryRun(
+        run_id=run_id,
+        flagged_client_id=flagged_client_id,
+        flag_round=flag_round,
+        status="running",
+        steps=[],
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    log.info(
+        "FedRecoveryRun created: run_id=%s client=%s flag_round=%d",
+        run_id,
+        flagged_client_id,
+        flag_round,
+    )
+    return run
+
+
+async def get_fed_recovery_run(
+    db: AsyncSession, run_id: str
+) -> Optional[FedRecoveryRun]:
+    """Fetch a FedRecoveryRun by its run_id string."""
+    from sqlalchemy import select as _select
+
+    result = await db.execute(
+        _select(FedRecoveryRun).where(FedRecoveryRun.run_id == run_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def append_fed_recovery_step(
+    db: AsyncSession,
+    run_id: str,
+    round_num: int,
+    step: str,
+    detail: Optional[str] = None,
+    data: Optional[dict] = None,
+) -> Optional[FedRecoveryRun]:
+    """Append a step dict to FedRecoveryRun.steps and persist immediately.
+
+    Returns the updated run, or None if run_id not found.
+    """
+    run = await get_fed_recovery_run(db, run_id)
+    if run is None:
+        log.warning("append_fed_recovery_step: run_id=%s not found", run_id)
+        return None
+
+    current_steps: list = list(run.steps or [])
+    current_steps.append(
+        {
+            "round": round_num,
+            "step": step,
+            "detail": detail,
+            "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    # SQLAlchemy JSON columns require reassignment to detect mutation
+    run.steps = current_steps
+    if step == "corrected":
+        run.rounds_corrected = (run.rounds_corrected or 0) + 1
+    elif step == "skipped":
+        run.rounds_skipped = (run.rounds_skipped or 0) + 1
+    await db.commit()
+    await db.refresh(run)
+    return run
+
+
+async def complete_fed_recovery_run(
+    db: AsyncSession,
+    run_id: str,
+    status: str,
+    rounds_corrected: Optional[int] = None,
+    rounds_skipped: Optional[int] = None,
+    before_norms: Optional[dict] = None,
+    after_norms: Optional[dict] = None,
+    epsilon: Optional[float] = None,
+    sigma: Optional[float] = None,
+    accuracy_before: Optional[float] = None,
+    accuracy_after: Optional[float] = None,
+    loss_before: Optional[float] = None,
+    loss_after: Optional[float] = None,
+) -> Optional[FedRecoveryRun]:
+    """Update a FedRecoveryRun to a terminal status with final metrics.
+
+    Returns the updated run, or None if run_id not found.
+    """
+    run = await get_fed_recovery_run(db, run_id)
+    if run is None:
+        log.warning("complete_fed_recovery_run: run_id=%s not found", run_id)
+        return None
+
+    run.status = status
+    if rounds_corrected is not None:
+        run.rounds_corrected = rounds_corrected
+    if rounds_skipped is not None:
+        run.rounds_skipped = rounds_skipped
+    if before_norms is not None:
+        run.before_norms = before_norms
+    if after_norms is not None:
+        run.after_norms = after_norms
+    if epsilon is not None:
+        run.epsilon = epsilon
+    if sigma is not None:
+        run.sigma = sigma
+    if accuracy_before is not None:
+        run.accuracy_before = accuracy_before
+    if accuracy_after is not None:
+        run.accuracy_after = accuracy_after
+    if loss_before is not None:
+        run.loss_before = loss_before
+    if loss_after is not None:
+        run.loss_after = loss_after
+    run.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(run)
+    log.info(
+        "FedRecoveryRun completed: run_id=%s status=%s corrected=%s skipped=%s",
+        run_id,
+        status,
+        run.rounds_corrected,
+        run.rounds_skipped,
+    )
+    return run
+
+
+async def log_security_event(
+    db: AsyncSession,
+    kind: str,
+    round_num: int,
+    client_id: Optional[str] = None,
+    detail: Optional[str] = None,
+    data: Optional[dict] = None,
+) -> SecurityEventLog:
+    """Persist a single security event to the audit log."""
+    event = SecurityEventLog(
+        kind=kind,
+        round=round_num,
+        client_id=client_id,
+        detail=detail,
+        data=data,
+    )
+    db.add(event)
+    await db.commit()
+    return event
