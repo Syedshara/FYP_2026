@@ -961,8 +961,12 @@ export default function FLSecurityPanel() {
     setResetting(true);
     try {
       await flApi.resetTrustScores();
+      // Optimistically clear local state immediately — don't wait for WS confirmation
+      const store = useLiveStore.getState();
+      store.clearTrustScores();
+      store.clearEnforcementHistory();
     } catch {
-      // Backend error — silently ignore; WebSocket update will confirm success
+      // Backend error — silently ignore; partial WS update may still arrive
     } finally {
       setResetting(false);
       setShowResetConfirm(false);

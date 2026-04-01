@@ -91,6 +91,7 @@ const MAX_DEVICE_HISTORY = 200;   // per-device prediction history for Monitor c
 const MAX_FLAGGED_EVENTS = 100;
 const MAX_ATTACK_RESULTS = 50;
 const MAX_SECURITY_EVENTS = 200;
+const MAX_ENFORCEMENT_ROUNDS = 50;
 
 // ── Security pipeline events (Phase 3) ──
 
@@ -122,6 +123,8 @@ export type SecurityEventKind =
   | 'recess_round_complete';
 
 export interface SecurityEvent {
+  /** DB primary key — present on events hydrated from REST, absent on live WS events. */
+  id?: number;
   kind: SecurityEventKind;
   round: number;
   clientId?: string;
@@ -167,6 +170,15 @@ interface LiveState {
     gradient_stats?: GradientStats,
     client_metrics?: Array<{ client_id: string; local_loss: number; local_accuracy: number; num_samples: number }>,
   ) => void;
+  /** Bulk-load persisted round results from the REST API on Watcher open.
+   *  Merges with any live WS rounds and rebuilds flClientRoundHistory. */
+  hydrateFlRoundResults: (rounds: Array<{
+    round: number;
+    loss: number | null;
+    accuracy: number | null;
+    gradient_stats?: GradientStats;
+    client_metrics?: Array<{ client_id: string; local_loss: number; local_accuracy: number; num_samples: number }>;
+  }>) => void;
   clearFLRoundResults: () => void;
 
   // FL per-client round history (for multi-line charts)
@@ -214,13 +226,18 @@ interface LiveState {
   // ── Security pipeline events (SECURITY_EVENT) ──
   securityEvents: SecurityEvent[];
   addSecurityEvent: (evt: SecurityEvent) => void;
+  /** Bulk-load historical events from the REST API on Watcher open. */
+  hydrateSecurityEvents: (events: SecurityEvent[]) => void;
   clearSecurityEvents: () => void;
 
   // ── Aggregation enforcement (AGGREGATION_ENFORCEMENT) ──
   clientEnforcementStatus: Record<string, ClientEnforcementStatus>;
   lastEnforcementRound: number | null;
+  /** Per-round enforcement history for FLRoundLog (ring-buffered). */
+  enforcementHistory: Record<number, Record<string, ClientEnforcementStatus>>;
   setEnforcementStatus: (payload: AggregationEnforcementPayload) => void;
   hydrateEnforcementStatus: (enforcement: Record<string, ClientEnforcementStatus>) => void;
+  clearEnforcementHistory: () => void;
 }
 
 export const useLiveStore = create<LiveState>()((set) => ({
@@ -265,6 +282,25 @@ export const useLiveStore = create<LiveState>()((set) => ({
     })),
   clearFLRoundResults: () =>
     set({ flRoundResults: [] }),
+  hydrateFlRoundResults: (rounds) =>
+    set((state) => {
+      // Merge: hydrated rounds are the base; keep any live-only rounds (by round number).
+      const hydratedRounds = new Set(rounds.map((r) => r.round));
+      const liveOnly = state.flRoundResults.filter((r) => !hydratedRounds.has(r.round));
+      const merged = [...rounds, ...liveOnly].sort((a, b) => a.round - b.round);
+      // Rebuild per-client round history from merged data
+      const clientHistory: Record<string, Array<{ round: number; loss: number; accuracy: number }>> = {};
+      for (const rr of merged) {
+        if (rr.client_metrics) {
+          for (const cm of rr.client_metrics) {
+            const prev = clientHistory[cm.client_id] ?? [];
+            prev.push({ round: rr.round, loss: cm.local_loss, accuracy: cm.local_accuracy });
+            clientHistory[cm.client_id] = prev;
+          }
+        }
+      }
+      return { flRoundResults: merged, flClientRoundHistory: clientHistory };
+    }),
 
   // ── FL Per-Client Round History ──
   flClientRoundHistory: {},
@@ -397,19 +433,42 @@ export const useLiveStore = create<LiveState>()((set) => ({
     set((state) => ({
       securityEvents: [...state.securityEvents, evt].slice(-MAX_SECURITY_EVENTS),
     })),
+  hydrateSecurityEvents: (events) =>
+    set((state) => {
+      // Merge: keep any live events that arrived after the latest hydrated one,
+      // then de-duplicate by id (id may be absent for WS-only events — use timestamp+kind).
+      const hydratedIds = new Set(events.map((e) => e.id).filter(Boolean));
+      const liveOnly = state.securityEvents.filter((e) => !e.id || !hydratedIds.has(e.id));
+      const merged = [...events, ...liveOnly].slice(-MAX_SECURITY_EVENTS);
+      return { securityEvents: merged };
+    }),
   clearSecurityEvents: () =>
     set({ securityEvents: [] }),
 
   // ── Aggregation Enforcement ──
   clientEnforcementStatus: {},
   lastEnforcementRound: null,
+  enforcementHistory: {},
   setEnforcementStatus: (payload) =>
-    set({
-      clientEnforcementStatus: payload.enforcement,
-      lastEnforcementRound: payload.round,
+    set((state) => {
+      // Also push to per-round history ring buffer
+      const history = { ...state.enforcementHistory };
+      history[payload.round] = payload.enforcement;
+      // Evict oldest rounds if buffer exceeds limit
+      const rounds = Object.keys(history).map(Number).sort((a, b) => a - b);
+      while (rounds.length > MAX_ENFORCEMENT_ROUNDS) {
+        delete history[rounds.shift()!];
+      }
+      return {
+        clientEnforcementStatus: payload.enforcement,
+        lastEnforcementRound: payload.round,
+        enforcementHistory: history,
+      };
     }),
   hydrateEnforcementStatus: (enforcement) =>
     set({ clientEnforcementStatus: enforcement }),
+  clearEnforcementHistory: () =>
+    set({ clientEnforcementStatus: {}, lastEnforcementRound: null, enforcementHistory: {} }),
 }));
 
 // ── Selectors ──────────────────────────────────────────
@@ -434,3 +493,4 @@ export const useDevicePredictions = (deviceId: string | undefined) =>
   );
 export const useClientEnforcementStatus = () => useLiveStore((s) => s.clientEnforcementStatus);
 export const useLastEnforcementRound = () => useLiveStore((s) => s.lastEnforcementRound);
+export const useEnforcementHistory = () => useLiveStore((s) => s.enforcementHistory);

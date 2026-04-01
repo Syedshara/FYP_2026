@@ -27,7 +27,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.core.dependencies import get_db, get_current_user
+from app.models.fl import SecurityEventLog, FLRound
 from app.services import fl_service, device_service, docker_service, data_service
 from app.services import workspace_service
 from app.core.websocket import ws_manager, WSMessageType, build_ws_message
@@ -928,6 +931,83 @@ async def get_enforcement_status(_user=Depends(get_current_user)):
     return {
         "enforcement": fl_service.get_enforcement_status(),
         "rounds": fl_service.get_enforcement_rounds(),
+    }
+
+
+@router.get("/security-events")
+async def get_security_events(
+    limit: int = 500,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Return persisted security pipeline events from the audit log.
+
+    Used to hydrate the Watcher drill-down on first open so the Events
+    pipeline tab shows history even if WebSocket messages were missed.
+    Events are returned oldest-first so the frontend can replay them in order.
+    """
+    result = await db.execute(
+        select(SecurityEventLog)
+        .order_by(SecurityEventLog.created_at.asc())
+        .limit(limit)
+    )
+    events = result.scalars().all()
+    return {
+        "events": [
+            {
+                "id": e.id,
+                "round": e.round,
+                "kind": e.kind,
+                "client_id": e.client_id,
+                "detail": e.detail,
+                "data": e.data or {},
+                "timestamp": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ]
+    }
+
+
+@router.get("/round-results")
+async def get_round_results(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Return persisted FL round results with gradient stats and client metrics.
+
+    Used to hydrate flRoundResults on Watcher mount so the Events pipeline tab
+    shows full Client Training metrics, Dispatch norms, and Model Update deltas
+    even after a page refresh (when live WS data has been lost).
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(FLRound)
+        .options(selectinload(FLRound.client_metrics))
+        .order_by(FLRound.round_number.asc())
+    )
+    rounds = result.scalars().all()
+    return {
+        "rounds": [
+            {
+                "round": r.round_number,
+                "loss": r.global_loss,
+                "accuracy": r.global_accuracy,
+                "gradient_stats": (r.security_data or {}).get("gradient_stats"),
+                "client_metrics": [
+                    {
+                        "client_id": cm.client_id,
+                        "local_loss": cm.local_loss,
+                        "local_accuracy": cm.local_accuracy,
+                        "num_samples": cm.num_samples,
+                    }
+                    for cm in r.client_metrics
+                ]
+                if r.client_metrics
+                else None,
+            }
+            for r in rounds
+        ]
     }
 
 

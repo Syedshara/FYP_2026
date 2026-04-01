@@ -404,7 +404,7 @@ async def fl_round_complete(
     Receive completed round data from FL server.
     Persists to database and broadcasts via WebSocket.
     """
-    # Persist round
+    # Persist round (include gradient_stats in security_data JSON column)
     fl_round = await fl_service.create_fl_round(
         db,
         round_number=body.round_number,
@@ -415,6 +415,9 @@ async def fl_round_complete(
         duration_seconds=body.duration_seconds,
         global_loss=body.global_loss,
         global_accuracy=body.global_accuracy,
+        security_data={"gradient_stats": body.gradient_stats}
+        if body.gradient_stats
+        else None,
     )
 
     # Persist per-client metrics
@@ -473,6 +476,10 @@ async def fl_status_change(
     """
     if body.status == "started":
         msg_type = WSMessageType.TRAINING_START
+        # Clear stale security events from prior training sessions so the
+        # Watcher Events tab starts clean and doesn't mix cross-session data.
+        await fl_service.clear_security_events(db)
+        log.info("Security events cleared for new training session")
         # Re-hydrate in-memory trust scores from DB so the new session inherits
         # any scores that were accumulated (and persisted) by prior sessions.
         await fl_service.load_trust_scores_from_db(db)
@@ -623,11 +630,22 @@ async def attack_run_status(
 
 
 @router.post("/fl/security-event", status_code=200)
-async def fl_security_event(body: SecurityEventIn):
+async def fl_security_event(
+    body: SecurityEventIn,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Receive a security pipeline event from FL server or client.
-    Broadcasts immediately to all connected frontends via WebSocket.
+    Persists to the audit log and broadcasts immediately via WebSocket.
     """
+    await fl_service.log_security_event(
+        db,
+        kind=body.kind,
+        round_num=body.round,
+        client_id=body.client_id,
+        detail=body.detail,
+        data=body.data,
+    )
     await ws_manager.broadcast(
         build_ws_message(
             WSMessageType.SECURITY_EVENT,
@@ -641,7 +659,7 @@ async def fl_security_event(body: SecurityEventIn):
         )
     )
     log.debug(
-        "Security event: kind=%s round=%d client=%s",
+        "Security event persisted+broadcast: kind=%s round=%d client=%s",
         body.kind,
         body.round,
         body.client_id,
@@ -650,12 +668,23 @@ async def fl_security_event(body: SecurityEventIn):
 
 
 @router.post("/fl/security-events-batch", status_code=200)
-async def fl_security_events_batch(events: List[SecurityEventIn]):
+async def fl_security_events_batch(
+    events: List[SecurityEventIn],
+    db: AsyncSession = Depends(get_db),
+):
     """
     Receive multiple security events in one call (reduces HTTP overhead
-    during busy rounds).
+    during busy rounds).  Each event is persisted and broadcast.
     """
     for body in events:
+        await fl_service.log_security_event(
+            db,
+            kind=body.kind,
+            round_num=body.round,
+            client_id=body.client_id,
+            detail=body.detail,
+            data=body.data,
+        )
         await ws_manager.broadcast(
             build_ws_message(
                 WSMessageType.SECURITY_EVENT,
@@ -668,7 +697,7 @@ async def fl_security_events_batch(events: List[SecurityEventIn]):
                 },
             )
         )
-    log.debug("Security events batch: %d events", len(events))
+    log.debug("Security events batch persisted+broadcast: %d events", len(events))
     return {"ok": True, "count": len(events)}
 
 

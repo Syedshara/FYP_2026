@@ -768,3 +768,17 @@ async def log_security_event(
     db.add(event)
     await db.commit()
     return event
+
+
+async def clear_security_events(db: AsyncSession) -> int:
+    """Delete all security events from the audit log.
+
+    Called when a new training session starts to prevent cross-session
+    event contamination in the Watcher Events tab.
+    Returns the number of deleted rows.
+    """
+    from sqlalchemy import delete
+
+    result = await db.execute(delete(SecurityEventLog))
+    await db.commit()
+    return result.rowcount  # type: ignore[return-value]

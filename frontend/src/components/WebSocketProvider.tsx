@@ -28,10 +28,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     setDeviceStatus,
     setWsConnected,
     setTrustScores,
+    hydrateTrustState,
     addFlaggedEvent,
     setAttackRunStatus,
     addAttackResult,
     setEnforcementStatus,
+    clearEnforcementHistory,
   } = useLiveStore();
   const addSecurityEvent = useLiveStore((s) => s.addSecurityEvent);
 
@@ -210,9 +212,11 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     // ── Training started ──
     unsubs.push(subscribe('training_start', (msg: WSMessage) => {
-      // Clear stale round data from any previous session before updating state
+      // Clear ALL stale data from any previous session before updating state
       useLiveStore.getState().clearFLRoundResults();
       useLiveStore.getState().clearFLClientRoundHistory();
+      useLiveStore.getState().clearSecurityEvents();
+      useLiveStore.getState().clearEnforcementHistory();
       const d = msg.data;
       const totalRounds = (d.total_rounds ?? d.num_rounds ?? 0) as number;
       const clientIds = d.client_ids as string[] | undefined;
@@ -283,12 +287,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     // ── Client trust scores updated ──
     unsubs.push(subscribe('client_trust_update', (msg: WSMessage) => {
       const d = msg.data;
-      setTrustScores({
-        scores: d.scores as Record<string, number>,
-        round: d.round as number,
-        flagged: d.flagged as string[] ?? [],
-        components: d.components as Record<string, TrustScoreComponents> | undefined,
-      });
+      if (d.reset === true) {
+        // Full reset broadcast: wipe history + flagged events, then populate from new scores
+        hydrateTrustState(
+          d.scores as Record<string, number>,
+          [],   // no detection-round history after a reset
+          [],   // no flagged clients after a reset
+        );
+        clearEnforcementHistory();
+      } else {
+        setTrustScores({
+          scores: d.scores as Record<string, number>,
+          round: d.round as number,
+          flagged: d.flagged as string[] ?? [],
+          components: d.components as Record<string, TrustScoreComponents> | undefined,
+        });
+      }
     }));
 
     // ── Client flagged by RECESS detection ──
@@ -398,8 +412,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, [
     subscribe, addPrediction, setFLClientProgress, setFLGlobalProgress,
     addFLRoundResult, addFLClientRoundEntry, clearFLProgress, setClientStatus, setDeviceStatus,
-    setTrustScores, addFlaggedEvent, setAttackRunStatus, addAttackResult, addSecurityEvent,
-    setEnforcementStatus,
+    setTrustScores, hydrateTrustState, addFlaggedEvent, setAttackRunStatus, addAttackResult,
+    addSecurityEvent, setEnforcementStatus, clearEnforcementHistory,
   ]);
 
   return <>{children}</>;

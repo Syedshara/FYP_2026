@@ -437,6 +437,7 @@ function inferEdgeType(
   // Allow reverse connections for some types
   if (sourceType === 'device' && targetType === 'rate-filter') return 'observation';
   if (sourceType === 'rate-filter' && targetType === 'monitor') return 'observation';
+  if (sourceType === 'fl-server' && targetType === 'watcher') return 'watcher-link';
   return null;
 }
 

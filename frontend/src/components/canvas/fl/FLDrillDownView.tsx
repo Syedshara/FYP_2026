@@ -2,7 +2,11 @@
  * FLDrillDownView — Full-screen FL training drill-down sub-view.
  *
  * Replaces the main canvas when viewMode === 'fl-drilldown'.
- * Layout: top bar → 3-column (left controls/clients | center chart+log | right security).
+ * Layout: top bar → 2-column (left controls/clients | center chart+log).
+ *
+ * Security panels (trust, events, certificates) have been moved to
+ * WatcherDrillDownView.  Only FL-training-specific state is managed here;
+ * security state is owned and cleared by the Watcher drill-down.
  *
  * Fetches FL clients + status on mount, then relies on WebSocket for live updates.
  * Only shows clients whose canvas_node_id is connected to this FL Server via fl-communication edges.
@@ -12,18 +16,13 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ArrowLeft, Server, Loader2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLiveStore } from '@/stores/liveStore';
-import { useRecessStore } from '@/stores/recessStore';
-import { useFedRecoveryStore } from '@/stores/fedRecoveryStore';
 import { flApi } from '@/api/fl';
 import type { FLClient } from '@/types';
 import type { FLServerNodeData } from '@/types/canvas';
 import FLTrainingControls from './FLTrainingControls';
 import FLClientProgressList from './FLClientProgressList';
-import FLSecurityPanel from './FLSecurityPanel';
-import FLOutputPanel from './FLOutputPanel';
 import FLAccuracyChart from './FLAccuracyChart';
 import FLRoundLog from './FLRoundLog';
-import FLTimelinePanel from './FLTimelinePanel';
 import RecessSequenceDiagram from './RecessSequenceDiagram';
 import RecessToastCard from './RecessToastCard';
 import FedRecoveryModal from './FedRecoveryModal';
@@ -68,22 +67,6 @@ export default function FLDrillDownView() {
       .then(setAllClients)
       .catch(() => {})
       .finally(() => setLoading(false));
-
-    // Hydrate trust state from REST (historical data before any WS traffic)
-    Promise.all([
-      flApi.trustScores().catch(() => ({} as Record<string, number>)),
-      flApi.detectionRounds().catch(() => []),
-      flApi.flaggedClients().catch(() => []),
-    ]).then(([scores, rounds, flagged]) => {
-      useLiveStore.getState().hydrateTrustState(scores, rounds, flagged);
-    });
-
-    // Hydrate enforcement status from REST
-    flApi.enforcementStatus()
-      .then((enforcement) => {
-        useLiveStore.getState().hydrateEnforcementStatus(enforcement);
-      })
-      .catch(() => {});
   }, []);
 
   // Also refresh client list when training starts/stops or round changes
@@ -94,15 +77,10 @@ export default function FLDrillDownView() {
   const handleBack = useCallback(() => {
     setViewMode('canvas');
     setDrilldownServerId(null);
-    // Clear all stale FL data so a new drilldown starts fresh
+    // Clear FL-training-specific state so a new drilldown starts fresh
     useLiveStore.getState().clearFLProgress();
     useLiveStore.getState().clearFLRoundResults();
     useLiveStore.getState().clearFLClientRoundHistory();
-    useLiveStore.getState().clearSecurityEvents();
-    useLiveStore.getState().clearTrustScores();
-    // Clear RECESS and FedRecovery state so the next session starts clean
-    useRecessStore.getState().clearRecess();
-    useFedRecoveryStore.getState().clearAll();
   }, [setViewMode, setDrilldownServerId]);
 
   // Keyboard: Escape to go back
@@ -192,7 +170,7 @@ export default function FLDrillDownView() {
         </div>
       </header>
 
-      {/* ── Main 3-Column Layout ── */}
+      {/* ── Main 2-Column Layout ── */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={24} className="animate-spin" style={{ color: 'var(--n8n-accent)' }} />
@@ -209,47 +187,19 @@ export default function FLDrillDownView() {
               padding: '16px 14px',
             }}
           >
-            <FLTrainingControls />
+            <FLTrainingControls clients={clients} />
             <FLClientProgressList clients={clients} />
           </aside>
 
-          {/* CENTER: Chart + Round Log + Security Event Timeline */}
+          {/* CENTER: Chart + Round Log + RECESS Sequence Diagram */}
           <main
             className="flex-1 flex flex-col gap-5 overflow-y-auto min-w-0"
             style={{ padding: '16px 20px' }}
           >
             <FLAccuracyChart />
             <FLRoundLog />
-            <FLTimelinePanel />
             <RecessSequenceDiagram />
           </main>
-
-          {/* RIGHT PANEL: Trust Scores + Certificates */}
-          <aside
-            className="shrink-0 flex flex-col overflow-hidden"
-            style={{
-              width: 296,
-              background: 'var(--n8n-card-bg)',
-              borderLeft: '1px solid var(--n8n-card-border)',
-            }}
-          >
-            {/* Top: Trust scores + flagged events (scrollable, capped at 50%) */}
-            <div
-              className="shrink-0 overflow-y-auto"
-              style={{
-                padding: '16px 14px',
-                borderBottom: '1px solid var(--n8n-card-border)',
-                maxHeight: '50%',
-              }}
-            >
-              <FLSecurityPanel />
-            </div>
-
-            {/* Bottom: Certificates */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <FLOutputPanel />
-            </div>
-          </aside>
         </div>
       )}
 

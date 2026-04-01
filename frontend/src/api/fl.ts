@@ -7,6 +7,23 @@ import type {
   FLClientDetail,
   ContainerStatus,
 } from '@/types';
+import type { SecurityEvent } from '@/stores/liveStore';
+import type { GradientStats } from '@/types';
+
+// ── Round result shape returned by GET /fl/round-results ──
+
+interface RoundResultResponse {
+  round: number;
+  loss: number | null;
+  accuracy: number | null;
+  gradient_stats: GradientStats | null;
+  client_metrics: Array<{
+    client_id: string;
+    local_loss: number;
+    local_accuracy: number;
+    num_samples: number;
+  }> | null;
+}
 
 // ── Request / Response types ──
 
@@ -130,6 +147,33 @@ export const flApi = {
     api.get<{ enforcement: Record<string, string> }>('/fl/enforcement_status')
       .then((r) => r.data.enforcement as Record<string, import('@/types').ClientEnforcementStatus>),
 
+  /** Fetch persisted security pipeline events from the audit log.
+   *  Used to hydrate the Watcher Events tab on first open.
+   */
+  securityEvents: (limit = 500) =>
+    api.get<{
+      events: Array<{
+        id: number;
+        round: number;
+        kind: string;
+        client_id: string | null;
+        detail: string | null;
+        data: Record<string, unknown> | null;
+        timestamp: string | null;
+      }>;
+    }>('/fl/security-events', { params: { limit } })
+      .then((r) =>
+        r.data.events.map((e): SecurityEvent => ({
+          id: e.id,
+          round: e.round,
+          kind: e.kind as SecurityEvent['kind'],
+          clientId: e.client_id ?? undefined,
+          detail: e.detail ?? undefined,
+          data: e.data ?? undefined,
+          timestamp: e.timestamp ?? new Date(0).toISOString(),
+        }))
+      ),
+
   // Certificates (mTLS)
   certificates: () =>
     api.get<CertificateMetadata[]>('/security/certificates').then((r) => r.data),
@@ -137,6 +181,21 @@ export const flApi = {
   // Poison mode toggle (adversarial simulation)
   togglePoison: (clientPk: number, strategy: 'direction_flip' | 'scale_attack' | 'noise_inject' | 'none') =>
     api.post<PoisonToggleResponse>(`/fl/clients/${clientPk}/poison`, { strategy }).then((r) => r.data),
+
+  /** Fetch persisted FL round results with gradient stats and client metrics.
+   *  Used to hydrate flRoundResults on Watcher mount after page refresh.
+   */
+  roundResults: () =>
+    api.get<{ rounds: RoundResultResponse[] }>('/fl/round-results')
+      .then((r) =>
+        r.data.rounds.map((rr) => ({
+          round: rr.round,
+          loss: rr.loss,
+          accuracy: rr.accuracy,
+          gradient_stats: rr.gradient_stats ?? undefined,
+          client_metrics: rr.client_metrics ?? undefined,
+        }))
+      ),
 };
 
 // ── Poison toggle types ──

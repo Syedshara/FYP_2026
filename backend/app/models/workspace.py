@@ -29,6 +29,7 @@ _NODE_TYPES = (
     "traffic-source",
     "rate-filter",
     "monitor",
+    "watcher",
 )
 
 _EDGE_TYPES = (
@@ -37,6 +38,7 @@ _EDGE_TYPES = (
     "traffic-feed",
     "attack-vector",
     "observation",
+    "watcher-link",
 )
 
 
@@ -46,7 +48,9 @@ class Workspace(Base):
     __tablename__ = "workspaces"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, default="My Workspace")
+    name: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="My Workspace"
+    )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Owner (FK to users table)

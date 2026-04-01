@@ -3,6 +3,7 @@ FastAPI application factory.
 """
 
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 
 from fastapi import FastAPI
@@ -20,23 +21,50 @@ from app.services import docker_service
 
 log = logging.getLogger(__name__)
 
+_DB_CONNECT_RETRIES = 5
+_DB_CONNECT_RETRY_DELAY = 2.0  # seconds
+
 
 async def seed_admin():
-    """Create a default admin user if none exists."""
-    async with async_session() as db:
-        result = await db.execute(select(User).where(User.role == "admin"))
-        if result.scalar_one_or_none() is None:
-            admin = User(
-                username="admin",
-                email="admin@iotids.local",
-                hashed_password=hash_password("admin123"),
-                role="admin",
-            )
-            db.add(admin)
-            await db.commit()
-            print("👤 Default admin user created (admin / admin123)")
-        else:
-            print("👤 Admin user already exists — skipping seed")
+    """Create a default admin user if none exists.
+
+    Retries up to _DB_CONNECT_RETRIES times to handle the brief window after a
+    container restart where the Docker bridge route isn't yet fully active.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, _DB_CONNECT_RETRIES + 1):
+        try:
+            async with async_session() as db:
+                result = await db.execute(select(User).where(User.role == "admin"))
+                if result.scalar_one_or_none() is None:
+                    admin = User(
+                        username="admin",
+                        email="admin@iotids.local",
+                        hashed_password=hash_password("admin123"),
+                        role="admin",
+                    )
+                    db.add(admin)
+                    await db.commit()
+                    print("👤 Default admin user created (admin / admin123)")
+                else:
+                    print("👤 Admin user already exists — skipping seed")
+            return  # success
+        except Exception as exc:
+            last_exc = exc
+            if attempt < _DB_CONNECT_RETRIES:
+                log.warning(
+                    "DB not ready (attempt %d/%d): %s — retrying in %.0fs",
+                    attempt,
+                    _DB_CONNECT_RETRIES,
+                    exc,
+                    _DB_CONNECT_RETRY_DELAY,
+                )
+                await asyncio.sleep(_DB_CONNECT_RETRY_DELAY)
+            else:
+                log.error(
+                    "DB unreachable after %d attempts: %s", _DB_CONNECT_RETRIES, exc
+                )
+                raise RuntimeError(f"Cannot connect to database: {exc}") from last_exc
 
 
 @asynccontextmanager
@@ -48,11 +76,14 @@ async def lifespan(app: FastAPI):
     # Pre-load CNN-LSTM model so first inference request is fast
     try:
         from app.services.inference_service import ensure_model_loaded
+
         model_ready = await ensure_model_loaded()
         if model_ready:
             print("🧠 ML model pre-loaded successfully")
         else:
-            print("⚠️  ML model not available (model file missing?) — inference will fail")
+            print(
+                "⚠️  ML model not available (model file missing?) — inference will fail"
+            )
     except Exception as exc:
         log.warning("ML model pre-load failed: %s — inference will be unavailable", exc)
 
@@ -60,6 +91,7 @@ async def lifespan(app: FastAPI):
     redis_conn = None
     try:
         import redis.asyncio as aioredis
+
         redis_conn = aioredis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",

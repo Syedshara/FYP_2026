@@ -85,7 +85,7 @@ interface FedRecoveryState {
 
 // ── Store implementation ───────────────────────────────
 
-export const useFedRecoveryStore = create<FedRecoveryState>()((set, get) => ({
+export const useFedRecoveryStore = create<FedRecoveryState>()((set) => ({
   activeRun: null,
   completedRuns: [],
   isModalOpen: false,

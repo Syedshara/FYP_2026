@@ -1965,3 +1965,367 @@ select.prop-input option {
   text-align: center;
   white-space: nowrap;
 }
+
+/* ================================================================
+   Step Function Node Graph (.sfn-*) — AWS Step Functions-style UI
+   Used by EventsPipelineTab, TrustPipelineTab, RecoveryPipelineTab
+   ================================================================ */
+
+/* ── Layout ── */
+.sfn-layout {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+
+.sfn-graph-pane {
+  flex: 0 0 65%;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 2px 16px;
+}
+
+.sfn-detail-pane {
+  flex: 0 0 35%;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+/* ── Round selector pill bar ── */
+.sfn-round-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.sfn-round-pill {
+  position: relative;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--n8n-font-mono);
+  cursor: pointer;
+  border: 1px solid var(--n8n-card-border);
+  background: var(--n8n-card-bg);
+  color: var(--n8n-text-muted);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  line-height: 1.6;
+}
+.sfn-round-pill:hover {
+  border-color: var(--n8n-text-muted);
+  color: var(--n8n-text-primary);
+}
+.sfn-round-pill--active {
+  background: rgba(255, 109, 90, 0.15);
+  border-color: var(--n8n-accent);
+  color: var(--n8n-accent);
+}
+.sfn-round-pill__dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--n8n-warning);
+}
+
+/* ── Graph container (hosts node column + SVG overlay) ── */
+.sfn-graph {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 8px;
+}
+
+/* ── SVG connector overlay ── */
+.sfn-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* ── Connector animations ── */
+@keyframes sfn-dash {
+  to { stroke-dashoffset: -20; }
+}
+.sfn-connector--running {
+  stroke-dasharray: 6 4;
+  animation: sfn-dash 0.5s linear infinite;
+}
+
+/* ── Fork / join row spacers ── */
+.sfn-fork {
+  width: 100%;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+.sfn-join {
+  width: 100%;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* ── Parallel branches row ── */
+.sfn-parallel-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+.sfn-parallel-row > .sfn-node {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Connector spacer (vertical gap between nodes) ── */
+.sfn-connector-gap {
+  width: 2px;
+  height: 28px;
+  background: var(--n8n-card-border);
+  margin: 0 auto;
+  position: relative;
+}
+.sfn-connector-gap::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--n8n-card-border);
+}
+
+/* ── State Node ── */
+.sfn-node {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--n8n-card-border);
+  border-left-width: 4px;
+  background: var(--n8n-card-bg);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  outline: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sfn-node:hover {
+  border-color: var(--n8n-text-muted);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.sfn-node:focus-visible {
+  box-shadow: 0 0 0 2px var(--n8n-accent);
+}
+.sfn-node--selected {
+  border-color: var(--n8n-accent) !important;
+  box-shadow: 0 0 0 1px var(--n8n-accent);
+}
+
+/* Status variants */
+.sfn-node--succeeded {
+  border-left-color: var(--n8n-success);
+  background: rgba(24, 160, 88, 0.05);
+}
+.sfn-node--running {
+  border-left-color: var(--n8n-accent);
+  background: rgba(255, 109, 90, 0.05);
+}
+.sfn-node--failed {
+  border-left-color: var(--n8n-danger);
+  background: rgba(208, 48, 80, 0.05);
+}
+.sfn-node--warning {
+  border-left-color: var(--n8n-warning);
+  background: rgba(240, 160, 32, 0.05);
+}
+.sfn-node--pending {
+  border-left-color: var(--n8n-card-border);
+  background: transparent;
+}
+
+/* ── Node internals ── */
+.sfn-node__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--n8n-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sfn-node__metrics {
+  font-size: 11px;
+  font-family: var(--n8n-font-mono);
+  color: var(--n8n-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  line-height: 1.5;
+}
+
+.sfn-node__status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.sfn-node__badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  line-height: 1.6;
+}
+.sfn-node__badge--succeeded { color: var(--n8n-success); background: rgba(24,160,88,0.12); }
+.sfn-node__badge--running   { color: var(--n8n-accent);  background: rgba(255,109,90,0.12); }
+.sfn-node__badge--failed    { color: var(--n8n-danger);  background: rgba(208,48,80,0.12); }
+.sfn-node__badge--warning   { color: var(--n8n-warning); background: rgba(240,160,32,0.12); }
+.sfn-node__badge--pending   { color: var(--n8n-text-muted); background: rgba(255,255,255,0.06); }
+
+@keyframes sfn-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.sfn-node__badge--running {
+  animation: sfn-pulse 1.4s ease-in-out infinite;
+}
+
+.sfn-node__duration {
+  font-size: 10px;
+  color: var(--n8n-text-muted);
+  font-family: var(--n8n-font-mono);
+  margin-left: auto;
+}
+
+/* ── Detail panel ── */
+.sfn-detail {
+  background: var(--n8n-card-bg);
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.sfn-detail__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--n8n-text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.sfn-detail__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--n8n-card-border);
+}
+
+.sfn-detail__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--n8n-text-primary);
+}
+
+.sfn-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sfn-detail__section {
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sfn-detail__section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--n8n-text-muted);
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--n8n-card-border);
+}
+
+.sfn-detail__kv {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sfn-detail__kv-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.sfn-detail__kv-row:last-child { border-bottom: none; }
+
+.sfn-detail__key {
+  color: var(--n8n-text-muted);
+  flex: 0 0 110px;
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sfn-detail__val {
+  color: var(--n8n-text-primary);
+  font-family: var(--n8n-font-mono);
+  font-size: 11px;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Flagged badge (Trust tab) ── */
+.sfn-flagged-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--n8n-danger);
+  background: rgba(208, 48, 80, 0.12);
+  margin-left: 4px;
+}

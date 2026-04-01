@@ -4,16 +4,33 @@
  * Shows in the left panel of the FL drill-down view.
  * Reads live global progress from liveStore; sends start/stop via flApi.
  * Validates canvas topology before allowing training start.
+ *
+ * Accepts a `clients` prop to render the Adversarial Scenario section,
+ * which lets the user mark clients for gradient poisoning before training starts.
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Play, Square, Loader2, Lock, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Play, Square, Loader2, Lock, AlertTriangle, CheckCircle2, RotateCcw, ShieldAlert } from 'lucide-react';
 import { flApi, type FLStartConfig } from '@/api/fl';
 import { useLiveStore } from '@/stores/liveStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { validateFLTopology } from '@/utils/topologyValidator';
+import type { FLClient } from '@/types';
 
-export default function FLTrainingControls() {
+// ── Poison strategy options ──
+
+type PoisonStrategy = 'direction_flip' | 'scale_attack' | 'noise_inject';
+
+const POISON_STRATEGIES: Array<{ value: PoisonStrategy; label: string; description: string }> = [
+  { value: 'direction_flip', label: 'Direction Flip',  description: 'Reverses gradient direction' },
+  { value: 'scale_attack',   label: 'Scale Attack',   description: 'Amplifies gradients 5–10x' },
+  { value: 'noise_inject',   label: 'Noise Inject',   description: 'Replaces with random noise' },
+];
+
+// Delay in ms before activating poison after training starts
+const POISON_ACTIVATION_DELAY_MS = 1500;
+
+export default function FLTrainingControls({ clients }: { clients: FLClient[] }) {
   const flGlobal = useLiveStore((s) => s.flGlobalProgress);
   const isTraining = flGlobal?.is_training ?? false;
 
@@ -52,6 +69,9 @@ export default function FLTrainingControls() {
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Adversarial scenario: clientPk → strategy (empty = honest) ──
+  const [poisonConfig, setPoisonConfig] = useState<Record<number, PoisonStrategy>>({});
 
   // Desync detection: optimistic state set but WS never confirmed training started
   const activeFlServerNodeId = useWorkspaceStore((s) => s.activeFlServerNodeId);
@@ -142,6 +162,28 @@ export default function FLTrainingControls() {
       for (const id of topologyResult.trafficSourceNodeIds) {
         updateNodeData(id, { status: 'running' });
       }
+
+      // Activate poison on marked clients after a short delay
+      // (container may not yet be in TRAIN mode immediately after start)
+      if (Object.keys(poisonConfig).length > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, POISON_ACTIVATION_DELAY_MS));
+        for (const [clientPkStr, strategy] of Object.entries(poisonConfig)) {
+          const clientPk = Number(clientPkStr);
+          try {
+            const res = await flApi.togglePoison(clientPk, strategy);
+            const client = clients.find((c) => c.id === clientPk);
+            if (client?.canvas_node_id) {
+              updateNodeData(client.canvas_node_id, {
+                _poisonStrategy: res.active
+                  ? (res.strategy as 'direction_flip' | 'scale_attack' | 'noise_inject')
+                  : null,
+              });
+            }
+          } catch (err) {
+            console.warn(`[FLTrainingControls] Failed to activate poison on client ${clientPk}:`, err);
+          }
+        }
+      }
     } catch (err: unknown) {
       // Extract useful error detail from Axios responses
       const axiosDetail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -157,12 +199,12 @@ export default function FLTrainingControls() {
     try {
       await flApi.stop();
       setActiveFlServerNodeId(null);
-      // Reset all topology nodes back to idle
+      // Reset all topology nodes back to idle and clear poison state
       if (drilldownServerId) {
         updateNodeData(drilldownServerId, { status: 'idle', currentRound: 0 });
       }
       for (const id of topologyResult.connectedClientNodeIds) {
-        updateNodeData(id, { status: 'idle' });
+        updateNodeData(id, { status: 'idle', _poisonStrategy: null });
       }
       for (const id of topologyResult.deviceNodeIds) {
         updateNodeData(id, { status: 'idle' });
@@ -170,11 +212,29 @@ export default function FLTrainingControls() {
       for (const id of topologyResult.trafficSourceNodeIds) {
         updateNodeData(id, { status: 'idle' });
       }
+      setPoisonConfig({});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop training');
     } finally {
       setIsStopping(false);
     }
+  };
+
+  // ── Poison scenario helpers ──
+
+  const handleTogglePoison = (clientPk: number) => {
+    setPoisonConfig((prev) => {
+      if (clientPk in prev) {
+        const next = { ...prev };
+        delete next[clientPk];
+        return next;
+      }
+      return { ...prev, [clientPk]: 'direction_flip' };
+    });
+  };
+
+  const handleStrategyChange = (clientPk: number, strategy: PoisonStrategy) => {
+    setPoisonConfig((prev) => ({ ...prev, [clientPk]: strategy }));
   };
 
   return (
@@ -285,6 +345,122 @@ export default function FLTrainingControls() {
           </button>
         </div>
       </div>
+
+      {/* ── Adversarial Scenario section ── */}
+      {!isTraining && clients.length > 0 && (
+        <div className="fl-panel-section" style={{ marginTop: 4 }}>
+          <div className="fl-section-header">
+            <ShieldAlert size={13} style={{ color: 'var(--n8n-danger)', flexShrink: 0 }} />
+            <span className="fl-section-header-title">Adversarial Scenario</span>
+          </div>
+          <p
+            style={{
+              fontSize: 10,
+              color: 'var(--n8n-text-muted)',
+              lineHeight: 1.5,
+              margin: '0 0 6px',
+            }}
+          >
+            Simulate a compromised client sending poisoned gradients. RECESS checks every 5 rounds.
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {clients.map((client) => {
+              const isPoisoned = client.id in poisonConfig;
+              const strategy = poisonConfig[client.id];
+              const displayName = client.name || client.client_id;
+
+              return (
+                <div
+                  key={client.id}
+                  className="flex flex-col gap-1.5 px-2.5 py-2 rounded-lg"
+                  style={{
+                    background: isPoisoned
+                      ? 'rgba(208, 48, 80, 0.06)'
+                      : 'var(--n8n-card-bg)',
+                    border: isPoisoned
+                      ? '1px solid rgba(208, 48, 80, 0.2)'
+                      : '1px solid var(--n8n-card-border)',
+                  }}
+                >
+                  {/* Client row: name + toggle */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: isPoisoned ? 'var(--n8n-danger)' : 'var(--n8n-text-primary)',
+                        fontWeight: isPoisoned ? 600 : 400,
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={displayName}
+                    >
+                      {displayName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePoison(client.id)}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold"
+                      style={{
+                        color: isPoisoned ? 'var(--n8n-danger)' : 'var(--n8n-text-muted)',
+                        background: isPoisoned
+                          ? 'rgba(208, 48, 80, 0.12)'
+                          : 'var(--n8n-card-border)',
+                        border: isPoisoned
+                          ? '1px solid rgba(208, 48, 80, 0.3)'
+                          : '1px solid transparent',
+                        cursor: 'pointer',
+                        fontSize: 10,
+                        flexShrink: 0,
+                      }}
+                      aria-pressed={isPoisoned}
+                    >
+                      <ShieldAlert size={9} />
+                      {isPoisoned ? 'Poisoning' : 'Honest'}
+                    </button>
+                  </div>
+
+                  {/* Strategy selector — only shown when poisoned */}
+                  {isPoisoned && (
+                    <div className="flex flex-col gap-1">
+                      {POISON_STRATEGIES.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handleStrategyChange(client.id, opt.value)}
+                          className="flex items-center justify-between px-2 py-1 rounded text-xs"
+                          style={{
+                            background: strategy === opt.value
+                              ? 'rgba(208, 48, 80, 0.14)'
+                              : 'transparent',
+                            border: strategy === opt.value
+                              ? '1px solid rgba(208, 48, 80, 0.3)'
+                              : '1px solid transparent',
+                            color: strategy === opt.value
+                              ? 'var(--n8n-danger)'
+                              : 'var(--n8n-text-muted)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            width: '100%',
+                          }}
+                          aria-pressed={strategy === opt.value}
+                        >
+                          <span style={{ fontWeight: strategy === opt.value ? 600 : 400 }}>
+                            {opt.label}
+                          </span>
+                          <span style={{ fontSize: 9, opacity: 0.75 }}>{opt.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
