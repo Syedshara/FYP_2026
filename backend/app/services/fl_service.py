@@ -535,13 +535,21 @@ def record_detection_round(
     round_number: int,
     scores: dict[str, float],
     flagged: list[str],
+    components: Optional[dict] = None,
 ) -> None:
-    """Append a detection round record with ISO timestamp."""
+    """Append a detection round record with ISO timestamp.
+
+    ``components`` is a per-client dict of TrustScoreComponents fields
+    (abnormality, direction_score, magnitude_score).  It is stored here so
+    that GET /fl/detection_rounds can return it and the Watcher can display
+    the full component breakdown after a page reload or cold Watcher open.
+    """
     _detection_rounds.append(
         {
             "round_number": round_number,
             "scores": dict(scores),
             "flagged": list(flagged),
+            "components": dict(components) if components else {},
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
@@ -771,14 +779,24 @@ async def log_security_event(
 
 
 async def clear_security_events(db: AsyncSession) -> int:
-    """Delete all security events from the audit log.
+    """Delete per-session security events from the audit log.
 
     Called when a new training session starts to prevent cross-session
     event contamination in the Watcher Events tab.
+
+    VSS ceremony events (``vss_ceremony``, ``vss_share_dist``) are intentionally
+    preserved: they are emitted once at FL server startup and are valid across all
+    training sessions.  Deleting them causes the HE+Aggregation node to show
+    'pending' forever because the frontend can never re-observe them.
+
     Returns the number of deleted rows.
     """
     from sqlalchemy import delete
 
-    result = await db.execute(delete(SecurityEventLog))
+    # Preserve one-time startup events; clear all per-round training events.
+    _VSS_KINDS = ("vss_ceremony", "vss_share_dist")
+    result = await db.execute(
+        delete(SecurityEventLog).where(SecurityEventLog.kind.not_in(_VSS_KINDS))
+    )
     await db.commit()
     return result.rowcount  # type: ignore[return-value]

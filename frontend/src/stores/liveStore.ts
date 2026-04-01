@@ -205,8 +205,20 @@ interface LiveState {
   setTrustScores: (payload: ClientTrustUpdatePayload) => void;
   hydrateTrustState: (
     scores: Record<string, number>,
-    rounds: Array<{ round: number; scores: Record<string, number>; flagged: string[]; timestamp?: string }>,
+    rounds: Array<{
+      round: number;
+      scores: Record<string, number>;
+      flagged: string[];
+      timestamp?: string;
+      /** Per-client component breakdown — present after backend fix that persists components */
+      components?: Record<string, TrustScoreComponents>;
+    }>,
     flagged: Array<{ client_id: string; round: number; abnormality: number; timestamp?: string }>,
+  ) => void;
+  /** Bulk-load per-round enforcement history from the REST API on Watcher open.
+   *  Merges with any live WS rounds — live wins on round-number collision. */
+  hydrateEnforcementHistory: (
+    rounds: Array<{ round: number; enforcement: Record<string, ClientEnforcementStatus> }>,
   ) => void;
   clearTrustScores: () => void;
 
@@ -341,7 +353,10 @@ export const useLiveStore = create<LiveState>()((set) => ({
   trustScoreHistory: {},
   setTrustScores: (payload) =>
     set((state) => {
-      // Append each client's score to history (capped at 10 per client)
+      // Append each client's score to history (capped at 10 per client).
+      // Dedup by round number: if the same round arrives again (e.g., from a
+      // new training session that re-uses the same round numbers), replace the
+      // old entry so entries.find(e => e.round === r) always returns current data.
       const newHistory = { ...state.trustScoreHistory };
       for (const [cid, score] of Object.entries(payload.scores)) {
         const prev = newHistory[cid] ?? [];
@@ -350,7 +365,8 @@ export const useLiveStore = create<LiveState>()((set) => ({
           score,
           components: payload.components?.[cid],
         };
-        newHistory[cid] = [...prev, entry].slice(-10);
+        const deduped = prev.filter((e) => e.round !== payload.round);
+        newHistory[cid] = [...deduped, entry].slice(-10);
       }
       return {
         trustScores: payload.scores,
@@ -360,16 +376,39 @@ export const useLiveStore = create<LiveState>()((set) => ({
     }),
 
   hydrateTrustState: (scores, rounds, flagged) =>
-    set(() => {
-      // Rebuild history from detection rounds (sorted ascending)
+    set((state) => {
+      // Rebuild history from detection rounds (sorted ascending), including
+      // components so the detail panel populates after a cold open / page reload.
       const history: Record<string, Array<{ round: number; score: number; components?: TrustScoreComponents }>> = {};
       const sorted = [...rounds].sort((a, b) => a.round - b.round);
       for (const dr of sorted) {
         for (const [cid, score] of Object.entries(dr.scores)) {
           const prev = history[cid] ?? [];
-          history[cid] = [...prev, { round: dr.round, score }].slice(-10);
+          history[cid] = [...prev, { round: dr.round, score, components: dr.components?.[cid] }].slice(-10);
         }
       }
+
+      // Overlay live WS entries that arrived after the REST snapshot was taken
+      // (these carry components even for rounds not yet persisted on the backend).
+      // Live data also wins for any round where both REST and WS have entries,
+      // because WS entries are richer (always include components from the broadcast).
+      const merged = { ...history };
+      for (const [cid, liveEntries] of Object.entries(state.trustScoreHistory)) {
+        const restRoundSet = new Set((merged[cid] ?? []).map((e) => e.round));
+        for (const liveEntry of liveEntries) {
+          if (restRoundSet.has(liveEntry.round)) {
+            // Prefer the live entry when it has components and REST lacks them
+            if (liveEntry.components) {
+              const idx = (merged[cid] ?? []).findIndex((e) => e.round === liveEntry.round);
+              if (idx !== -1) merged[cid]![idx] = liveEntry;
+            }
+          } else {
+            // Round only in live state (e.g., most recent round, not yet persisted)
+            merged[cid] = [...(merged[cid] ?? []), liveEntry].slice(-10);
+          }
+        }
+      }
+
       const lastRound = sorted.length > 0 ? sorted[sorted.length - 1].round : null;
 
       // Map flagged events
@@ -387,7 +426,7 @@ export const useLiveStore = create<LiveState>()((set) => ({
       return {
         trustScores: scores,
         currentDetectionRound: lastRound,
-        trustScoreHistory: history,
+        trustScoreHistory: merged,
         flaggedEvents,
       };
     }),
@@ -467,6 +506,18 @@ export const useLiveStore = create<LiveState>()((set) => ({
     }),
   hydrateEnforcementStatus: (enforcement) =>
     set({ clientEnforcementStatus: enforcement }),
+  hydrateEnforcementHistory: (rounds) =>
+    set((state) => {
+      // Build a base map from REST round history, then merge live WS rounds on top
+      // so in-session data always wins on round-number collision.
+      const base: Record<number, Record<string, ClientEnforcementStatus>> = {};
+      for (const { round, enforcement } of rounds) {
+        base[round] = enforcement;
+      }
+      return {
+        enforcementHistory: { ...base, ...state.enforcementHistory },
+      };
+    }),
   clearEnforcementHistory: () =>
     set({ clientEnforcementStatus: {}, lastEnforcementRound: null, enforcementHistory: {} }),
 }));

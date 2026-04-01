@@ -618,16 +618,24 @@ def run_train_mode():
                         )
                 self.model.load_state_dict(poisoned_state)
 
-            # ── Sign gradient ───────────────────────────────────────────────────
+            # ── Sign gradient & encode for server verification ────────────────
+            # Send the serialised gradient bytes as base64 in metrics so the
+            # server can verify the Ed25519 signature against the EXACT bytes
+            # the client signed — mirrors the proven RECESS verification pattern.
+            # Previous approach reconstructed gradient server-side, but produced
+            # different bytes despite equivalent logic (root cause unknown).
             sig_b64 = ""
-            if self._signing_key is not None and gradient_dict:
+            gradient_b64 = ""
+            if gradient_dict:
                 try:
                     gradient_bytes = self._serialise_gradient(gradient_dict)
-                    sig_bytes = signing_utils.sign_gradient(
-                        gradient_bytes, self._signing_key
-                    )
-                    sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
-                    log.debug("[%s] Gradient signed successfully", CLIENT_ID)
+                    gradient_b64 = base64.b64encode(gradient_bytes).decode("ascii")
+                    if self._signing_key is not None:
+                        sig_bytes = signing_utils.sign_gradient(
+                            gradient_bytes, self._signing_key
+                        )
+                        sig_b64 = base64.b64encode(sig_bytes).decode("ascii")
+                        log.debug("[%s] Gradient signed successfully", CLIENT_ID)
                 except Exception as exc:
                     log.warning("[%s] Gradient signing failed: %s", CLIENT_ID, exc)
 
@@ -648,6 +656,7 @@ def run_train_mode():
             metrics["client_id"] = CLIENT_ID
             metrics["nonce_echo"] = nonce
             metrics["signature"] = sig_b64
+            metrics["gradient_b64"] = gradient_b64
             return self.get_parameters(config), self.num_samples, metrics
 
         # ── RECESS detection round ─────────────────────────────────────────────

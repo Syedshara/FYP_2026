@@ -1,9 +1,19 @@
 /**
  * StateNode — individual AWS Step Functions-style rectangular state node.
  *
- * Renders a status-coloured bordered card with label, metric lines, status
- * badge and optional duration.  Click/keyboard-activates to select.
+ * Renders a status-coloured bordered card with a status icon, label, metric
+ * lines, status badge and optional duration.  The badge is visually separated
+ * from the metadata by a faint divider line, mirroring AWS Step Functions.
+ * Click/keyboard-activates to select.
  */
+
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Loader2,
+  Clock,
+} from 'lucide-react';
 
 export type NodeStatus = 'succeeded' | 'running' | 'failed' | 'warning' | 'pending';
 
@@ -27,6 +37,14 @@ const STATUS_LABELS: Record<NodeStatus, string> = {
   pending:   'Pending',
 };
 
+const STATUS_ICONS: Record<NodeStatus, typeof CheckCircle2> = {
+  succeeded: CheckCircle2,
+  running:   Loader2,
+  failed:    XCircle,
+  warning:   AlertTriangle,
+  pending:   Clock,
+};
+
 export default function StateNode({
   id,
   label,
@@ -44,9 +62,11 @@ export default function StateNode({
     }
   };
 
+  const StatusIcon = STATUS_ICONS[status];
   const statusClass = `sfn-node--${status}`;
   const badgeClass  = `sfn-node__badge sfn-node__badge--${status}`;
   const nodeClass   = `sfn-node ${statusClass}${selected ? ' sfn-node--selected' : ''}`;
+  const isSpinning  = status === 'running';
 
   return (
     <div
@@ -59,16 +79,27 @@ export default function StateNode({
       aria-label={`State: ${label}, status: ${STATUS_LABELS[status]}`}
       data-node-id={id}
     >
-      <span className="sfn-node__label">{label}</span>
+      {/* ── Header: icon + label ── */}
+      <div className="sfn-node__header">
+        <span className="sfn-node__icon">
+          <StatusIcon
+            size={14}
+            style={isSpinning ? { animation: 'spin 1s linear infinite' } : undefined}
+          />
+        </span>
+        <span className="sfn-node__label">{label}</span>
+      </div>
 
+      {/* ── Metadata ── */}
       {metrics.length > 0 && (
         <div className="sfn-node__metrics">
-          {metrics.map((m) => (
-            <span key={m}>{m}</span>
+          {metrics.map((m, i) => (
+            <span key={`${i}-${m}`}>{m}</span>
           ))}
         </div>
       )}
 
+      {/* ── Status row (badge + duration) — pushed to bottom by separator ── */}
       <div className="sfn-node__status-row">
         <span className={badgeClass}>{STATUS_LABELS[status]}</span>
         {duration && <span className="sfn-node__duration">{duration}</span>}

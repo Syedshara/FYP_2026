@@ -822,6 +822,9 @@ async def post_detection_round(
         round_number=body.round,
         scores=body.scores,
         flagged=body.flagged,
+        components={cid: c.model_dump() for cid, c in body.components.items()}
+        if body.components
+        else None,
     )
     fl_service.update_trust_scores(body.scores)
     # Persist updated scores so they survive a backend restart

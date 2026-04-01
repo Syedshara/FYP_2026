@@ -149,20 +149,23 @@ export default function TrustPipelineTab() {
     setSelection((prev) => ({ ...prev, nodeId }));
 
   // ── Detection rounds ──────────────────────────────────
-  // Collect from trust history + security events (kind === 'recess_detect'), union + sort
+  // Collect from trust history + security events (kind === 'recess_detect'), union + sort.
+  // Any round present in trust score history IS a detection round — do not apply a
+  // hardcoded % 5 filter because RECESS can fire on any round (e.g., the last round of
+  // a short training run that is not a multiple of the detection interval).
   const detectionRounds = useMemo<number[]>(() => {
     const set = new Set<number>();
 
-    // From trust score history: any round present in any client's entries
+    // From trust score history: every round with an entry is a detection round
     for (const entries of Object.values(trustHistory)) {
       for (const entry of entries) {
-        if (entry.round % 5 === 0) set.add(entry.round);
+        set.add(entry.round);
       }
     }
 
     // From security events
     for (const evt of securityEvents as SecurityEvent[]) {
-      if (evt.kind === 'recess_detect' && evt.round % 5 === 0) {
+      if (evt.kind === 'recess_detect') {
         set.add(evt.round);
       }
     }
@@ -269,10 +272,14 @@ export default function TrustPipelineTab() {
     };
 
     // ── Row 4: Outcome ─────────────────────────────────
-    // Bug 4 fix: being "flagged" (abnormality > 0.7 in one round) is NOT the
-    // same as being "excluded" (trust_score < FLAG_THRESHOLD = 0.3).
-    // A recovered client (score 0.963) is still in flaggedEvents but must be
-    // shown with their actual enforcement tier, not hardcoded "excluded".
+    // Being "flagged" (abnormality > 0.7 in one round) is NOT the same as being
+    // "excluded" (trust_score < FLAG_THRESHOLD = 0.3).  A recovered client
+    // (score 0.963) is still in flaggedEvents but must be shown with their actual
+    // enforcement tier, not hardcoded "excluded".
+    //
+    // Display the trust SCORE (the metric RECESS actually uses for enforcement
+    // decisions) rather than the raw abnormality signal so the value matches what
+    // the client node detail panel shows.
     let outcomeStatus: NodeStatus = 'pending';
     let outcomeMetrics: string[];
 
@@ -284,11 +291,17 @@ export default function TrustPipelineTab() {
         (f) => roundEnforcement !== null && roundEnforcement[f.clientId] !== 'excluded',
       );
 
+      // Helper: look up the trust score from history; fall back to abnormality label
+      const clientScoreStr = (clientId: string): string => {
+        const entry = (trustHistory[clientId] ?? []).find((e) => e.round === selectedRound);
+        return entry != null ? entry.score.toFixed(3) : `abn:${(roundFlagged.find((f) => f.clientId === clientId)?.abnormality ?? 0).toFixed(3)}`;
+      };
+
       if (actuallyExcluded.length > 0) {
         outcomeStatus  = 'failed';
         outcomeMetrics = actuallyExcluded.map((f) => {
           const name = labelMap.get(f.clientId) ?? f.clientId;
-          return `${name}: ${f.abnormality.toFixed(3)} → excluded`;
+          return `${name}: ${clientScoreStr(f.clientId)} → excluded`;
         });
         if (flaggedNotExcluded.length > 0) {
           outcomeMetrics.push(`${flaggedNotExcluded.length} flagged, trust monitored`);
@@ -299,7 +312,7 @@ export default function TrustPipelineTab() {
         outcomeMetrics = roundFlagged.map((f) => {
           const name = labelMap.get(f.clientId) ?? f.clientId;
           const tier = roundEnforcement?.[f.clientId] ?? 'included';
-          return `${name}: ${f.abnormality.toFixed(3)} → ${tier}`;
+          return `${name}: ${clientScoreStr(f.clientId)} → ${tier}`;
         });
       } else {
         outcomeStatus  = 'succeeded';
@@ -388,6 +401,13 @@ export default function TrustPipelineTab() {
         (f) => roundEnforcement !== null && roundEnforcement[f.clientId] !== 'excluded',
       );
 
+      // Helper: show the trust score from history (the value RECESS uses for
+      // enforcement); fall back to the raw abnormality if history is unavailable.
+      const clientScoreStr = (clientId: string, fallbackAbnormality: number): string => {
+        const entry = (trustHistory[clientId] ?? []).find((e) => e.round === selectedRound);
+        return entry != null ? entry.score.toFixed(3) : `abn:${fallbackAbnormality.toFixed(3)}`;
+      };
+
       let outcomeStatus: NodeStatus = 'pending';
       const outcomeRows: KVRow[] = [
         { key: 'flagged_count', value: roundFlagged.length },
@@ -398,22 +418,22 @@ export default function TrustPipelineTab() {
           outcomeStatus = 'failed';
           for (const f of actuallyExcluded) {
             const name = labelMap.get(f.clientId) ?? f.clientId;
-            outcomeRows.push({ key: name, value: `${f.abnormality.toFixed(3)} → excluded` });
+            outcomeRows.push({ key: name, value: `${clientScoreStr(f.clientId, f.abnormality)} → excluded` });
           }
           if (flaggedNotExcluded.length > 0) {
             for (const f of flaggedNotExcluded) {
               const name  = labelMap.get(f.clientId) ?? f.clientId;
               const tier  = roundEnforcement?.[f.clientId] ?? 'included';
-              outcomeRows.push({ key: name, value: `${f.abnormality.toFixed(3)} → ${tier} (monitored)` });
+              outcomeRows.push({ key: name, value: `${clientScoreStr(f.clientId, f.abnormality)} → ${tier} (monitored)` });
             }
           }
         } else if (roundFlagged.length > 0) {
-          // Bug 4 fix: flagged but not excluded — show actual enforcement tier
+          // Flagged but not excluded — show actual enforcement tier
           outcomeStatus = 'warning';
           for (const f of roundFlagged) {
             const name = labelMap.get(f.clientId) ?? f.clientId;
             const tier = roundEnforcement?.[f.clientId] ?? 'included';
-            outcomeRows.push({ key: name, value: `${f.abnormality.toFixed(3)} → ${tier}` });
+            outcomeRows.push({ key: name, value: `${clientScoreStr(f.clientId, f.abnormality)} → ${tier}` });
           }
         } else {
           outcomeStatus = 'succeeded';

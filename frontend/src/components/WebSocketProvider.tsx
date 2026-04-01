@@ -212,11 +212,15 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     // ── Training started ──
     unsubs.push(subscribe('training_start', (msg: WSMessage) => {
-      // Clear ALL stale data from any previous session before updating state
+      // Clear ALL stale data from any previous session before updating state.
+      // Trust score history must be cleared so that setTrustScores (even with its
+      // new dedup-by-round logic) doesn't surface old entries when the user looks
+      // at a round number that exists in both the old and new session.
       useLiveStore.getState().clearFLRoundResults();
       useLiveStore.getState().clearFLClientRoundHistory();
       useLiveStore.getState().clearSecurityEvents();
       useLiveStore.getState().clearEnforcementHistory();
+      useLiveStore.getState().clearTrustScores();
       const d = msg.data;
       const totalRounds = (d.total_rounds ?? d.num_rounds ?? 0) as number;
       const clientIds = d.client_ids as string[] | undefined;
@@ -358,7 +362,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       const kind = d.kind as string;
 
       // Route granular RECESS events to recessStore for animated FSM playback.
-      // All other security events go to liveStore audit log as before.
+      // Also add ALL security events (including RECESS) to liveStore so the
+      // Events pipeline tab shows live updates — not just the hydrated snapshot.
       if (RECESS_EVENT_KINDS.has(kind)) {
         useRecessStore.getState().enqueueEvent({
           kind: kind as RecessEventKind,
@@ -368,7 +373,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           data: d.data as Record<string, unknown> | undefined,
           timestamp: msg.timestamp ?? new Date().toISOString(),
         });
-        return;
+        // Fall through — also add to liveStore audit log so the pipeline view
+        // (EventsPipelineTab) receives recess_round_complete and shows
+        // Round Complete as 'succeeded' rather than staying 'running'.
       }
 
       addSecurityEvent({

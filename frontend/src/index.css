@@ -1967,6 +1967,90 @@ select.prop-input option {
 }
 
 /* ================================================================
+   Watcher Drill-Down Top Bar (.fl-drilldown-*) + Tab Navigation
+   ================================================================ */
+
+.fl-drilldown-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  height: 52px;
+  padding: 0 20px;
+  background: var(--n8n-topbar-bg);
+  border-bottom: 1px solid var(--n8n-card-border);
+  user-select: none;
+}
+
+.fl-drilldown-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--n8n-card-border);
+  background: transparent;
+  color: var(--n8n-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.fl-drilldown-back:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--n8n-text-primary);
+  border-color: var(--n8n-text-muted);
+}
+
+.fl-drilldown-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--n8n-text-primary);
+}
+
+.fl-drilldown-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  flex-shrink: 0;
+}
+
+/* ── Watcher tab nav buttons ── */
+.watcher-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--n8n-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 100%;
+}
+.watcher-tab:hover {
+  color: var(--n8n-text-primary);
+}
+.watcher-tab--active {
+  color: #38bdf8;
+  font-weight: 600;
+  border-bottom-color: #38bdf8;
+}
+
+/* ================================================================
    Step Function Node Graph (.sfn-*) — AWS Step Functions-style UI
    Used by EventsPipelineTab, TrustPipelineTab, RecoveryPipelineTab
    ================================================================ */
@@ -1974,26 +2058,31 @@ select.prop-input option {
 /* ── Layout ── */
 .sfn-layout {
   display: flex;
-  gap: 16px;
+  gap: 0;
   height: 100%;
   min-height: 0;
 }
 
 .sfn-graph-pane {
-  flex: 0 0 65%;
+  flex: 0 0 62%;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 2px 16px;
+  padding: 4px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1px solid var(--n8n-card-border);
 }
 
 .sfn-detail-pane {
-  flex: 0 0 35%;
+  flex: 0 0 38%;
   min-width: 0;
   position: sticky;
   top: 0;
   overflow-y: auto;
   max-height: 100%;
+  padding-left: 20px;
 }
 
 /* ── Round selector pill bar ── */
@@ -2024,9 +2113,11 @@ select.prop-input option {
   color: var(--n8n-text-primary);
 }
 .sfn-round-pill--active {
-  background: rgba(255, 109, 90, 0.15);
+  background: var(--n8n-accent);
   border-color: var(--n8n-accent);
-  color: var(--n8n-accent);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(255, 109, 90, 0.25);
 }
 .sfn-round-pill__dot {
   position: absolute;
@@ -2045,6 +2136,8 @@ select.prop-input option {
   flex-direction: column;
   gap: 0;
   padding: 0 8px;
+  width: 100%;
+  max-width: 620px;
 }
 
 /* ── SVG connector overlay ── */
@@ -2069,14 +2162,18 @@ select.prop-input option {
 /* ── Fork / join row spacers ── */
 .sfn-fork {
   width: 100%;
-  height: 24px;
+  height: 36px;
+  margin-top: 6px;     /* clearance from source sequential node */
+  margin-bottom: 6px;  /* clearance before parallel row */
   display: flex;
   justify-content: center;
   align-items: flex-end;
 }
 .sfn-join {
   width: 100%;
-  height: 24px;
+  height: 36px;
+  margin-top: 6px;     /* clearance after parallel row */
+  margin-bottom: 6px;  /* clearance before target sequential node */
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -2085,7 +2182,7 @@ select.prop-input option {
 /* ── Parallel branches row ── */
 .sfn-parallel-row {
   display: flex;
-  gap: 8px;
+  gap: 24px;
   width: 100%;
   justify-content: center;
 }
@@ -2096,24 +2193,32 @@ select.prop-input option {
 
 /* ── Connector spacer (vertical gap between nodes) ── */
 .sfn-connector-gap {
+  --sfn-conn-color: #4a4f5a;  /* default: mid-tone neutral, visible on dark bg */
   width: 2px;
-  height: 28px;
-  background: var(--n8n-card-border);
-  margin: 0 auto;
+  height: 32px;
+  background: var(--sfn-conn-color);
+  margin: 6px auto 13px; /* 6px clearance from source; 13px so arrowhead tip lands 6px above target */
   position: relative;
 }
 .sfn-connector-gap::after {
   content: '';
   position: absolute;
-  bottom: -5px;
+  bottom: -7px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid var(--n8n-card-border);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--sfn-conn-color);
 }
+
+/* Status-colored connector variants (AWS Step Functions convention) */
+.sfn-connector-gap--succeeded { --sfn-conn-color: var(--n8n-success); }
+.sfn-connector-gap--warning   { --sfn-conn-color: var(--n8n-warning); }
+.sfn-connector-gap--failed    { --sfn-conn-color: var(--n8n-danger);  }
+.sfn-connector-gap--running   { --sfn-conn-color: var(--n8n-accent);  }
+.sfn-connector-gap--pending   { --sfn-conn-color: #4a4f5a; }
 
 /* ── State Node ── */
 .sfn-node {
@@ -2121,7 +2226,7 @@ select.prop-input option {
   border-radius: 8px;
   border: 1px solid var(--n8n-card-border);
   border-left-width: 4px;
-  background: var(--n8n-card-bg);
+  background: var(--n8n-node-bg);
   padding: 10px 14px;
   cursor: pointer;
   transition: border-color 0.12s, box-shadow 0.12s;
@@ -2144,29 +2249,43 @@ select.prop-input option {
   box-shadow: 0 0 0 1px var(--n8n-accent);
 }
 
-/* Status variants */
+/* Status variants — status communicated via left border colour only; background inherits from .sfn-node */
 .sfn-node--succeeded {
   border-left-color: var(--n8n-success);
-  background: rgba(24, 160, 88, 0.05);
 }
 .sfn-node--running {
   border-left-color: var(--n8n-accent);
-  background: rgba(255, 109, 90, 0.05);
 }
 .sfn-node--failed {
   border-left-color: var(--n8n-danger);
-  background: rgba(208, 48, 80, 0.05);
 }
 .sfn-node--warning {
   border-left-color: var(--n8n-warning);
-  background: rgba(240, 160, 32, 0.05);
 }
 .sfn-node--pending {
   border-left-color: var(--n8n-card-border);
-  background: transparent;
 }
 
 /* ── Node internals ── */
+.sfn-node__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sfn-node__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+/* Icon colours mirror the status accent */
+.sfn-node--succeeded .sfn-node__icon { color: var(--n8n-success); }
+.sfn-node--running   .sfn-node__icon { color: var(--n8n-accent);  }
+.sfn-node--failed    .sfn-node__icon { color: var(--n8n-danger);  }
+.sfn-node--warning   .sfn-node__icon { color: var(--n8n-warning); }
+.sfn-node--pending   .sfn-node__icon { color: var(--n8n-text-muted); }
+
 .sfn-node__label {
   font-size: 13px;
   font-weight: 600;
@@ -2174,6 +2293,7 @@ select.prop-input option {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .sfn-node__metrics {
@@ -2190,7 +2310,9 @@ select.prop-input option {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 10px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .sfn-node__badge {
@@ -2224,7 +2346,6 @@ select.prop-input option {
 /* ── Detail panel ── */
 .sfn-detail {
   background: var(--n8n-card-bg);
-  border: 1px solid var(--n8n-card-border);
   border-radius: 8px;
   padding: 14px;
   display: flex;
@@ -2240,11 +2361,45 @@ select.prop-input option {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   color: var(--n8n-text-muted);
-  font-size: 12px;
   text-align: center;
-  padding: 32px 16px;
+  padding: 40px 24px;
+}
+.sfn-detail__empty-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--n8n-card-border);
+  color: var(--n8n-text-muted);
+  flex-shrink: 0;
+}
+.sfn-detail__empty-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--n8n-text-primary);
+  margin: 0;
+}
+.sfn-detail__empty-sub {
+  font-size: 11px;
+  color: var(--n8n-text-muted);
+  line-height: 1.5;
+  max-width: 200px;
+  margin: 0;
+}
+
+.sfn-detail__panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--n8n-text-muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--n8n-card-border);
 }
 
 .sfn-detail__header {
@@ -2255,10 +2410,47 @@ select.prop-input option {
   border-bottom: 1px solid var(--n8n-card-border);
 }
 
+.sfn-detail__header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .sfn-detail__title {
   font-size: 14px;
   font-weight: 700;
   color: var(--n8n-text-primary);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.sfn-detail__copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--n8n-card-border);
+  background: transparent;
+  color: var(--n8n-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.sfn-detail__copy-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--n8n-text-primary);
+  border-color: var(--n8n-text-muted);
+}
+.sfn-detail__copy-btn--copied {
+  color: var(--n8n-success);
+  border-color: var(--n8n-success);
 }
 
 .sfn-detail__meta {
@@ -2328,4 +2520,244 @@ select.prop-input option {
   color: var(--n8n-danger);
   background: rgba(208, 48, 80, 0.12);
   margin-left: 4px;
+}
+
+/* ── Detail panel tab bar ── */
+.sfn-detail__tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--n8n-card-border);
+  padding-bottom: 0;
+  margin-bottom: 4px;
+}
+
+.sfn-detail__tab {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--n8n-text-muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.sfn-detail__tab:hover {
+  color: var(--n8n-text-primary);
+}
+.sfn-detail__tab--active {
+  color: var(--n8n-accent);
+  border-bottom-color: var(--n8n-accent);
+}
+
+.sfn-detail__tabs-copy {
+  margin-left: auto;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Layer values preview (inline monospace) ── */
+.sfn-layer-preview {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 4px 0;
+}
+
+.sfn-layer-preview__values {
+  font-size: 10px;
+  font-family: var(--n8n-font-mono);
+  color: var(--n8n-text-muted);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.sfn-layer-preview__ellipsis {
+  color: var(--n8n-text-muted);
+  opacity: 0.6;
+}
+
+.sfn-layer-preview__complete {
+  font-size: 9px;
+  color: var(--n8n-text-muted);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.sfn-layer-preview__btn {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--n8n-card-border);
+  background: transparent;
+  color: var(--n8n-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.sfn-layer-preview__btn:hover {
+  background: rgba(255, 109, 90, 0.08);
+  border-color: var(--n8n-accent);
+}
+
+/* ── Layer values modal ── */
+.sfn-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.sfn-modal-card {
+  background: var(--n8n-node-bg, #1e2130);
+  border: 1px solid var(--n8n-card-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(640px, 90vh);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.sfn-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--n8n-card-border);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.sfn-modal__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sfn-modal__layer-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--n8n-text-primary);
+  font-family: var(--n8n-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sfn-modal__meta {
+  font-size: 10px;
+  color: var(--n8n-text-muted);
+}
+
+.sfn-modal__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sfn-modal__close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--n8n-card-border);
+  background: transparent;
+  color: var(--n8n-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.sfn-modal__close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--n8n-text-primary);
+}
+
+.sfn-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sfn-modal__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.sfn-modal__value-row:last-child { border-bottom: none; }
+
+.sfn-modal__value-idx {
+  font-size: 10px;
+  font-family: var(--n8n-font-mono);
+  color: var(--n8n-text-muted);
+  opacity: 0.6;
+  min-width: 36px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sfn-modal__value-num {
+  font-size: 11px;
+  font-family: var(--n8n-font-mono);
+  color: var(--n8n-text-primary);
+}
+
+.sfn-modal__load-more {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--n8n-card-border);
+  background: transparent;
+  color: var(--n8n-accent);
+  cursor: pointer;
+  align-self: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+.sfn-modal__load-more:hover {
+  background: rgba(255, 109, 90, 0.08);
+  border-color: var(--n8n-accent);
+}
+
+.sfn-modal__footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-top: 1px solid var(--n8n-card-border);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.sfn-modal__stat {
+  font-size: 10px;
+  color: var(--n8n-text-muted);
+  font-family: var(--n8n-font-mono);
+}
+.sfn-modal__stat b {
+  color: var(--n8n-text-primary);
+  font-weight: 600;
 }

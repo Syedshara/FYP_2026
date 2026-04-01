@@ -6,6 +6,8 @@ import type {
   FLClient,
   FLClientDetail,
   ContainerStatus,
+  ClientEnforcementStatus,
+  TrustScoreComponents,
 } from '@/types';
 import type { SecurityEvent } from '@/stores/liveStore';
 import type { GradientStats } from '@/types';
@@ -126,11 +128,21 @@ export const flApi = {
       .then((r) => r.data),
 
   detectionRounds: () =>
-    api.get<{ rounds: Array<{ round_number: number; scores: Record<string, number>; flagged: string[]; timestamp?: string }> }>('/fl/detection_rounds')
+    api.get<{
+      rounds: Array<{
+        round_number: number;
+        scores: Record<string, number>;
+        flagged: string[];
+        /** Per-client component breakdown — present after backend stores components in detection rounds */
+        components?: Record<string, TrustScoreComponents>;
+        timestamp?: string;
+      }>;
+    }>('/fl/detection_rounds')
       .then((r) => r.data.rounds.map((row) => ({
         round: row.round_number,
         scores: row.scores,
         flagged: row.flagged,
+        components: row.components,
         timestamp: row.timestamp,
       }))),
 
@@ -144,8 +156,28 @@ export const flApi = {
       }))),
 
   enforcementStatus: () =>
-    api.get<{ enforcement: Record<string, string> }>('/fl/enforcement_status')
-      .then((r) => r.data.enforcement as Record<string, import('@/types').ClientEnforcementStatus>),
+    api.get<{ enforcement: Record<string, string>; rounds: unknown[] }>('/fl/enforcement_status')
+      .then((r) => r.data.enforcement as Record<string, ClientEnforcementStatus>),
+
+  /** Fetch the per-round enforcement history for Watcher hydration.
+   *  Uses the same endpoint as enforcementStatus() but maps the ``rounds``
+   *  array that was previously discarded.
+   */
+  enforcementRounds: () =>
+    api.get<{
+      enforcement: Record<string, string>;
+      rounds: Array<{
+        round_number: number;
+        enforcement: Record<string, string>;
+        excluded_count: number;
+        downweighted_count: number;
+        timestamp: string;
+      }>;
+    }>('/fl/enforcement_status')
+      .then((r) => r.data.rounds.map((row) => ({
+        round: row.round_number,
+        enforcement: row.enforcement as Record<string, ClientEnforcementStatus>,
+      }))),
 
   /** Fetch persisted security pipeline events from the audit log.
    *  Used to hydrate the Watcher Events tab on first open.

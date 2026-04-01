@@ -477,6 +477,10 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     "prior_accuracy": round(float(prior["global_accuracy"]), 6)
                     if prior and "global_accuracy" in prior
                     else None,
+                    "local_epochs": LOCAL_EPOCHS,
+                    "lr": float(LEARNING_RATE),
+                    "batch_size": DEFAULT_CONFIG["BATCH_SIZE"],
+                    "max_batches": MAX_BATCHES,
                 },
             )
         except Exception as exc:
@@ -592,6 +596,72 @@ class FedAvgHE(fl.server.strategy.FedAvg):
                     detail="OK",
                     data={"client_id": cid, "status": "ok"},
                 )
+
+                # ── Ed25519 signature verification (every normal round) ──────────
+                # The client sends metrics["gradient_b64"] = base64(flatten_gradient(delta).tobytes())
+                # and metrics["signature"] = base64(Ed25519.sign(those bytes)).
+                # We decode the gradient bytes directly and verify — no reconstruction
+                # needed.  This mirrors the proven RECESS verification pattern and
+                # avoids the byte-level divergence that plagued the reconstruction
+                # approach (which produced different hashes despite identical logic).
+                sig_b64_normal = str(m.get("signature", ""))
+                gradient_b64_normal = str(m.get("gradient_b64", ""))
+                pub_key_pem_normal = self._client_public_keys.get(cid)
+                if sig_b64_normal and gradient_b64_normal and pub_key_pem_normal:
+                    try:
+                        sig_bytes_normal = base64.b64decode(sig_b64_normal)
+                        gradient_bytes_for_verify = base64.b64decode(
+                            gradient_b64_normal
+                        )
+                        if not verify_gradient(
+                            gradient_bytes_for_verify,
+                            sig_bytes_normal,
+                            pub_key_pem_normal,
+                        ):
+                            log.warning(
+                                "Round %d — client %s: invalid Ed25519 signature on normal round gradient",
+                                rnd,
+                                cid,
+                            )
+                            _emit_security_event(
+                                "signature_failed",
+                                rnd,
+                                client_id=cid,
+                                detail="Invalid Ed25519 signature",
+                            )
+                        else:
+                            _emit_security_event(
+                                "signature_verified",
+                                rnd,
+                                client_id=cid,
+                                detail="Ed25519 OK",
+                            )
+                    except Exception as sig_exc:
+                        log.warning(
+                            "Round %d — client %s: signature verification error: %s",
+                            rnd,
+                            cid,
+                            sig_exc,
+                        )
+                        _emit_security_event(
+                            "signature_failed",
+                            rnd,
+                            client_id=cid,
+                            detail=str(sig_exc)[:100],
+                        )
+                elif pub_key_pem_normal:
+                    # Public key is loaded but the client did not include a signature
+                    log.warning(
+                        "Round %d — client %s: no signature/gradient in metrics (key on file)",
+                        rnd,
+                        cid,
+                    )
+                    _emit_security_event(
+                        "signature_verified",
+                        rnd,
+                        client_id=cid,
+                        detail="No signature (key on file)",
+                    )
         except Exception as exc:
             log.warning(
                 "Could not emit client_update events for round %d: %s", rnd, exc

@@ -56,6 +56,14 @@ export default function WatcherDrillDownView() {
 
   // Navigation
   const handleBack = useCallback(() => {
+    // Clear all watcher-scoped security state so a subsequent re-open always
+    // starts from a clean REST hydration rather than potentially stale in-memory
+    // data.  (training_start also clears this state, but handleBack covers the
+    // case where the user closes the Watcher mid-session and reopens it.)
+    const store = useLiveStore.getState();
+    store.clearTrustScores();
+    store.clearSecurityEvents();
+    store.clearEnforcementHistory();
     setViewMode('canvas');
     setDrilldownWatcherId(null);
   }, [setViewMode, setDrilldownWatcherId]);
@@ -74,8 +82,14 @@ export default function WatcherDrillDownView() {
       flApi.trustScores().catch(() => ({} as Record<string, number>)),
       flApi.detectionRounds().catch(() => []),
       flApi.flaggedClients().catch(() => []),
-    ]).then(([scores, rounds, flagged]) => {
+      flApi.enforcementRounds().catch(() => []),
+    ]).then(([scores, rounds, flagged, enforcementRounds]) => {
       useLiveStore.getState().hydrateTrustState(scores, rounds, flagged);
+      // Hydrate per-round enforcement history so TrustPipelineTab can show
+      // correct Enforcement Decision and Outcome nodes on cold open / page reload.
+      if (enforcementRounds.length > 0) {
+        useLiveStore.getState().hydrateEnforcementHistory(enforcementRounds);
+      }
     });
   }, []);
 
@@ -111,23 +125,19 @@ export default function WatcherDrillDownView() {
         <span className="fl-drilldown-badge">Security Audit</span>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 ml-6">
+        <div
+          className="flex items-stretch ml-6"
+          style={{ alignSelf: 'stretch' }}
+        >
           {TAB_CONFIG.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors"
-                style={{
-                  background: isActive ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-                  color: isActive ? '#38bdf8' : 'var(--n8n-text-muted)',
-                  border: isActive ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid transparent',
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 400,
-                  cursor: 'pointer',
-                }}
+                className={`watcher-tab${isActive ? ' watcher-tab--active' : ''}`}
               >
                 <Icon size={12} />
                 {tab.label}

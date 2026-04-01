@@ -480,6 +480,12 @@ async def fl_status_change(
         # Watcher Events tab starts clean and doesn't mix cross-session data.
         await fl_service.clear_security_events(db)
         log.info("Security events cleared for new training session")
+        # Reset per-round detection history (detection_rounds, flagged_clients,
+        # enforcement_status, enforcement_rounds) so that REST endpoints return
+        # fresh data for the new session.  Trust scores are intentionally kept —
+        # they are reloaded from DB below and accumulate across sessions.
+        fl_service.reset_detection_history()
+        log.info("Detection history reset for new training session")
         # Re-hydrate in-memory trust scores from DB so the new session inherits
         # any scores that were accumulated (and persisted) by prior sessions.
         await fl_service.load_trust_scores_from_db(db)

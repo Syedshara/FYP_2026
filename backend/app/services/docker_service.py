@@ -136,6 +136,23 @@ def create_client_container(
         detach=True,
     )
 
+    # Clear any stale signal files written to the bind-mounted /app directory on
+    # the host filesystem.  These persist across container recreations because
+    # fl_client/ is mounted RW, so a .poison_mode file from a previous session
+    # would re-activate poisoning in the fresh container even though the UI
+    # shows the client as "Honest".
+    _SIGNAL_FILES = [".poison_mode"]
+    for sig in _SIGNAL_FILES:
+        sig_path = os.path.join(host_fl_client, sig)
+        if os.path.exists(sig_path):
+            try:
+                os.remove(sig_path)
+                log.info(
+                    "Removed stale signal file %s before container start", sig_path
+                )
+            except OSError as exc:
+                log.warning("Could not remove signal file %s: %s", sig_path, exc)
+
     if auto_start:
         container.start()
         container.reload()
