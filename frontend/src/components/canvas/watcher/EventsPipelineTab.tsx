@@ -581,17 +581,34 @@ function buildDetailInfo(
     const sigVerifiedEvts   = roundEvents.filter((e) => e.kind === 'signature_verified');
     const sigFailedEvts     = roundEvents.filter((e) => e.kind === 'signature_failed');
 
+    // Deduplicate by client ID — backend emits duplicate events per client across
+    // normal-round and RECESS code paths (e.g. 4 nonce_verified for 2 clients).
+    // Use the LAST event per client so we keep the most recent status.
+    const dedupeByClient = (evts: SecurityEvent[]): SecurityEvent[] => {
+      const seen = new Map<string, SecurityEvent>();
+      for (const e of evts) {
+        const key = e.clientId ?? '__unknown__';
+        seen.set(key, e); // later event overwrites earlier — keeps most recent
+      }
+      return [...seen.values()];
+    };
+
+    const nonceVerifiedUniq = dedupeByClient(nonceVerifiedEvts);
+    const mtlsUniq          = dedupeByClient(mtlsEvts);
+    const sigVerifiedUniq   = dedupeByClient(sigVerifiedEvts);
+    const sigFailedUniq     = dedupeByClient(sigFailedEvts);
+
     const expectedClients = (roundStartEvt?.data?.expected_clients as number | undefined)
-      ?? Math.max(nonceVerifiedEvts.length, mtlsEvts.length, sigVerifiedEvts.length);
+      ?? Math.max(nonceVerifiedUniq.length, mtlsUniq.length, sigVerifiedUniq.length);
 
     let secStatus: NodeStatus = 'pending';
-    if (sigFailedEvts.length > 0) secStatus = 'failed';
-    else if (nonceVerifiedEvts.length > 0 || mtlsEvts.length > 0 || sigVerifiedEvts.length > 0) {
+    if (sigFailedUniq.length > 0) secStatus = 'failed';
+    else if (nonceVerifiedUniq.length > 0 || mtlsUniq.length > 0 || sigVerifiedUniq.length > 0) {
       secStatus = 'succeeded';
     }
 
-    // Build per-client nonce table
-    const nonceTableRows: KVRow[] = nonceVerifiedEvts.map((e) => ({
+    // Build per-client nonce table (deduplicated)
+    const nonceTableRows: KVRow[] = nonceVerifiedUniq.map((e) => ({
       key: labelMap.get(e.clientId ?? '') ?? e.clientId ?? 'unknown',
       value: `echo_match ✓  (${formatTime(e.timestamp)})`,
     }));
@@ -599,8 +616,8 @@ function buildDetailInfo(
       nonceTableRows.push({ key: 'status', value: 'pending' });
     }
 
-    // Per-client mTLS table
-    const mtlsTableRows: KVRow[] = mtlsEvts.map((e) => ({
+    // Per-client mTLS table (deduplicated)
+    const mtlsTableRows: KVRow[] = mtlsUniq.map((e) => ({
       key: labelMap.get(e.clientId ?? '') ?? e.clientId ?? 'unknown',
       value: `gRPC · cert verified ✓`,
     }));
@@ -608,15 +625,15 @@ function buildDetailInfo(
       mtlsTableRows.push({ key: 'status', value: 'pending' });
     }
 
-    // Per-client signature table
+    // Per-client signature table (already deduplicated via Set on clientId)
     const allSigClientIds = new Set<string>();
-    for (const e of [...sigVerifiedEvts, ...sigFailedEvts]) {
+    for (const e of [...sigVerifiedUniq, ...sigFailedUniq]) {
       if (e.clientId) allSigClientIds.add(e.clientId);
     }
     const sigTableRows: KVRow[] = [...allSigClientIds].map((cid) => {
       const lbl = labelMap.get(cid) ?? cid;
-      const hasFail = sigFailedEvts.some((e) => e.clientId === cid);
-      const failEvt = sigFailedEvts.find((e) => e.clientId === cid);
+      const hasFail = sigFailedUniq.some((e) => e.clientId === cid);
+      const failEvt = sigFailedUniq.find((e) => e.clientId === cid);
       return hasFail
         ? {
             key: lbl,
@@ -627,7 +644,7 @@ function buildDetailInfo(
     });
     if (sigTableRows.length === 0) sigTableRows.push({ key: 'status', value: 'pending' });
 
-    const failuresCount = sigFailedEvts.length;
+    const failuresCount = sigFailedUniq.length;
 
     return {
       label: 'Security Verification',
@@ -653,9 +670,9 @@ function buildDetailInfo(
             {
               title: 'SUMMARY',
               rows: [
-                { key: 'nonces_verified', value: `${nonceVerifiedEvts.length}/${expectedClients || '?'}` },
-                { key: 'mtls_verified', value: `${mtlsEvts.length}/${expectedClients || '?'}` },
-                { key: 'sigs_verified', value: sigVerifiedEvts.length || undefined },
+                { key: 'nonces_verified', value: `${nonceVerifiedUniq.length}/${expectedClients || '?'}` },
+                { key: 'mtls_verified', value: `${mtlsUniq.length}/${expectedClients || '?'}` },
+                { key: 'sigs_verified', value: sigVerifiedUniq.length || undefined },
                 {
                   key: 'failures',
                   value: failuresCount > 0 ? failuresCount : undefined,

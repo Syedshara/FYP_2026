@@ -21,8 +21,8 @@ from app.services import docker_service
 
 log = logging.getLogger(__name__)
 
-_DB_CONNECT_RETRIES = 5
-_DB_CONNECT_RETRY_DELAY = 2.0  # seconds
+_DB_CONNECT_RETRIES = 15
+_DB_CONNECT_RETRY_DELAY = 3.0  # seconds — generous window for Docker ARP to settle
 
 
 async def seed_admin():
